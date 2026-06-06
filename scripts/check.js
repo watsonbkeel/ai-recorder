@@ -117,6 +117,68 @@ function checkTrackedSecrets() {
   process.stdout.write('no tracked secrets matched\n')
 }
 
+function checkTrackedLocalArtifacts() {
+  process.stdout.write('\n> tracked local artifact scan\n')
+  const findings = []
+
+  for (const file of gitTrackedFiles()) {
+    const basename = path.basename(file)
+    const isEnvFile = (
+      file === '.env' ||
+      file === 'server/.env' ||
+      /\.env\.local$/.test(file) ||
+      /\.env\..*\.local$/.test(file)
+    )
+    const isUpload = file.startsWith('server/uploads/') && file !== 'server/uploads/.gitkeep'
+    const isRuntimeArtifact = (
+      file.startsWith('uploads/') ||
+      file.includes('/node_modules/') ||
+      file === 'miniprogram/project.private.config.json' ||
+      file === 'miniprogram/utils/config.local.js' ||
+      basename === '.DS_Store' ||
+      basename.startsWith('._') ||
+      basename === 'Thumbs.db' ||
+      /\.log$/.test(file) ||
+      /\.pid(\.lock)?$/.test(file)
+    )
+
+    if (isEnvFile || isUpload || isRuntimeArtifact) {
+      findings.push(file)
+    }
+  }
+
+  if (findings.length) {
+    throw new Error(`Tracked local/runtime artifacts found:\n${findings.join('\n')}`)
+  }
+  process.stdout.write('no tracked local artifacts matched\n')
+}
+
+function checkProjectBoundaryConfig() {
+  process.stdout.write('\n> project boundary config scan\n')
+  const envExample = fs.readFileSync(path.join(root, 'server', '.env.example'), 'utf8')
+  const dockerCompose = fs.readFileSync(path.join(root, 'docker-compose.yml'), 'utf8')
+  const projectConfig = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram', 'project.config.json'), 'utf8'))
+  const failures = []
+
+  if (!/\/ai_recorder["']?/.test(envExample) && !/DATABASE_URL=.*ai_recorder/.test(envExample)) {
+    failures.push('server/.env.example must default to ai_recorder')
+  }
+  if (!/WECHAT_APPID=["']?wxf73895336690e9a6["']?/.test(envExample)) {
+    failures.push('server/.env.example must use AppID wxf73895336690e9a6')
+  }
+  if (!/MYSQL_DATABASE:\s*ai_recorder/.test(dockerCompose)) {
+    failures.push('docker-compose.yml must create ai_recorder')
+  }
+  if (projectConfig.appid !== 'wxf73895336690e9a6') {
+    failures.push('miniprogram/project.config.json must use AppID wxf73895336690e9a6')
+  }
+
+  if (failures.length) {
+    throw new Error(`Project boundary config failures:\n${failures.join('\n')}`)
+  }
+  process.stdout.write('project boundary config is aligned\n')
+}
+
 function checkOldRuntimeTerms() {
   process.stdout.write('\n> old runtime keyword scan\n')
   const targets = [
@@ -181,7 +243,9 @@ function main() {
   run('prisma generate', 'npx', ['prisma', 'generate', '--schema', 'prisma/schema.prisma'], { cwd: path.join(root, 'server') })
   run('backend app load', 'node', ['-e', "require('./src/app'); console.log('app loaded')"], { cwd: path.join(root, 'server') })
   checkMiniProgramPages()
+  checkProjectBoundaryConfig()
   checkOldRuntimeTerms()
+  checkTrackedLocalArtifacts()
   checkTrackedSecrets()
   process.stdout.write('\nAll checks passed.\n')
 }

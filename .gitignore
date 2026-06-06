@@ -29,6 +29,7 @@ logs/
 
 # WeChat DevTools private/local files
 miniprogram/project.private.config.json
+miniprogram/utils/config.local.js
 
 # macOS and OS metadata
 .DS_Store

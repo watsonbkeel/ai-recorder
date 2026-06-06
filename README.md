@@ -37,7 +37,7 @@ npm run dev
 
 小程序使用微信开发者工具打开 `miniprogram/`。
 
-如果在 Mac 上本地联调，把 `miniprogram/utils/config.js` 里的 `PUBLIC_BASE_URL` 和 `API_BASE_URL` 改成你的本机或局域网后端地址，例如 `http://127.0.0.1:3000` 和 `http://127.0.0.1:3000/api`。生产环境再改回正式 HTTPS 域名。
+如果在 Mac 上本地联调，可以参考 `miniprogram/utils/config.local.example.js` 的地址格式，把 `miniprogram/utils/config.js` 里的 `PUBLIC_BASE_URL` 和 `API_BASE_URL` 临时改成你的本机或局域网后端地址，例如 `http://127.0.0.1:3000` 和 `http://127.0.0.1:3000/api`。`config.local.example.js` 只是模板，运行时仍以 `config.js` 为准；联调结束后恢复为正式 HTTPS 域名再提交。
 
 微信登录需要在本地 `server/.env` 配置 `WECHAT_APPID` 和 `WECHAT_SECRET`。真实 `WECHAT_SECRET` 不能提交到仓库。
 

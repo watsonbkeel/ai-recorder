@@ -45,10 +45,10 @@
     <view wx:if="{{aiStatusText}}" class="ai-status">{{aiStatusText}}</view>
   </view>
 
-  <view wx:if="{{optimizedText || audioTempPath}}" class="card">
-    <view class="title">AI 整理版</view>
-    <view wx:if="{{audioTempPath && !optimizedText}}" class="sub-title">如果这次只录了语音，请在这里手动写下希望家人先看到的整理版，再发送原声。</view>
-    <textarea class="textarea" placeholder="给家人看到的整理版表达" value="{{optimizedText}}" bindinput="handleOptimizedInput"></textarea>
+  <view wx:if="{{originalText || optimizedText || audioTempPath}}" class="card">
+    <view class="title">发送前表达</view>
+    <view wx:if="{{audioTempPath && !originalText && !optimizedText}}" class="sub-title">如果这次只录了语音，请在这里手动写下希望家人先看到的整理版，再发送原声。</view>
+    <textarea class="textarea" placeholder="默认使用上面的文字原话；也可以在这里手动改成更温和的整理版" value="{{optimizedText}}" bindinput="handleOptimizedInput"></textarea>
     <view wx:if="{{emotionTags.length}}">
       <text wx:for="{{emotionTags}}" wx:key="*this" class="tag">{{item}}</text>
     </view>

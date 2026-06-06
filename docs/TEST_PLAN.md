@@ -31,6 +31,7 @@ curl http://127.0.0.1:3000/health
 - `WECHAT_APPID` is `wxf73895336690e9a6`.
 - `WECHAT_SECRET` is configured only in ignored local `server/.env` before testing real WeChat login.
 - AI provider values are read from ignored `server/.env`.
+- Mac local mini program API values can follow `miniprogram/utils/config.local.example.js`; do not commit local API endpoint edits.
 - No real GitHub PAT, AI key, or provider secret is tracked.
 
 ## Mini Program Checks
@@ -64,6 +65,7 @@ curl http://127.0.0.1:3000/health
 - `全家可见` creates receiver records and notifications for current family members other than the sender, and remains visible to approved family members.
 - `仅自己` creates no receiver records or message notifications and is visible only to the sender.
 - User can enter original text.
+- Text-only messages can be sent without AI; the original text is used as the family-visible expression unless the user writes or generates a separate expression.
 - User can record and upload original voice.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
 - AI message optimization refuses audio-only input unless the user also writes original text or a voice summary.

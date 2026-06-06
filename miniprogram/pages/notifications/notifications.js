@@ -57,7 +57,9 @@ Page({
     try {
       await notificationService.markRead(event.currentTarget.dataset.id)
       this.loadData()
-    } catch (error) {}
+    } catch (error) {
+      this.setData({ error: error.message || '标记失败' })
+    }
   },
   async openNotification(event) {
     const item = event.currentTarget.dataset.item
@@ -68,7 +70,10 @@ Page({
     if (!item.isRead) {
       try {
         await notificationService.markRead(item.id)
-      } catch (error) {}
+      } catch (error) {
+        this.setData({ error: error.message || '标记失败' })
+        return
+      }
     }
 
     if (item.messageId) {
@@ -124,6 +129,8 @@ Page({
       await notificationService.markAllRead()
       wx.showToast({ title: '已全部标记', icon: 'success' })
       this.loadData()
-    } catch (error) {}
+    } catch (error) {
+      this.setData({ error: error.message || '标记失败' })
+    }
   }
 })

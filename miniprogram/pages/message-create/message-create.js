@@ -243,12 +243,14 @@ Page({
   async submit() {
     const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
     const receiverIds = this.effectiveReceiverIds()
+    const originalText = this.data.originalText.trim()
+    const optimizedText = this.data.optimizedText.trim() || originalText
     if (visibility === 'private' && !receiverIds.length) {
       wx.showToast({ title: '请选择接收家人', icon: 'none' })
       return
     }
-    if (!this.data.optimizedText.trim()) {
-      wx.showToast({ title: '请先生成或填写整理版', icon: 'none' })
+    if (!optimizedText) {
+      wx.showToast({ title: '请先写下文字或填写整理版', icon: 'none' })
       return
     }
     this.setData({ loading: true, error: '' })
@@ -264,7 +266,7 @@ Page({
         originalText: this.data.originalText,
         originalAudioUrl: uploadedAudio ? uploadedAudio.url : '',
         audioDurationSec: this.data.audioDurationSec,
-        optimizedText: this.data.optimizedText,
+        optimizedText,
         emotionTags: this.data.emotionTags,
         coreNeed: this.data.coreNeed,
         aiAdvice: this.data.aiAdvice,

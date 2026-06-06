@@ -72,7 +72,9 @@ Page({
     try {
       const data = await notificationService.getUnreadCount()
       this.setData({ unreadCount: data.count || 0 })
-    } catch (error) {}
+    } catch (error) {
+      this.setData({ unreadCount: 0 })
+    }
   },
   async refresh() {
     this.setData({ page: 1, hasMore: true, messages: [], loading: true, error: '', empty: false })
@@ -107,6 +109,8 @@ Page({
         page: nextPage,
         hasMore: result.pagination.page < result.pagination.totalPages
       })
+    } catch (error) {
+      this.setData({ error: error.message || '加载更多失败' })
     } finally {
       this.setData({ loadingMore: false })
     }
