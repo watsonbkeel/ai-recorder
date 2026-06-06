@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="card row-between">
+    <view class="title">通知中心</view>
+    <button size="mini" class="btn-secondary" bindtap="markAllRead">全部已读</button>
+  </view>
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{!items.length}}" class="empty">暂无通知。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card notification-card" data-item="{{item}}" bindtap="openNotification">
+    <view class="row-between">
+      <view class="title" style="font-size:30rpx;">{{item.title}}</view>
+      <view class="tag">{{item.isRead ? '已读' : '未读'}}</view>
+    </view>
+    <view class="sub-title">{{item.content}}</view>
+    <view wx:if="{{item.actorText}}" class="muted">{{item.actorText}}</view>
+    <view wx:if="{{item.class}}" class="muted">班级：{{item.class.name}}</view>
+    <view class="row-between notification-meta">
+      <view class="muted">{{item.createdAtText}}</view>
+      <view class="muted">{{item.actionText}}</view>
+    </view>
+    <button wx:if="{{!item.isRead}}" size="mini" class="btn-primary" data-id="{{item.id}}" catchtap="markRead">标记已读</button>
+  </view>
+</view>

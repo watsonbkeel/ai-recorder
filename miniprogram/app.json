@@ -1,0 +1,31 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/class-select/class-select",
+    "pages/join-class/join-class",
+    "pages/diary-list/diary-list",
+    "pages/diary-create/diary-create",
+    "pages/diary-detail/diary-detail",
+    "pages/notifications/notifications",
+    "pages/profile/profile",
+    "pages/admin/dashboard/dashboard",
+    "pages/admin/join-requests/join-requests",
+    "pages/admin/members/members",
+    "pages/admin/reports/reports"
+  ],
+  "window": {
+    "navigationBarTitleText": "班级日记本",
+    "navigationBarBackgroundColor": "#4f46e5",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f7fb",
+    "backgroundTextStyle": "light"
+  },
+  "networkTimeout": {
+    "request": 60000,
+    "uploadFile": 120000,
+    "downloadFile": 120000,
+    "connectSocket": 60000
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

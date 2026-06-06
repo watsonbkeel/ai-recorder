@@ -1,0 +1,49 @@
+<view class="page">
+  <view class="card row-between">
+    <view>
+      <view class="title">{{currentClass ? currentClass.name : '班级日记'}}</view>
+      <view class="sub-title">{{currentClass ? (currentClass.description || '记录班级日常点滴') : '请选择班级'}}</view>
+    </view>
+    <view class="row">
+      <button size="mini" class="btn-secondary" bindtap="goNotifications">通知{{unreadCount ? '(' + unreadCount + ')' : ''}}</button>
+      <button size="mini" class="btn-secondary" bindtap="goProfile">我的</button>
+    </view>
+  </view>
+
+  <view wx:if="{{currentClass && currentClass.role === 'admin'}}" class="card">
+    <button class="btn-secondary" bindtap="goAdmin">进入班级管理</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载日记中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{empty}}" class="empty">还没有日记，快来发布第一篇吧。</view>
+
+  <view wx:for="{{diaries}}" wx:key="id" class="card">
+    <view bindtap="goDetail" data-id="{{item.id}}">
+      <view class="row-between">
+        <view>
+          <view>{{item.author.nickname}}</view>
+          <view wx:if="{{item.realAuthor}}" class="muted">真实作者：{{item.realAuthor.nickname}}</view>
+        </view>
+        <view class="muted">{{item.createdAtText}}</view>
+      </view>
+      <view style="margin-top:16rpx; white-space:pre-wrap;">{{item.content}}</view>
+      <view wx:if="{{item.images.length}}" class="image-grid">
+        <image wx:for="{{item.images}}" wx:for-item="image" wx:key="id" src="{{image.displayUrl}}" mode="aspectFill" data-current="{{image.displayUrl}}" data-urls="{{item.imagePreviewUrls}}" bindtap="previewDiaryImage"></image>
+      </view>
+    </view>
+
+    <view class="actions">
+      <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="toggleLike">{{item.likedByMe ? '取消赞' : '点赞'}} {{item.likeCount}}</button>
+      <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="goDetail">评论 {{item.commentCount}}</button>
+      <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="reportDiary">举报</button>
+      <button wx:if="{{item.canDelete}}" size="mini" class="btn-danger" data-id="{{item.id}}" bindtap="deleteDiary">删除</button>
+      <button wx:if="{{item.canHide}}" size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="hideDiary">隐藏</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="loading">加载更多...</view>
+  <view wx:if="{{!hasMore && diaries.length}}" class="empty">没有更多了</view>
+
+  <view class="fab" bindtap="goCreate">+</view>
+</view>

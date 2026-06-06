@@ -1,0 +1,47 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <block wx:else>
+    <view class="card">
+      <view class="title">{{user.nickname || '微信用户'}}</view>
+      <view class="sub-title">全局管理员：{{user.isGlobalAdmin ? '是' : '否'}}</view>
+      <view class="muted">当前班级：{{currentClass ? currentClass.name : '未选择'}}</view>
+      <view wx:if="{{currentClass && currentClass.classNickname}}" class="muted">本班昵称：{{currentClass.classNickname}}</view>
+      <view wx:if="{{currentClass && currentClass.role === 'admin'}}" class="actions">
+        <button class="btn-secondary" bindtap="goAdmin">进入管理页</button>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="title">我的昵称</view>
+      <view class="sub-title">全局昵称会作为默认展示名，班级昵称只在当前班级内生效。</view>
+      <input class="input" placeholder="全局昵称" value="{{nicknameInput}}" bindinput="handleNicknameInput" />
+      <input class="input" placeholder="头像 URL（可选）" value="{{avatarUrlInput}}" bindinput="handleAvatarUrlInput" />
+      <button class="btn-primary" loading="{{savingProfile}}" bindtap="saveProfile">保存全局昵称</button>
+    </view>
+
+    <view wx:if="{{currentClass}}" class="card">
+      <view class="title">本班昵称</view>
+      <view class="sub-title">可以在不同班级使用不同昵称，发日记和评论时优先显示本班昵称。</view>
+      <input class="input" placeholder="{{currentClass.name}}里的昵称" value="{{classNicknameInput}}" bindinput="handleClassNicknameInput" />
+      <button class="btn-primary" loading="{{savingClassNickname}}" bindtap="saveClassNickname">保存本班昵称</button>
+    </view>
+
+    <view class="card">
+      <view class="title">我的班级</view>
+      <view wx:if="{{!classes.length}}" class="empty">暂无已加入班级。</view>
+      <view wx:for="{{classes}}" wx:key="id" class="divider"></view>
+      <view wx:for="{{classes}}" wx:key="id" class="row-between" style="margin-bottom:16rpx;">
+        <view>
+          <view>{{item.name}}</view>
+          <view class="muted">{{item.role}} {{item.classNickname ? '· 昵称：' + item.classNickname : ''}} {{item.isMuted ? '· 已禁言' : ''}}</view>
+        </view>
+        <button size="mini" class="btn-secondary" data-item="{{item}}" bindtap="switchClass">切换</button>
+      </view>
+    </view>
+
+    <view class="card">
+      <button class="btn-danger" bindtap="logout">退出登录</button>
+    </view>
+  </block>
+</view>

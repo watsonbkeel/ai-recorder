@@ -1,0 +1,93 @@
+<view class="page class-select-page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <block wx:else>
+    <view class="tabs-card">
+      <view class="tab {{activeTab === 'all' ? 'tab-active' : ''}}" data-tab="all" bindtap="switchTab">班级列表</view>
+      <view class="tab {{activeTab === 'my' ? 'tab-active' : ''}}" data-tab="my" bindtap="switchTab">我的班级</view>
+    </view>
+
+    <block wx:if="{{activeTab === 'all'}}">
+      <view class="card guide-card">
+        <view class="title">新手指引</view>
+        <view class="sub-title">第一次使用时，按这几步就能开始。</view>
+        <view class="help-list">
+          <view class="help-item">
+            <view class="help-index">1</view>
+            <view class="help-text">看到想加入的班级后，点击“申请加入”，等待管理员通过。</view>
+          </view>
+          <view class="help-item">
+            <view class="help-index">2</view>
+            <view class="help-text">没有合适班级时，可以到“我的班级”底部创建班级。</view>
+          </view>
+          <view class="help-item">
+            <view class="help-index">3</view>
+            <view class="help-text">进入班级后可以发布日记、匿名互动、评论点赞，也可以在“我的”里修改昵称。</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="card section-card">
+        <view class="row-between">
+          <view>
+            <view class="title">班级列表</view>
+            <view class="sub-title">全部班级都在这里，未加入的班级会优先显示。</view>
+          </view>
+          <button size="mini" class="btn-secondary" bindtap="goJoin">邀请码</button>
+        </view>
+      </view>
+
+      <view wx:if="{{allClasses.length}}">
+        <view wx:for="{{allClasses}}" wx:key="id" class="card class-card">
+          <view class="row-between class-card-header">
+            <view class="class-title">{{item.name}}</view>
+            <view class="tag">{{item.joinStatus === 'joined' ? '已加入' : (item.joinStatus === 'pending' ? '审核中' : '可申请')}}</view>
+          </view>
+          <view class="sub-title">{{item.description || '暂无描述'}}</view>
+          <view class="muted class-meta">成员：{{item.memberCount}} · 日记：{{item.diaryCount}}</view>
+          <view wx:if="{{item.joinStatus === 'joined'}}" class="actions">
+            <button size="mini" class="btn-primary" data-item="{{item}}" bindtap="selectClass">进入班级</button>
+          </view>
+          <view wx:elif="{{item.joinStatus === 'pending'}}" class="muted class-status">已提交申请，等待管理员审核</view>
+          <view wx:elif="{{item.joinStatus === 'rejected'}}" class="actions">
+            <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="applyJoin">重新申请加入</button>
+          </view>
+          <view wx:else class="actions">
+            <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="applyJoin">申请加入</button>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="empty">还没有任何班级，可以到“我的班级”里创建一个。</view>
+    </block>
+
+    <block wx:elif="{{activeTab === 'my'}}">
+      <view class="card section-card">
+        <view class="title">我的班级</view>
+        <view class="sub-title">这里是你已加入的班级，点击卡片进入日记流。</view>
+      </view>
+
+      <view wx:if="{{myClasses.length}}">
+        <view wx:for="{{myClasses}}" wx:key="id" class="card class-card" data-item="{{item}}" bindtap="selectClass">
+          <view class="row-between class-card-header">
+            <view class="class-title">{{item.name}}</view>
+            <view class="tag role-tag">{{item.role === 'admin' ? '管理员' : '成员'}}</view>
+          </view>
+          <view class="sub-title">{{item.description || '暂无描述'}}</view>
+          <view class="muted class-meta">邀请码：{{item.inviteCode}}</view>
+          <view wx:if="{{item.isMuted}}" class="muted class-status">当前状态：已禁言</view>
+        </view>
+      </view>
+
+      <view wx:else class="empty">你还没有加入任何班级。可以在“班级列表”申请加入，或在下方创建一个新班级。</view>
+
+      <view class="card create-card">
+        <view class="title">创建班级</view>
+        <view class="sub-title">任何登录用户都可以创建班级，创建后你会自动成为该班级管理员。</view>
+        <input class="input" placeholder="班级名称" value="{{createName}}" bindinput="handleNameInput" />
+        <textarea class="textarea" placeholder="班级描述" value="{{createDescription}}" bindinput="handleDescriptionInput"></textarea>
+        <button class="btn-primary" bindtap="createClass">创建班级</button>
+      </view>
+    </block>
+  </block>
+</view>

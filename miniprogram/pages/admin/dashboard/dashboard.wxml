@@ -1,0 +1,19 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <block wx:elif="{{stats}}">
+    <view class="card">
+      <view class="title">{{currentClass ? currentClass.name : '管理首页'}}</view>
+      <view class="sub-title">管理员工作台</view>
+    </view>
+    <view class="card row-between"><view>待审核申请</view><view>{{stats.pendingJoinRequests}}</view></view>
+    <view class="card row-between"><view>待处理举报</view><view>{{stats.pendingReports}}</view></view>
+    <view class="card row-between"><view>成员数量</view><view>{{stats.memberCount}}</view></view>
+    <view class="card row-between"><view>日记数量</view><view>{{stats.diaryCount}}</view></view>
+    <view class="card actions">
+      <button class="btn-primary" bindtap="goJoinRequests">入班申请</button>
+      <button class="btn-secondary" bindtap="goMembers">成员管理</button>
+      <button class="btn-secondary" bindtap="goReports">举报处理</button>
+    </view>
+  </block>
+</view>

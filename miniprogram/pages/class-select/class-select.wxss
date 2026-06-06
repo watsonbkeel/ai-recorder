@@ -1,0 +1,74 @@
+.title {
+  margin-bottom: 8rpx;
+}
+
+.tabs-card {
+  display: flex;
+  padding: 8rpx;
+  margin-bottom: 24rpx;
+  background: #ffffff;
+  border-radius: 22rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.06);
+}
+
+.tab {
+  flex: 1;
+  padding: 20rpx 12rpx;
+  border-radius: 18rpx;
+  color: #64748b;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tab-active {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(79, 70, 229, 0.22);
+}
+
+.guide-card {
+  border: 2rpx solid #eef2ff;
+}
+
+.section-card {
+  margin-bottom: 18rpx;
+}
+
+.class-card {
+  transition: transform 0.15s ease;
+}
+
+.class-card:active {
+  transform: scale(0.99);
+}
+
+.class-card-header {
+  align-items: flex-start;
+  gap: 18rpx;
+}
+
+.class-title {
+  flex: 1;
+  margin-bottom: 8rpx;
+  color: #0f172a;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 46rpx;
+}
+
+.class-meta {
+  margin-top: 14rpx;
+}
+
+.class-status {
+  margin-top: 18rpx;
+}
+
+.role-tag {
+  flex-shrink: 0;
+}
+
+.create-card {
+  margin-top: 10rpx;
+}

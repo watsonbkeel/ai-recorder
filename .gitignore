@@ -1,0 +1,41 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+server/.env
+server/.env.local
+server/.env.*.local
+
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Local agent/runtime state
+.omo/
+
+# Local planning/chat transcripts
+chat-history.md
+class-diary-history.md
+
+# Uploads and runtime data
+server/uploads/*
+!server/uploads/
+!server/uploads/.gitkeep
+/uploads/
+logs/
+*.log
+*.pid
+*.pid.lock
+
+# WeChat DevTools private/local files
+miniprogram/project.private.config.json
+
+# macOS and OS metadata
+.DS_Store
+._*
+Thumbs.db
+
+# Prisma generated artifacts outside node_modules
+.prisma/
+prisma/generated/
+generated/prisma/

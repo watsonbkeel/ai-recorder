@@ -1,0 +1,19 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{!items.length}}" class="empty">暂无成员。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card">
+    <view class="row-between">
+      <view>
+        <view class="title" style="font-size:30rpx;">{{item.user.nickname || '未命名用户'}}</view>
+        <view class="muted">角色：{{item.role}} {{item.isMuted ? '· 已禁言' : ''}}</view>
+      </view>
+      <view wx:if="{{item.user.isGlobalAdmin}}" class="tag">全局管理员</view>
+    </view>
+    <view class="actions">
+      <button class="btn-secondary" size="mini" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '取消禁言' : '禁言'}}</button>
+      <button class="btn-secondary" size="mini" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
+      <button class="btn-danger" size="mini" data-item="{{item}}" bindtap="removeMember">移除</button>
+    </view>
+  </view>
+</view>

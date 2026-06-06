@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClassRole {
+  member
+  admin
+}
+
+enum JoinRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ContentStatus {
+  visible
+  hidden
+  deleted
+}
+
+enum LikeTargetType {
+  diary
+  comment
+}
+
+enum ReportTargetType {
+  diary
+  comment
+}
+
+enum ReportStatus {
+  pending
+  resolved
+  rejected
+}
+
+enum NotificationType {
+  diary_liked
+  comment_liked
+  diary_commented
+  comment_replied
+  report_handled
+  join_request_approved
+  join_request_rejected
+}
+
+enum ModerationTargetType {
+  join_request
+  diary
+  comment
+  member
+  report
+}
+
+enum ModerationAction {
+  approve_join_request
+  reject_join_request
+  hide_diary
+  hide_comment
+  mute_member
+  unmute_member
+  remove_member
+  set_admin
+  unset_admin
+  resolve_report
+  reject_report
+}
+
+model User {
+  id                       Int             @id @default(autoincrement())
+  openid                   String          @unique @db.VarChar(191)
+  accountName              String?         @unique @db.VarChar(191)
+  passwordHash             String?         @db.VarChar(255)
+  nickname                 String?         @db.VarChar(191)
+  avatarUrl                String?         @db.VarChar(500)
+  isGlobalAdmin            Boolean         @default(false)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  createdClasses           Class[]         @relation("ClassCreatedBy")
+  classMembers             ClassMember[]
+  joinRequests             JoinRequest[]   @relation("JoinRequestUser")
+  handledJoinRequests      JoinRequest[]   @relation("JoinRequestHandledBy")
+  diaries                  Diary[]         @relation("DiaryAuthor")
+  comments                 Comment[]       @relation("CommentAuthor")
+  likes                    Like[]
+  reports                  Report[]        @relation("ReportReporter")
+  handledReports           Report[]        @relation("ReportHandledBy")
+  notificationsReceived    Notification[]  @relation("NotificationReceiver")
+  notificationsTriggered   Notification[]  @relation("NotificationActor")
+  moderationLogs           ModerationLog[] @relation("ModerationAdmin")
+}
+
+model Class {
+  id              Int             @id @default(autoincrement())
+  name            String          @db.VarChar(191)
+  description     String?         @db.Text
+  inviteCode      String          @unique @db.VarChar(20)
+  createdById     Int
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       User            @relation("ClassCreatedBy", fields: [createdById], references: [id])
+  members         ClassMember[]
+  joinRequests    JoinRequest[]
+  diaries         Diary[]
+  comments        Comment[]
+  likes           Like[]
+  reports         Report[]
+  notifications   Notification[]
+  moderationLogs  ModerationLog[]
+}
+
+model ClassMember {
+  id        Int       @id @default(autoincrement())
+  classId    Int
+  userId     Int
+  role       ClassRole @default(member)
+  classNickname String? @db.VarChar(191)
+  isMuted    Boolean   @default(false)
+  joinedAt   DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  class      Class     @relation(fields: [classId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@unique([classId, userId])
+  @@index([userId])
+  @@index([classId, role])
+}
+
+model JoinRequest {
+  id           Int               @id @default(autoincrement())
+  classId      Int
+  userId       Int
+  status       JoinRequestStatus @default(pending)
+  message      String?           @db.Text
+  handledById  Int?
+  handledAt    DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  class        Class             @relation(fields: [classId], references: [id])
+  user         User              @relation("JoinRequestUser", fields: [userId], references: [id])
+  handledBy    User?             @relation("JoinRequestHandledBy", fields: [handledById], references: [id])
+
+  @@index([classId, status])
+  @@index([userId, status])
+  @@index([classId, userId])
+}
+
+model Diary {
+  id           Int           @id @default(autoincrement())
+  classId      Int
+  authorId     Int
+  content      String        @db.Text
+  isAnonymous  Boolean       @default(false)
+  status       ContentStatus @default(visible)
+  likeCount    Int           @default(0)
+  commentCount Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  class        Class         @relation(fields: [classId], references: [id])
+  author       User          @relation("DiaryAuthor", fields: [authorId], references: [id])
+  images       DiaryImage[]
+  comments     Comment[]
+  notifications Notification[]
+
+  @@index([classId, status, createdAt])
+  @@index([authorId, status])
+}
+
+model DiaryImage {
+  id        Int      @id @default(autoincrement())
+  diaryId    Int
+  url       String   @db.VarChar(500)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  diary     Diary    @relation(fields: [diaryId], references: [id], onDelete: Cascade)
+
+  @@index([diaryId, sortOrder])
+}
+
+model Comment {
+  id            Int           @id @default(autoincrement())
+  classId        Int
+  diaryId        Int
+  authorId       Int
+  parentId       Int?
+  content        String        @db.Text
+  isAnonymous    Boolean       @default(false)
+  status         ContentStatus @default(visible)
+  likeCount      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  class          Class         @relation(fields: [classId], references: [id])
+  diary          Diary         @relation(fields: [diaryId], references: [id])
+  author         User          @relation("CommentAuthor", fields: [authorId], references: [id])
+  parent         Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
+  replies        Comment[]     @relation("CommentReplies")
+  notifications  Notification[]
+
+  @@index([diaryId, status, createdAt])
+  @@index([classId, status])
+  @@index([parentId])
+  @@index([authorId, status])
+}
+
+model Like {
+  id         Int            @id @default(autoincrement())
+  classId    Int
+  userId     Int
+  targetType LikeTargetType
+  targetId   Int
+  createdAt  DateTime       @default(now())
+  class      Class          @relation(fields: [classId], references: [id])
+  user       User           @relation(fields: [userId], references: [id])
+
+  @@unique([userId, targetType, targetId])
+  @@index([classId, targetType, targetId])
+}
+
+model Report {
+  id          Int              @id @default(autoincrement())
+  classId     Int
+  reporterId  Int
+  targetType  ReportTargetType
+  targetId    Int
+  reason      String           @db.VarChar(191)
+  description String?          @db.Text
+  status      ReportStatus     @default(pending)
+  resolution  String?          @db.Text
+  handledById Int?
+  handledAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  class       Class            @relation(fields: [classId], references: [id])
+  reporter    User             @relation("ReportReporter", fields: [reporterId], references: [id])
+  handledBy   User?            @relation("ReportHandledBy", fields: [handledById], references: [id])
+
+  @@index([classId, status, createdAt])
+  @@index([reporterId])
+  @@index([targetType, targetId])
+}
+
+model Notification {
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  actorId       Int?
+  classId       Int?
+  type          NotificationType
+  title         String           @db.VarChar(191)
+  content       String           @db.Text
+  isRead        Boolean          @default(false)
+  diaryId       Int?
+  commentId     Int?
+  createdAt     DateTime         @default(now())
+  user          User             @relation("NotificationReceiver", fields: [userId], references: [id])
+  actor         User?            @relation("NotificationActor", fields: [actorId], references: [id])
+  class         Class?           @relation(fields: [classId], references: [id])
+  diary         Diary?           @relation(fields: [diaryId], references: [id])
+  comment       Comment?         @relation(fields: [commentId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@index([classId])
+}
+
+model ModerationLog {
+  id         Int                  @id @default(autoincrement())
+  classId    Int
+  adminId    Int
+  targetType ModerationTargetType
+  targetId   Int
+  action     ModerationAction
+  reason     String?              @db.Text
+  metadata   Json?
+  createdAt  DateTime             @default(now())
+  class      Class                @relation(fields: [classId], references: [id])
+  admin      User                 @relation("ModerationAdmin", fields: [adminId], references: [id])
+
+  @@index([classId, createdAt])
+  @@index([targetType, targetId])
+}

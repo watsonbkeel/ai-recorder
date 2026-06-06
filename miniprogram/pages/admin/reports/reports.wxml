@@ -1,0 +1,20 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{!items.length}}" class="empty">暂无举报。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card">
+    <view class="row-between">
+      <view class="title" style="font-size:30rpx;">{{item.reason}}</view>
+      <view class="tag">{{item.status}}</view>
+    </view>
+    <view class="sub-title">举报人：{{item.reporter.nickname || '未命名用户'}}</view>
+    <view wx:if="{{item.target}}" class="muted">被举报作者：{{item.target.realAuthor ? item.target.realAuthor.nickname : item.target.author.nickname}}</view>
+    <view wx:if="{{item.target}}" style="margin-top:12rpx; white-space:pre-wrap;">{{item.target.content}}</view>
+    <view class="muted">{{item.createdAt}}</view>
+    <view wx:if="{{item.status === 'pending'}}" class="actions">
+      <button class="btn-danger" size="mini" data-id="{{item.id}}" data-action="reject" bindtap="handleReport">驳回</button>
+      <button class="btn-secondary" size="mini" data-id="{{item.id}}" data-action="hide_content" data-muteauthor="{{false}}" bindtap="handleReport">隐藏内容</button>
+      <button class="btn-primary" size="mini" data-id="{{item.id}}" data-action="hide_content" data-muteauthor="{{true}}" bindtap="handleReport">隐藏并禁言</button>
+    </view>
+  </view>
+</view>

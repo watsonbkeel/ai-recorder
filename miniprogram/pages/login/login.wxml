@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="card">
+    <view class="title">班级日记本</view>
+    <view class="sub-title">先注册账号，再加入或创建班级。换手机后用同一账号密码登录即可找回班级。</view>
+    <view class="help-list">
+      <view class="help-item"><view class="help-index">1</view><view class="help-text">首次使用请注册账号名和密码，之后直接登录。</view></view>
+      <view class="help-item"><view class="help-index">2</view><view class="help-text">进入班级后就能发日记、评论、点赞和查看通知。</view></view>
+    </view>
+    <view class="tag">{{mode === 'login' ? '账号登录' : '注册新账号'}}</view>
+    <input class="input" placeholder="账号名（3-32位字母/数字）" value="{{accountName}}" bindinput="handleAccountInput" />
+    <input class="input" password="true" placeholder="密码（至少6位）" value="{{password}}" bindinput="handlePasswordInput" />
+    <input wx:if="{{mode === 'register'}}" class="input" placeholder="昵称（可选）" value="{{nickname}}" bindinput="handleNicknameInput" />
+    <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="handleSubmit">{{mode === 'login' ? '登录' : '注册并登录'}}</button>
+    <button class="btn-secondary" disabled="{{loading}}" bindtap="switchMode">{{mode === 'login' ? '没有账号？去注册' : '已有账号？去登录'}}</button>
+  </view>
+  <view wx:if="{{loading}}" class="loading">处理中...</view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+</view>

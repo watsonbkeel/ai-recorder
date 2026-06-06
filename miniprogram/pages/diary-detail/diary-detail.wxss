@@ -1,0 +1,10 @@
+.comment-highlight {
+  border: 2rpx solid #f59e0b;
+  box-shadow: 0 10rpx 28rpx rgba(245, 158, 11, 0.16);
+}
+
+.notice-banner {
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+}

@@ -1,0 +1,67 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <block wx:elif="{{diary}}">
+    <view wx:if="{{noticeText}}" class="card notice-banner">{{noticeText}}</view>
+
+    <view class="card">
+      <view class="row-between">
+        <view>
+          <view>{{diary.author.nickname}}</view>
+          <view wx:if="{{diary.realAuthor}}" class="muted">真实作者：{{diary.realAuthor.nickname}}</view>
+        </view>
+        <view class="muted">{{diary.createdAtText}}</view>
+      </view>
+      <view style="margin-top:16rpx; white-space:pre-wrap;">{{diary.content}}</view>
+      <view wx:if="{{diary.images.length}}" class="image-grid">
+        <image wx:for="{{diary.images}}" wx:for-item="image" wx:key="id" src="{{image.displayUrl}}" mode="aspectFill" data-current="{{image.displayUrl}}" data-urls="{{diary.imagePreviewUrls}}" bindtap="previewDiaryImage"></image>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="title">发表评论</view>
+      <view wx:if="{{replyParentId}}" class="muted">正在回复评论 #{{replyParentId}} <text bindtap="cancelReply">取消</text></view>
+      <textarea class="textarea" placeholder="说点什么..." value="{{content}}" bindinput="handleContentInput"></textarea>
+      <view class="row-between" style="margin-bottom:16rpx;">
+        <view>匿名评论</view>
+        <switch checked="{{isAnonymous}}" bindchange="handleAnonymousChange"></switch>
+      </view>
+      <button class="btn-primary" bindtap="submitComment">提交评论</button>
+    </view>
+
+    <view wx:if="{{!comments.length}}" class="empty">还没有评论。</view>
+    <view wx:for="{{comments}}" wx:key="id" class="card {{item.isFocused ? 'comment-highlight' : ''}}">
+      <view class="row-between">
+        <view>
+          <view>{{item.author.nickname}}</view>
+          <view wx:if="{{item.realAuthor}}" class="muted">真实作者：{{item.realAuthor.nickname}}</view>
+        </view>
+        <view class="muted">{{item.createdAtText}}</view>
+      </view>
+      <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.content}}</view>
+      <view class="actions">
+        <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="replyToComment">回复</button>
+        <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="toggleCommentLike">点赞 {{item.likeCount}}</button>
+        <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="reportComment">举报</button>
+        <button wx:if="{{item.canDelete}}" size="mini" class="btn-danger" data-id="{{item.id}}" bindtap="deleteComment">删除</button>
+        <button wx:if="{{diary.canHide}}" size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="hideComment">隐藏</button>
+      </view>
+      <view wx:for="{{item.replies}}" wx:key="id" class="card {{item.isFocused ? 'comment-highlight' : ''}}" style="margin-top:12rpx; background:#f8fafc;">
+        <view class="row-between">
+          <view>
+            <view>{{item.author.nickname}}</view>
+            <view wx:if="{{item.realAuthor}}" class="muted">真实作者：{{item.realAuthor.nickname}}</view>
+          </view>
+          <view class="muted">{{item.createdAtText}}</view>
+        </view>
+        <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.content}}</view>
+        <view class="actions">
+          <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="toggleCommentLike">点赞 {{item.likeCount}}</button>
+          <button size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="reportComment">举报</button>
+          <button wx:if="{{item.canDelete}}" size="mini" class="btn-danger" data-id="{{item.id}}" bindtap="deleteComment">删除</button>
+          <button wx:if="{{diary.canHide}}" size="mini" class="btn-secondary" data-id="{{item.id}}" bindtap="hideComment">隐藏</button>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

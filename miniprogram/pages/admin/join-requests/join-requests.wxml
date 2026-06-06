@@ -1,0 +1,14 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{!items.length}}" class="empty">暂无入班申请。</view>
+  <view wx:for="{{items}}" wx:key="id" class="card">
+    <view class="title">{{item.user.nickname || '未命名用户'}}</view>
+    <view class="sub-title">申请备注：{{item.message || '无'}}</view>
+      <view class="muted">状态：{{item.status}} · {{item.createdAt}}</view>
+    <view wx:if="{{item.status === 'pending'}}" class="actions">
+      <button class="btn-primary" data-id="{{item.id}}" data-action="approve" bindtap="handleAction">通过</button>
+      <button class="btn-danger" data-id="{{item.id}}" data-action="reject" bindtap="handleAction">拒绝</button>
+    </view>
+  </view>
+</view>
