@@ -56,6 +56,7 @@ curl http://127.0.0.1:3000/health
 - Multiple children can be distinguished by `childOrder`.
 - Birth year, family nickname, preferred title, and identity note can be saved and later edited.
 - Admin can edit a member's family identity from member management.
+- Profile and member-management save/action buttons block duplicate taps while a request is in progress.
 - AI uses identity only for称呼、语气 and表达适配, not stereotypes.
 
 ## Message Checks

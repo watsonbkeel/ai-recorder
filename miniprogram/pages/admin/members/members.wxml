@@ -13,10 +13,10 @@
       <view wx:if="{{item.user.isGlobalAdmin}}" class="tag">全局管理员</view>
     </view>
     <view class="actions">
-      <button class="btn-secondary" size="mini" data-item="{{item}}" bindtap="startEditIdentity">编辑身份</button>
-      <button class="btn-secondary" size="mini" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '恢复留言' : '停用留言'}}</button>
-      <button class="btn-secondary" size="mini" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
-      <button class="btn-danger" size="mini" data-item="{{item}}" bindtap="removeMember">移除</button>
+      <button class="btn-secondary" size="mini" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="startEditIdentity">编辑身份</button>
+      <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'mute'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '恢复留言' : '停用留言'}}</button>
+      <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'role'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
+      <button class="btn-danger" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'remove'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="removeMember">移除</button>
     </view>
   </view>
 

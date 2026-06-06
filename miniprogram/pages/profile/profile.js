@@ -107,6 +107,9 @@ Page({
     this.setData({ identityNote: event.detail.value })
   },
   async saveProfile() {
+    if (this.data.savingProfile) {
+      return
+    }
     const nickname = this.data.nicknameInput.trim()
     if (!nickname) {
       wx.showToast({ title: '请输入昵称', icon: 'none' })
@@ -130,6 +133,9 @@ Page({
     }
   },
   async saveIdentity() {
+    if (this.data.savingIdentity) {
+      return
+    }
     if (!this.data.currentFamily) {
       wx.showToast({ title: '请先选择家庭', icon: 'none' })
       return

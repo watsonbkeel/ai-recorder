@@ -29,7 +29,9 @@ Page({
     familyNickname: '',
     preferredTitle: '',
     identityNote: '',
-    savingIdentity: false
+    savingIdentity: false,
+    handlingMemberId: null,
+    handlingAction: ''
   },
   onLoad(options) {
     this.setData({ familyId: Number(options.familyId) })
@@ -86,7 +88,7 @@ Page({
     this.setData({ identityNote: event.detail.value })
   },
   async saveIdentity() {
-    if (!this.data.editingMember) {
+    if (!this.data.editingMember || this.data.savingIdentity) {
       return
     }
     this.setData({ savingIdentity: true, error: '' })
@@ -110,25 +112,40 @@ Page({
     }
   },
   async toggleMute(event) {
+    if (this.data.handlingMemberId) {
+      return
+    }
     const item = event.currentTarget.dataset.item
+    this.setData({ handlingMemberId: Number(item.userId), handlingAction: 'mute', error: '' })
     try {
       await adminService.updateMute(this.data.familyId, item.userId, { isMuted: !item.isMuted })
       this.loadData()
     } catch (error) {
       this.setData({ error: error.message || '操作失败' })
+    } finally {
+      this.setData({ handlingMemberId: null, handlingAction: '' })
     }
   },
   async toggleRole(event) {
+    if (this.data.handlingMemberId) {
+      return
+    }
     const item = event.currentTarget.dataset.item
     const role = item.role === 'admin' ? 'member' : 'admin'
+    this.setData({ handlingMemberId: Number(item.userId), handlingAction: 'role', error: '' })
     try {
       await adminService.updateRole(this.data.familyId, item.userId, { role })
       this.loadData()
     } catch (error) {
       this.setData({ error: error.message || '操作失败' })
+    } finally {
+      this.setData({ handlingMemberId: null, handlingAction: '' })
     }
   },
   async removeMember(event) {
+    if (this.data.handlingMemberId) {
+      return
+    }
     const item = event.currentTarget.dataset.item
     wx.showModal({
       title: '移除成员',
@@ -138,11 +155,14 @@ Page({
         if (!res.confirm) {
           return
         }
+        this.setData({ handlingMemberId: Number(item.userId), handlingAction: 'remove', error: '' })
         try {
           await adminService.removeMember(this.data.familyId, item.userId, { reason: '管理员移除成员' })
           this.loadData()
         } catch (error) {
           this.setData({ error: error.message || '移除失败' })
+        } finally {
+          this.setData({ handlingMemberId: null, handlingAction: '' })
         }
       }
     })

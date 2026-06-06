@@ -18,7 +18,7 @@
       <view class="sub-title">全局昵称作为默认展示名，家庭昵称只在当前家庭内使用。</view>
       <input class="input" placeholder="全局昵称" value="{{nicknameInput}}" bindinput="handleNicknameInput" />
       <input class="input" placeholder="头像 URL（可选）" value="{{avatarUrlInput}}" bindinput="handleAvatarUrlInput" />
-      <button class="btn-primary" loading="{{savingProfile}}" bindtap="saveProfile">保存昵称</button>
+      <button class="btn-primary" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">保存昵称</button>
     </view>
 
     <view wx:if="{{currentFamily}}" class="card">
@@ -35,7 +35,7 @@
       <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
       <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
       <textarea class="textarea" placeholder="身份备注，例如 异地上学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
-      <button class="btn-primary" loading="{{savingIdentity}}" bindtap="saveIdentity">保存家庭身份</button>
+      <button class="btn-primary" loading="{{savingIdentity}}" disabled="{{savingIdentity}}" bindtap="saveIdentity">保存家庭身份</button>
     </view>
 
     <view class="card">
