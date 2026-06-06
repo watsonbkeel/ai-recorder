@@ -84,7 +84,8 @@ curl http://127.0.0.1:3000/health
 - Message analysis and reply optimization each show their own AI waiting status.
 - Reply original text is visible only to its sender; other permitted readers see the optimized reply.
 - Admin can hide visible messages and replies from the message detail page.
-- Repeated delete/hide operations on an already hidden or deleted reply do not decrement `replyCount` again.
+- Repeated delete/hide operations on already hidden or deleted messages/replies do not reapply moderation side effects.
+- Admin dashboard reply count excludes replies whose parent message is hidden or deleted.
 
 ## Family Memory Checks
 

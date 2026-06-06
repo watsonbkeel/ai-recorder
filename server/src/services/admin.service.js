@@ -33,7 +33,13 @@ async function getDashboard(userId, familyId) {
     prisma.familyJoinRequest.count({ where: { familyId: numericFamilyId, status: 'pending' } }),
     prisma.familyMember.count({ where: { familyId: numericFamilyId } }),
     prisma.familyMessage.count({ where: { familyId: numericFamilyId, status: 'visible' } }),
-    prisma.familyReply.count({ where: { familyId: numericFamilyId, status: 'visible' } }),
+    prisma.familyReply.count({
+      where: {
+        familyId: numericFamilyId,
+        status: 'visible',
+        message: { is: { status: 'visible' } }
+      }
+    }),
     prisma.familyMember.count({ where: { familyId: numericFamilyId, isMuted: true } })
   ])
 

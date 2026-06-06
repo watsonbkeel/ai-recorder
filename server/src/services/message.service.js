@@ -257,6 +257,9 @@ async function deleteMessage(userId, messageId) {
   if (!message) {
     throw createError('NOT_FOUND', '心声不存在', 404)
   }
+  if (message.status !== 'visible') {
+    throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
+  }
   await ensureFamilyMember(userId, message.familyId)
   if (message.senderId !== Number(userId)) {
     throw createError('FORBIDDEN', '只能删除自己的心声', 403)
