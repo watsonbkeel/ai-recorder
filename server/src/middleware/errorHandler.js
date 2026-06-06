@@ -28,8 +28,8 @@ function errorHandler(error, req, res, next) {
 
   if (error instanceof multer.MulterError) {
     const message = error.code === 'LIMIT_FILE_SIZE'
-      ? '图片不能超过 5MB，请压缩后再上传'
-      : (error.message || '图片上传失败')
+      ? '上传文件不能超过 20MB，请压缩或缩短后再上传'
+      : (error.message || '文件上传失败')
 
     return res.status(400).json({
       success: false,

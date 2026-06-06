@@ -67,6 +67,7 @@ curl http://127.0.0.1:3000/health
 - User can enter original text.
 - Text-only messages can be sent without AI; the original text is used as the family-visible expression unless the user writes or generates a separate expression.
 - User can record and upload original voice.
+- Oversized voice/image uploads return a clear upload-size error instead of image-only copy.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
 - AI message optimization refuses audio-only input unless the user also writes original text or a voice summary.
 - AI can generate optimized text, emotion tags, core need, advice, and risk level.
