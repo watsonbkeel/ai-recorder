@@ -146,6 +146,7 @@ Rules:
 
 Notifications may link to `familyId`, `messageId`, and `replyId`.
 Join request notifications use `familyId` to open the admin review page in the mini program.
+Family-scoped message, reply, and join-review notifications are returned only when the current user still belongs to that family. Join approval/rejection notifications are personal outcome notices and may remain visible even if the applicant is not yet a family member.
 
 ## Admin
 

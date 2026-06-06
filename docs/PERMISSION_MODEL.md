@@ -15,6 +15,8 @@
 - Reply original text is visible only to the reply sender; other permitted readers see the optimized reply.
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
 - Self-only messages are accessible only to the sender and do not create receiver notifications.
+- Family-scoped notifications for messages, replies, and join-review work are visible only while the receiver is still a member of that family.
+- Join approval/rejection notifications are personal outcome notices and remain visible to the applicant.
 
 ## Admin Permissions
 
@@ -45,3 +47,4 @@ There is no report workflow.
 - Admins do not bypass sender-controlled original text/audio permissions through ordinary APIs.
 - Admins do not receive reply original text through ordinary reply APIs unless they wrote that reply.
 - Non-family members must not access messages, replies, notifications, upload metadata, member profiles, or memory by ID enumeration.
+- Removed members must not continue seeing old family message/reply notification summaries or unread counts.

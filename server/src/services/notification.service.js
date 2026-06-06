@@ -15,6 +15,24 @@ function normalizePage(query) {
   return { page, pageSize }
 }
 
+async function visibleNotificationWhere(userId) {
+  const numericUserId = Number(userId)
+  const memberships = await prisma.familyMember.findMany({
+    where: { userId: numericUserId },
+    select: { familyId: true }
+  })
+  const familyIds = memberships.map((membership) => membership.familyId)
+
+  return {
+    userId: numericUserId,
+    OR: [
+      { familyId: null },
+      { type: { in: ['join_request_approved', 'join_request_rejected'] } },
+      ...(familyIds.length ? [{ familyId: { in: familyIds } }] : [])
+    ]
+  }
+}
+
 async function createNotification(data, tx) {
   const client = tx || prisma
   const notificationData = {
@@ -32,7 +50,7 @@ async function createNotification(data, tx) {
 
 async function listNotifications(userId, query) {
   const { page, pageSize } = normalizePage(query)
-  const where = { userId: Number(userId) }
+  const where = await visibleNotificationWhere(userId)
   const [total, items] = await Promise.all([
     prisma.notification.count({ where }),
     prisma.notification.findMany({
@@ -66,14 +84,14 @@ async function listNotifications(userId, query) {
 
 async function getUnreadCount(userId) {
   const count = await prisma.notification.count({
-    where: { userId: Number(userId), isRead: false }
+    where: { ...(await visibleNotificationWhere(userId)), isRead: false }
   })
   return { count }
 }
 
 async function markRead(userId, notificationId) {
   await prisma.notification.updateMany({
-    where: { id: Number(notificationId), userId: Number(userId) },
+    where: { ...(await visibleNotificationWhere(userId)), id: Number(notificationId) },
     data: { isRead: true }
   })
   return { id: Number(notificationId) }
@@ -81,7 +99,7 @@ async function markRead(userId, notificationId) {
 
 async function markAllRead(userId) {
   const result = await prisma.notification.updateMany({
-    where: { userId: Number(userId), isRead: false },
+    where: { ...(await visibleNotificationWhere(userId)), isRead: false },
     data: { isRead: true }
   })
   return { updatedCount: result.count }
