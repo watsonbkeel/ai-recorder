@@ -15,6 +15,7 @@ const replyService = require('../server/src/services/reply.service')
 const notificationService = require('../server/src/services/notification.service')
 const aiService = require('../server/src/services/ai.service')
 const { buildFamilyMemoryContext } = require('../server/src/services/familyMemory.service')
+const { sortFamilyMembers } = require('../server/src/utils/familyIdentity')
 
 const aiCalls = []
 const originalAxiosPost = axios.post
@@ -159,6 +160,43 @@ function assertNoHiddenOriginalText(value, message) {
   assert(!text.includes('不想马上讲'), `${message}: hidden reply original text leaked`)
 }
 
+function assertFamilyMemberSort() {
+  const sorted = sortFamilyMembers([
+    {
+      id: 3,
+      role: 'member',
+      relationship: 'son',
+      gender: 'male',
+      childOrder: 2,
+      birthYear: 2014,
+      joinedAt: new Date('2024-01-03T00:00:00Z')
+    },
+    {
+      id: 2,
+      role: 'member',
+      relationship: 'daughter',
+      gender: 'female',
+      childOrder: 1,
+      birthYear: 2012,
+      joinedAt: new Date('2024-01-02T00:00:00Z')
+    },
+    {
+      id: 1,
+      role: 'admin',
+      relationship: 'father',
+      gender: 'male',
+      childOrder: null,
+      birthYear: 1985,
+      joinedAt: new Date('2024-01-01T00:00:00Z')
+    }
+  ])
+  assertEqual(
+    sorted.map((member) => member.id).join(','),
+    '1,2,3',
+    'family members should sort by family role group and children by rank'
+  )
+}
+
 async function pollReplyMemory(familyId) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const memory = await prisma.familyMemory.findFirst({
@@ -174,8 +212,10 @@ async function pollReplyMemory(familyId) {
 }
 
 async function main() {
-  const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-  const accountPrefix = `smoke_${suffix}`.toLowerCase()
+  assertFamilyMemberSort()
+
+  const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+  const accountPrefix = `sm_${suffix}`.toLowerCase()
   const userIds = []
   let familyId = null
   let smokeServer = null
@@ -192,9 +232,15 @@ async function main() {
       password: 'smoke-pass-1',
       nickname: '烟测孩子'
     })
+    const secondMemberAuth = await authService.registerWithPassword({
+      accountName: `${accountPrefix}_second_member`,
+      password: 'smoke-pass-1',
+      nickname: '烟测二宝'
+    })
     const adminId = adminAuth.user.id
     const memberId = memberAuth.user.id
-    userIds.push(adminId, memberId)
+    const secondMemberId = secondMemberAuth.user.id
+    userIds.push(adminId, memberId, secondMemberId)
     smokeServer = http.createServer(app)
     const smokeBaseUrl = await listen(smokeServer)
 
@@ -236,9 +282,31 @@ async function main() {
     const memberFamilies = await familyService.listMyFamilies(memberId)
     assert(memberFamilies.some((item) => item.id === familyId), 'approved member should see family')
 
+    const secondJoinRequest = await familyService.createJoinRequest(secondMemberId, familyId, {
+      message: '我是第二个孩子，用来验证子女排行',
+      relationship: 'son',
+      gender: 'male',
+      childOrder: 2,
+      birthYear: 2015,
+      familyNickname: '二宝',
+      preferredTitle: '弟弟',
+      identityNote: '自动化烟测第二子女'
+    })
+    await adminService.handleJoinRequest(adminId, secondJoinRequest.id, { action: 'approve' })
+    const secondMemberFamilies = await familyService.listMyFamilies(secondMemberId)
+    assert(secondMemberFamilies.some((item) => item.id === familyId), 'second approved child should see family')
+
     const members = await familyService.listFamilyMembers(adminId, familyId)
-    assertEqual(members.length, 2, 'family should have two members')
+    assertEqual(members.length, 3, 'family should have three members')
     assert(members.some((item) => item.userId === memberId && item.childOrder === 1 && item.gender === 'female'), 'member identity should be saved')
+    assert(members.some((item) => item.userId === secondMemberId && item.childOrder === 2 && item.gender === 'male'), 'second child identity should be saved')
+    const childMembers = members.filter((item) => ['son', 'daughter', 'child'].includes(item.relationship))
+    assertEqual(childMembers[0].userId, memberId, 'oldest child should appear first across child relationship variants')
+    assertEqual(childMembers[1].userId, secondMemberId, 'second child should appear second across child relationship variants')
+    const adminMembers = await adminService.listMembers(adminId, familyId)
+    const adminChildMembers = adminMembers.filter((item) => ['son', 'daughter', 'child'].includes(item.relationship))
+    assertEqual(adminChildMembers[0].userId, memberId, 'admin member list should use child order first')
+    assertEqual(adminChildMembers[1].userId, secondMemberId, 'admin member list should keep child order across gender')
 
     const memberUnreadBeforeSelfMessage = await notificationService.getUnreadCount(memberId)
     const selfMessage = await messageService.createMessage(adminId, familyId, {
@@ -272,7 +340,7 @@ async function main() {
       riskLevel: 'low'
     })
     await delay(300)
-    assertEqual(familyMessage.receivers.length, 1, 'family message should create receiver records for current family members')
+    assertEqual(familyMessage.receivers.length, 2, 'family message should create receiver records for current family members')
     const familyMessageForMember = await messageService.getMessageDetail(memberId, familyMessage.id)
     assertEqual(familyMessageForMember.visibility, 'family', 'family message should be visible to family members')
 

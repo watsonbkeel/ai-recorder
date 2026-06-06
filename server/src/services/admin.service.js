@@ -2,7 +2,7 @@ const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { ensureFamilyAdmin } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
-const { normalizeIdentityPayload, mapIdentity, mapMember } = require('../utils/familyIdentity')
+const { normalizeIdentityPayload, mapIdentity, mapMember, sortFamilyMembers } = require('../utils/familyIdentity')
 const { invalidateFamilyMemories } = require('./familyMemory.service')
 
 function memberInclude() {
@@ -164,15 +164,10 @@ async function listMembers(userId, familyId) {
   await ensureFamilyAdmin(userId, familyId)
   const members = await prisma.familyMember.findMany({
     where: { familyId: Number(familyId) },
-    orderBy: [
-      { role: 'desc' },
-      { relationship: 'asc' },
-      { childOrder: 'asc' },
-      { joinedAt: 'asc' }
-    ],
+    orderBy: [{ joinedAt: 'asc' }],
     include: memberInclude()
   })
-  return members.map((member) => mapMember(member, userId))
+  return sortFamilyMembers(members).map((member) => mapMember(member, userId))
 }
 
 async function updateMuteStatus(adminUserId, familyId, targetUserId, payload) {

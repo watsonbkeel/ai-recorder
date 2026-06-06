@@ -55,6 +55,7 @@ curl http://127.0.0.1:3000/health
 - Gender can be set or left unspecified.
 - Multiple children can be distinguished by `childOrder`.
 - `childOrder` is stored and shown only for child relationships (`son`, `daughter`, `child`).
+- Member lists order children by `childOrder` across `son`, `daughter`, and `child` relationship variants.
 - Birth year, family nickname, preferred title, and identity note can be saved and later edited.
 - Admin can edit a member's family identity from member management.
 - Profile and member-management save/action buttons block duplicate taps while a request is in progress.

@@ -20,6 +20,22 @@ const GENDER_LABELS = {
 
 const VALID_RELATIONSHIPS = new Set(Object.keys(RELATIONSHIP_LABELS))
 const VALID_GENDERS = new Set(Object.keys(GENDER_LABELS))
+const RELATIONSHIP_SORT_GROUP = {
+  father: 10,
+  mother: 10,
+  partner: 15,
+  son: 20,
+  daughter: 20,
+  child: 20,
+  sibling: 30,
+  grandfather: 40,
+  grandmother: 40,
+  grandparent: 40,
+  other: 90
+}
+const RELATIONSHIP_SORT_ORDER = Object.keys(RELATIONSHIP_LABELS)
+  .reduce((map, relationship, index) => ({ ...map, [relationship]: index }), {})
+const GENDER_SORT_ORDER = { female: 1, male: 2, unspecified: 3 }
 
 function normalizeRelationship(value) {
   return VALID_RELATIONSHIPS.has(value) ? value : 'other'
@@ -219,6 +235,60 @@ function mapMember(member, currentUserId) {
   }
 }
 
+function compareNullableNumber(left, right) {
+  const normalizedLeft = Number.isFinite(Number(left)) ? Number(left) : Number.MAX_SAFE_INTEGER
+  const normalizedRight = Number.isFinite(Number(right)) ? Number(right) : Number.MAX_SAFE_INTEGER
+  return normalizedLeft - normalizedRight
+}
+
+function compareDate(left, right) {
+  return new Date(left || 0).getTime() - new Date(right || 0).getTime()
+}
+
+function compareFamilyMembers(left, right) {
+  const leftRelationship = normalizeRelationship(left.relationship)
+  const rightRelationship = normalizeRelationship(right.relationship)
+  const leftGroup = RELATIONSHIP_SORT_GROUP[leftRelationship] || RELATIONSHIP_SORT_GROUP.other
+  const rightGroup = RELATIONSHIP_SORT_GROUP[rightRelationship] || RELATIONSHIP_SORT_GROUP.other
+  if (leftGroup !== rightGroup) {
+    return leftGroup - rightGroup
+  }
+
+  if (isChildRelationship(leftRelationship) && isChildRelationship(rightRelationship)) {
+    const childOrderCompare = compareNullableNumber(left.childOrder, right.childOrder)
+    if (childOrderCompare !== 0) {
+      return childOrderCompare
+    }
+    const birthYearCompare = compareNullableNumber(left.birthYear, right.birthYear)
+    if (birthYearCompare !== 0) {
+      return birthYearCompare
+    }
+  }
+
+  const relationshipCompare = (RELATIONSHIP_SORT_ORDER[leftRelationship] || 0) - (RELATIONSHIP_SORT_ORDER[rightRelationship] || 0)
+  if (relationshipCompare !== 0) {
+    return relationshipCompare
+  }
+
+  const genderCompare = (GENDER_SORT_ORDER[normalizeGender(left.gender)] || GENDER_SORT_ORDER.unspecified) -
+    (GENDER_SORT_ORDER[normalizeGender(right.gender)] || GENDER_SORT_ORDER.unspecified)
+  if (genderCompare !== 0) {
+    return genderCompare
+  }
+
+  const leftRoleRank = left.role === 'admin' ? 0 : 1
+  const rightRoleRank = right.role === 'admin' ? 0 : 1
+  if (leftRoleRank !== rightRoleRank) {
+    return leftRoleRank - rightRoleRank
+  }
+
+  return compareDate(left.joinedAt, right.joinedAt) || Number(left.id || 0) - Number(right.id || 0)
+}
+
+function sortFamilyMembers(members) {
+  return [...members].sort(compareFamilyMembers)
+}
+
 module.exports = {
   RELATIONSHIP_LABELS,
   GENDER_LABELS,
@@ -238,5 +308,6 @@ module.exports = {
   familyUserSelect,
   getUserFamilyMember,
   mapFamilyUser,
-  mapMember
+  mapMember,
+  sortFamilyMembers
 }

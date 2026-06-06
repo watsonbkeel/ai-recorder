@@ -6,7 +6,8 @@ const {
   normalizeIdentityPayload,
   normalizeIdentityUpdatePayload,
   mapIdentity,
-  mapMember
+  mapMember,
+  sortFamilyMembers
 } = require('../utils/familyIdentity')
 const { createNotification } = require('./notification.service')
 
@@ -120,15 +121,10 @@ async function listFamilyMembers(userId, familyId) {
   await ensureFamilyMember(userId, familyId)
   const members = await prisma.familyMember.findMany({
     where: { familyId: Number(familyId) },
-    orderBy: [
-      { role: 'desc' },
-      { relationship: 'asc' },
-      { childOrder: 'asc' },
-      { joinedAt: 'asc' }
-    ],
+    orderBy: [{ joinedAt: 'asc' }],
     include: memberInclude()
   })
-  return members.map((member) => mapMember(member, userId))
+  return sortFamilyMembers(members).map((member) => mapMember(member, userId))
 }
 
 async function updateMyIdentity(userId, familyId, payload) {
