@@ -1,5 +1,8 @@
+const fs = require('fs')
+const path = require('path')
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
+const { UPLOAD_DIR_ABS } = require('../config/env')
 const { ensureFamilyMember, ensureFamilyNotMuted } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
 const { familyUserSelect, identitySelect, mapFamilyUser } = require('../utils/familyIdentity')
@@ -50,7 +53,7 @@ function mapMessage(message, userId, viewerMember) {
     messageType: message.messageType,
     optimizedText: message.optimizedText,
     originalText: canViewOriginalText ? message.originalText : null,
-    originalAudioUrl: canPlayOriginalAudio ? message.originalAudioUrl : null,
+    originalAudioUrl: canPlayOriginalAudio && message.originalAudioUrl ? `/api/messages/${message.id}/original-audio` : null,
     audioDurationSec: canPlayOriginalAudio ? message.audioDurationSec : null,
     emotionTags: message.emotionTags || [],
     coreNeed: message.coreNeed || '',
@@ -73,6 +76,41 @@ function mapMessage(message, userId, viewerMember) {
     canDelete: isSender,
     canHide: Boolean(isFamilyAdmin)
   }
+}
+
+function resolveAudioUploadPath(originalAudioUrl) {
+  const raw = String(originalAudioUrl || '').trim()
+  if (!raw) {
+    return null
+  }
+  if (!raw.startsWith('/uploads/audio/')) {
+    throw createError('VALIDATION_ERROR', '原始语音必须先通过音频上传接口上传', 400)
+  }
+
+  const relativePath = raw.replace('/uploads/audio/', '')
+  if (!relativePath || relativePath.includes('\0')) {
+    throw createError('VALIDATION_ERROR', '原始语音地址无效', 400)
+  }
+
+  const audioRoot = path.resolve(UPLOAD_DIR_ABS, 'audio')
+  const filePath = path.resolve(audioRoot, relativePath)
+  if (filePath !== audioRoot && !filePath.startsWith(`${audioRoot}${path.sep}`)) {
+    throw createError('VALIDATION_ERROR', '原始语音地址无效', 400)
+  }
+
+  return filePath
+}
+
+function normalizeOriginalAudioUrl(value) {
+  const originalAudioUrl = String(value || '').trim()
+  if (!originalAudioUrl) {
+    return ''
+  }
+  const filePath = resolveAudioUploadPath(originalAudioUrl)
+  if (!fs.existsSync(filePath)) {
+    throw createError('VALIDATION_ERROR', '原始语音文件不存在，请重新上传', 400)
+  }
+  return originalAudioUrl
 }
 
 async function listMessages(userId, familyId, query) {
@@ -151,7 +189,7 @@ async function createMessage(userId, familyId, payload) {
   const messageType = VALID_MESSAGE_TYPES.has(payload.messageType) ? payload.messageType : 'general'
   const riskLevel = VALID_RISK_LEVELS.has(payload.riskLevel) ? payload.riskLevel : 'low'
   const originalText = String(payload.originalText || '').trim()
-  const originalAudioUrl = String(payload.originalAudioUrl || '').trim()
+  const originalAudioUrl = normalizeOriginalAudioUrl(payload.originalAudioUrl)
   const optimizedText = String(payload.optimizedText || originalText || '').trim()
   const receiverIds = await validateReceivers(familyId, userId, payload.receiverIds, visibility)
 
@@ -276,9 +314,43 @@ async function deleteMessage(userId, messageId) {
   return { id: message.id }
 }
 
+async function getOriginalAudioFile(userId, messageId) {
+  const message = await prisma.familyMessage.findUnique({
+    where: { id: Number(messageId) },
+    include: { receivers: true }
+  })
+  if (!message || message.status !== 'visible') {
+    throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
+  }
+
+  await ensureFamilyMember(userId, message.familyId)
+  if (!canViewMessage(message, userId)) {
+    throw createError('FORBIDDEN', '无权播放这条心声的原始语音', 403)
+  }
+
+  const isSender = message.senderId === Number(userId)
+  if (!isSender && !message.allowOriginalAudioPlay) {
+    throw createError('FORBIDDEN', '发送者没有开放原始语音', 403)
+  }
+  if (!message.originalAudioUrl) {
+    throw createError('NOT_FOUND', '这条心声没有原始语音', 404)
+  }
+
+  const filePath = resolveAudioUploadPath(message.originalAudioUrl)
+  if (!fs.existsSync(filePath)) {
+    throw createError('NOT_FOUND', '原始语音文件不存在', 404)
+  }
+
+  return {
+    filePath,
+    fileName: path.basename(filePath)
+  }
+}
+
 module.exports = {
   listMessages,
   createMessage,
   getMessageDetail,
-  deleteMessage
+  deleteMessage,
+  getOriginalAudioFile
 }

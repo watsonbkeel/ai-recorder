@@ -84,4 +84,5 @@ Active memory may be used only inside the same family and only when the user ena
 - Only approved family members may access family content.
 - Message original text/audio visibility is controlled by the sender.
 - Normal APIs must not return hidden original text or hidden original audio URLs.
+- Original audio files are served only through an authenticated message endpoint after message visibility and sender audio-permission checks.
 - Deleting or hiding messages/replies must invalidate or recompute affected family memory.

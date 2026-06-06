@@ -12,6 +12,7 @@
 - Pending or rejected users may not access family content.
 - Muted members may read permitted content but may not create messages or replies.
 - Senders control whether receivers may view original text or play original audio.
+- Original audio playback uses the authenticated `GET /api/messages/:messageId/original-audio` endpoint; uploaded audio files are not publicly exposed through static file serving.
 - Reply original text is visible only to the reply sender; other permitted readers see the optimized reply.
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
 - Self-only messages are accessible only to the sender and do not create receiver notifications.

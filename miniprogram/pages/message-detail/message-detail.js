@@ -3,7 +3,6 @@ const replyService = require('../../services/reply')
 const aiService = require('../../services/ai')
 const adminService = require('../../services/admin')
 const format = require('../../utils/format')
-const { getPublicBaseUrl } = require('../../utils/config')
 
 const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
 
@@ -25,20 +24,9 @@ const REPLY_STATUS_STEPS = [
   '快好了，正在整理成更容易被家人接住的表达...'
 ]
 
-function fullUrl(url) {
-  if (!url) {
-    return ''
-  }
-  if (/^https?:\/\//.test(url)) {
-    return url
-  }
-  return `${getPublicBaseUrl().replace(/\/$/, '')}${url}`
-}
-
 function prepareMessage(message) {
   return {
     ...message,
-    originalAudioUrl: fullUrl(message.originalAudioUrl),
     visibilityText: VISIBILITY_TEXT[message.visibility] || '指定家人',
     createdAtText: format.formatDate(message.createdAt)
   }
@@ -70,6 +58,7 @@ Page({
     aiLoading: false,
     replyAiStatusText: '',
     submitting: false,
+    playingOriginalAudio: false,
     handlingMessageAction: '',
     handlingReplyId: null,
     handlingReplyAction: '',
@@ -82,6 +71,9 @@ Page({
   onUnload() {
     this.clearAnalysisStatus(false)
     this.clearReplyAiStatus(false)
+    if (audio) {
+      audio.stop()
+    }
   },
   startAnalysisStatus() {
     this.clearAnalysisStatus(false)
@@ -136,12 +128,21 @@ Page({
       this.setData({ loading: false })
     }
   },
-  playOriginalAudio() {
-    if (!audio || !this.data.message || !this.data.message.originalAudioUrl) {
+  async playOriginalAudio() {
+    if (!audio || !this.data.message || !this.data.message.originalAudioUrl || this.data.playingOriginalAudio) {
       return
     }
-    audio.src = this.data.message.originalAudioUrl
-    audio.play()
+    this.setData({ playingOriginalAudio: true, error: '' })
+    try {
+      const tempFilePath = await messageService.downloadOriginalAudio(this.data.message.originalAudioUrl)
+      audio.stop()
+      audio.src = tempFilePath
+      audio.play()
+    } catch (error) {
+      this.setData({ error: error.message || '原始语音播放失败' })
+    } finally {
+      this.setData({ playingOriginalAudio: false })
+    }
   },
   handleReplyInput(event) {
     this.setData({ replyOriginalText: event.detail.value })

@@ -79,6 +79,7 @@ curl http://127.0.0.1:3000/health
 - Sender can choose whether original audio is playable.
 - Receiver sees AI optimized text first.
 - Receiver can only view/play original content when authorized.
+- Original audio playback uses an authenticated message endpoint; `/uploads/audio/...` is not publicly served.
 - Original text/audio permission switches do not appear for `仅自己` messages.
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
@@ -108,6 +109,7 @@ curl http://127.0.0.1:3000/health
 - Muted users cannot create messages or replies.
 - Admins cannot remove themselves, mute themselves, or demote/remove the last admin.
 - Hidden original text/audio is not returned and does not enter AI context.
+- Hidden or unauthorized original audio cannot be fetched by direct upload URL or message ID enumeration.
 
 ## AI Checks
 

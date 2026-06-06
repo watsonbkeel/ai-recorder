@@ -62,6 +62,7 @@ Family identity fields:
 - `GET /api/families/:familyId/messages`
 - `POST /api/families/:familyId/messages`
 - `GET /api/messages/:messageId`
+- `GET /api/messages/:messageId/original-audio`
 - `DELETE /api/messages/:messageId`
 
 Create message example:
@@ -83,6 +84,8 @@ Create message example:
   "allowOriginalAudioPlay": true
 }
 ```
+
+`originalAudioUrl` in the create payload is the storage reference returned by `POST /api/upload/audio`. Message read APIs return a protected playback URL only when the current viewer is allowed to play the original audio.
 
 Message visibility:
 
@@ -124,6 +127,7 @@ Rules:
 - Frontend must not inject arbitrary history, summaries, or memory.
 - `useFamilyMemory: false` fully disables `FamilyMemory` query and injection.
 - Hidden original text/audio must not enter AI context.
+- Original audio playback must use `GET /api/messages/:messageId/original-audio` with authentication. The endpoint checks message visibility and sender audio permission before streaming the uploaded audio file.
 
 ## Upload
 
@@ -136,7 +140,7 @@ Rules:
 - Request uses `multipart/form-data`.
 - File field name: `file`.
 - Audio upload accepts common WeChat recorder formats and tolerates empty or `application/octet-stream` MIME when the extension is a known audio type.
-- Files are stored by type and ISO week under the configured upload directory.
+- Files are stored by type and ISO week under the configured upload directory. Images may be served from `/uploads/image/...`; original audio is not exposed as a public static file and must be played through the authenticated message endpoint.
 
 ## Notification
 

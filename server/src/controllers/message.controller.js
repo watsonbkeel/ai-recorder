@@ -16,6 +16,11 @@ async function getMessage(req, res) {
   return sendSuccess(res, data, 'ok')
 }
 
+async function getOriginalAudio(req, res) {
+  const data = await messageService.getOriginalAudioFile(req.user.id, req.params.messageId)
+  return res.download(data.filePath, data.fileName)
+}
+
 async function deleteMessage(req, res) {
   const data = await messageService.deleteMessage(req.user.id, req.params.messageId)
   return sendSuccess(res, data, 'ok')
@@ -25,5 +30,6 @@ module.exports = {
   listMessages,
   createMessage,
   getMessage,
+  getOriginalAudio,
   deleteMessage
 }
