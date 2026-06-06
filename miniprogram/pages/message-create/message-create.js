@@ -80,7 +80,6 @@ Page({
     }
     if (audio) {
       audio.stop()
-      audio.destroy()
     }
   },
   startAiStatus() {
