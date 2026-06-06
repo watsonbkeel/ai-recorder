@@ -15,7 +15,7 @@ Do not commit real keys or provider secrets. `server/.env` is ignored by git.
 
 All AI routes must build context on the backend:
 
-- `optimize-message`: requires `familyId`; may use selected receiver identities and current user's visible family history.
+- `optimize-message`: requires `familyId`; backend resolves receiver identity context from `visibility` and current family membership, then may use the current user's visible family history.
 - `analyze-message`: requires `messageId`; backend verifies message visibility before loading context.
 - `optimize-reply`: requires `messageId`; backend verifies message visibility before loading context.
 

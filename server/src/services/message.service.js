@@ -115,6 +115,17 @@ async function validateReceivers(familyId, senderId, receiverIds, visibility) {
     return []
   }
 
+  if (visibility === 'family') {
+    const members = await prisma.familyMember.findMany({
+      where: {
+        familyId: Number(familyId),
+        userId: { not: Number(senderId) }
+      },
+      select: { userId: true }
+    })
+    return members.map((member) => member.userId)
+  }
+
   const normalizedIds = Array.from(new Set((receiverIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0 && id !== Number(senderId))))
   if (visibility === 'private' && normalizedIds.length === 0) {
     throw createError('VALIDATION_ERROR', '请选择接收家人', 400)

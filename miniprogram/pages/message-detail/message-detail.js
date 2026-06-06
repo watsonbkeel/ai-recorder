@@ -7,6 +7,12 @@ const { PUBLIC_BASE_URL } = require('../../utils/config')
 
 const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
 
+const VISIBILITY_TEXT = {
+  private: '指定家人',
+  family: '全家可见',
+  self: '仅自己'
+}
+
 function fullUrl(url) {
   if (!url) {
     return ''
@@ -21,6 +27,7 @@ function prepareMessage(message) {
   return {
     ...message,
     originalAudioUrl: fullUrl(message.originalAudioUrl),
+    visibilityText: VISIBILITY_TEXT[message.visibility] || '指定家人',
     createdAtText: format.formatDate(message.createdAt)
   }
 }

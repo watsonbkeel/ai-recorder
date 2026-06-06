@@ -31,14 +31,17 @@
 
 1. Enter family timeline.
 2. Tap write message.
-3. Select receiver(s) from family members.
+3. Select message scope:
+   - 指定家人: choose one or more receivers from family members.
+   - 全家可见: all approved family members can see the message; backend computes receivers and notifications.
+   - 仅自己: save for self, do not notify family members, and do not show original-content permission switches.
 4. Enter original text, record voice, or both.
 5. Choose whether AI may use family communication memory. Default: on.
 6. Tap AI optimize.
 7. Review optimized expression, emotion tags, core need, advice, risk warning.
 8. If the message only has voice and no text, manually fill the expression family members should read first.
-9. Choose whether receiver may view original text or play original audio.
-10. Send message.
+9. For messages shared with family members, choose whether receivers may view original text or play original audio.
+10. Send or save message.
 
 ## Detail And Reply
 

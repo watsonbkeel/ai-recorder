@@ -9,7 +9,7 @@
       <view class="row-between">
         <view>
           <view>{{message.sender.nickname}}</view>
-          <view class="muted">{{message.createdAtText}}</view>
+          <view class="muted">{{message.visibilityText}} · {{message.createdAtText}}</view>
         </view>
         <view class="tag">{{message.riskLevel}}</view>
       </view>

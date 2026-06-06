@@ -8,12 +8,22 @@ const recorder = wx.getRecorderManager ? wx.getRecorderManager() : null
 const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
 const MESSAGE_TYPES = ['thanks', 'apology', 'grievance', 'request', 'explain', 'stress', 'repair', 'encouragement', 'general']
 const MESSAGE_TYPE_LABELS = ['感谢', '道歉', '委屈', '请求', '解释', '压力', '修复关系', '鼓励', '普通心声']
+const VISIBILITIES = ['private', 'family', 'self']
+const VISIBILITY_LABELS = ['指定家人', '全家可见', '仅自己']
+const VISIBILITY_DESCRIPTIONS = [
+  '只发给你选择的家人，其他成员不可见。',
+  '家庭成员都能在时间线看到这条心声。',
+  '只保存给自己，用来整理想法，不通知家人。'
+]
 
 Page({
   data: {
     familyId: null,
     members: [],
     selectedReceiverIds: [],
+    visibilityIndex: 0,
+    visibilityLabels: VISIBILITY_LABELS,
+    visibilityDescriptions: VISIBILITY_DESCRIPTIONS,
     messageTypeIndex: 8,
     messageTypeLabels: MESSAGE_TYPE_LABELS,
     originalText: '',
@@ -92,6 +102,17 @@ Page({
   handleTypeChange(event) {
     this.setData({ messageTypeIndex: Number(event.detail.value) })
   },
+  handleVisibilityChange(event) {
+    const visibilityIndex = Number(event.detail.value)
+    const visibility = VISIBILITIES[visibilityIndex] || 'private'
+    this.setData({
+      visibilityIndex,
+      selectedReceiverIds: visibility === 'private' ? this.data.selectedReceiverIds : [],
+      members: visibility === 'private'
+        ? this.data.members
+        : this.data.members.map((member) => ({ ...member, selected: false }))
+    })
+  },
   handleOriginalInput(event) {
     this.setData({ originalText: event.detail.value })
   },
@@ -127,6 +148,16 @@ Page({
     audio.src = this.data.audioTempPath
     audio.play()
   },
+  effectiveReceiverIds() {
+    const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
+    if (visibility === 'family') {
+      return this.data.members.map((member) => Number(member.userId)).filter(Boolean)
+    }
+    if (visibility === 'self') {
+      return []
+    }
+    return this.data.selectedReceiverIds
+  },
   async optimize() {
     if (!this.data.originalText.trim() && !this.data.audioTempPath) {
       wx.showToast({ title: '请先写下心声或录音', icon: 'none' })
@@ -136,7 +167,8 @@ Page({
     try {
       const result = await aiService.optimizeMessage({
         familyId: this.data.familyId,
-        receiverIds: this.data.selectedReceiverIds,
+        visibility: VISIBILITIES[this.data.visibilityIndex] || 'private',
+        receiverIds: this.effectiveReceiverIds(),
         originalText: this.data.originalText,
         hasOriginalAudio: Boolean(this.data.audioTempPath),
         messageType: MESSAGE_TYPES[this.data.messageTypeIndex],
@@ -157,8 +189,9 @@ Page({
     }
   },
   async submit() {
-    const receiverIds = this.data.selectedReceiverIds
-    if (!receiverIds.length) {
+    const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
+    const receiverIds = this.effectiveReceiverIds()
+    if (visibility === 'private' && !receiverIds.length) {
       wx.showToast({ title: '请选择接收家人', icon: 'none' })
       return
     }
@@ -174,7 +207,7 @@ Page({
       }
       await messageService.createMessage(this.data.familyId, {
         receiverIds,
-        visibility: 'private',
+        visibility,
         messageType: MESSAGE_TYPES[this.data.messageTypeIndex],
         originalText: this.data.originalText,
         originalAudioUrl: uploadedAudio ? uploadedAudio.url : '',

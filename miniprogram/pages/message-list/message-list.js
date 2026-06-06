@@ -15,10 +15,17 @@ const TYPE_TEXT = {
   general: '心声'
 }
 
+const VISIBILITY_TEXT = {
+  private: '指定家人',
+  family: '全家可见',
+  self: '仅自己'
+}
+
 function prepareMessage(item) {
   return {
     ...item,
     messageTypeText: TYPE_TEXT[item.messageType] || '心声',
+    visibilityText: VISIBILITY_TEXT[item.visibility] || '指定家人',
     createdAtText: format.formatDate(item.createdAt)
   }
 }

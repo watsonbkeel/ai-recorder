@@ -84,6 +84,12 @@ Create message example:
 }
 ```
 
+Message visibility:
+
+- `private`: `receiverIds` must contain at least one approved member of the same family, excluding the sender.
+- `family`: backend ignores client-provided receiver coverage and creates receiver records/notifications for current approved family members other than the sender. The message is visible to approved members of this family.
+- `self`: backend stores no receivers and creates no message notifications. The message is visible only to the sender.
+
 ## Reply
 
 - `GET /api/messages/:messageId/replies`
@@ -101,6 +107,7 @@ AI requests support:
 ```json
 {
   "familyId": 1,
+  "visibility": "private",
   "receiverIds": [2],
   "messageId": 10,
   "originalText": "string",
@@ -111,6 +118,7 @@ AI requests support:
 Rules:
 
 - Backend builds the AI context.
+- For `optimize-message`, backend resolves receiver identity context from `familyId`, `visibility`, and permitted family members.
 - Existing content context must be loaded by `messageId` after permission checks.
 - Frontend must not inject arbitrary history, summaries, or memory.
 - `useFamilyMemory: false` fully disables `FamilyMemory` query and injection.

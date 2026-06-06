@@ -23,7 +23,7 @@ One-line description:
 - Family space creation and invite-code join flow.
 - Admin approval for join requests.
 - Family identity fields: relationship, gender, child order, birth year, family nickname, preferred title, identity note.
-- Send text and/or voice messages to selected family members.
+- Send text and/or voice messages to selected family members, the whole family, or self only.
 - Store original text/audio and AI optimized text separately.
 - Sender-controlled permission for original text and original audio.
 - AI optimized expression for messages and replies.
@@ -57,6 +57,9 @@ One-line description:
 
 - Family content is not public.
 - A message is private to sender and receiver(s) by default.
+- `private` messages are visible only to the sender and selected receivers.
+- `family` messages are visible to approved members of the same family.
+- `self` messages are visible only to the sender and do not notify family members.
 - Original text and original audio are hidden unless the sender enables access.
 - AI context must not include hidden original text/audio.
 - Family memory is used only inside the current family and only when enabled by the user.

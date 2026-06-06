@@ -3,16 +3,23 @@
     <view class="title">写给家人</view>
     <view class="sub-title">先保留真实心声，再让 AI 帮你整理表达。</view>
 
-    <view class="section-title">接收家人</view>
-    <view wx:if="{{membersLoading}}" class="muted">正在加载家庭成员...</view>
-    <view wx:elif="{{!members.length}}" class="muted">这个家庭还没有其他成员。</view>
-    <view wx:for="{{members}}" wx:key="userId" class="member-option {{item.selected ? 'member-option-selected' : ''}}" data-user-id="{{item.userId}}" bindtap="toggleReceiver">
-      <view>
-        <view class="member-name">{{item.displayName}}</view>
-        <view class="muted">{{item.identitySummary}}</view>
+    <picker mode="selector" range="{{visibilityLabels}}" value="{{visibilityIndex}}" bindchange="handleVisibilityChange">
+      <view class="input">留言范围：{{visibilityLabels[visibilityIndex]}}</view>
+    </picker>
+    <view class="muted">{{visibilityDescriptions[visibilityIndex]}}</view>
+
+    <block wx:if="{{visibilityIndex === 0}}">
+      <view class="section-title">接收家人</view>
+      <view wx:if="{{membersLoading}}" class="muted">正在加载家庭成员...</view>
+      <view wx:elif="{{!members.length}}" class="muted">这个家庭还没有其他成员。</view>
+      <view wx:for="{{members}}" wx:key="userId" class="member-option {{item.selected ? 'member-option-selected' : ''}}" data-user-id="{{item.userId}}" bindtap="toggleReceiver">
+        <view>
+          <view class="member-name">{{item.displayName}}</view>
+          <view class="muted">{{item.identitySummary}}</view>
+        </view>
+        <view class="tag">{{item.selected ? '已选择' : '选择'}}</view>
       </view>
-      <view class="tag">{{item.selected ? '已选择' : '选择'}}</view>
-    </view>
+    </block>
 
     <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
       <view class="input">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
@@ -46,15 +53,15 @@
     </view>
     <view wx:if="{{coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{coreNeed}}</view>
     <view wx:if="{{aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{aiAdvice}}</view>
-    <view class="row-between" style="margin-top:16rpx;">
+    <view wx:if="{{visibilityIndex !== 2}}" class="row-between" style="margin-top:16rpx;">
       <view>允许对方看原始文字</view>
       <switch checked="{{allowOriginalTextView}}" bindchange="handleTextPermission"></switch>
     </view>
-    <view class="row-between" style="margin-top:16rpx;">
+    <view wx:if="{{visibilityIndex !== 2}}" class="row-between" style="margin-top:16rpx;">
       <view>允许对方播放原始语音</view>
       <switch checked="{{allowOriginalAudioPlay}}" bindchange="handleAudioPermission"></switch>
     </view>
-    <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="submit">发送心声</button>
+    <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="submit">{{visibilityIndex === 2 ? '保存心声' : '发送心声'}}</button>
   </view>
 
   <view wx:if="{{error}}" class="error">{{error}}</view>

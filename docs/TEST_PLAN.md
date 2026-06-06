@@ -56,7 +56,10 @@ curl http://127.0.0.1:3000/health
 
 ## Message Checks
 
-- User can select receiver(s) from family members.
+- User can select the `指定家人`, `全家可见`, or `仅自己` message scope.
+- `指定家人` requires at least one selected receiver from family members.
+- `全家可见` creates receiver records and notifications for current family members other than the sender, and remains visible to approved family members.
+- `仅自己` creates no receiver records or message notifications and is visible only to the sender.
 - User can enter original text.
 - User can record and upload original voice.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
@@ -66,6 +69,7 @@ curl http://127.0.0.1:3000/health
 - Sender can choose whether original audio is playable.
 - Receiver sees AI optimized text first.
 - Receiver can only view/play original content when authorized.
+- Original text/audio permission switches do not appear for `仅自己` messages.
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
 - Reply original text is visible only to its sender; other permitted readers see the optimized reply.

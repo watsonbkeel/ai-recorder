@@ -27,6 +27,12 @@ function normalizeRiskLevel(value) {
   return ['low', 'medium', 'high'].includes(value) ? value : 'low'
 }
 
+const VALID_VISIBILITIES = new Set(['private', 'family', 'self'])
+
+function normalizeVisibility(value) {
+  return VALID_VISIBILITIES.has(value) ? value : 'private'
+}
+
 function normalizeStringArray(value) {
   return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean).slice(0, 6) : []
 }
@@ -105,13 +111,17 @@ function normalizeOriginalText(value) {
   return String(value || '').trim().slice(0, 4000)
 }
 
-function sanitizeOptimizeMessagePayload(payload = {}) {
+function sanitizeOptimizeMessagePayload(payload = {}, familyContext = null) {
+  const contextReceiverIds = familyContext && Array.isArray(familyContext.receiverIds)
+    ? familyContext.receiverIds
+    : []
   return {
     originalText: normalizeOriginalText(payload.originalText),
     hasOriginalAudio: Boolean(payload.hasOriginalAudio),
     messageType: payload.messageType || 'general',
     familyId: Number(payload.familyId || 0) || null,
-    receiverIds: normalizeReceiverIds(payload.receiverIds || [], 0),
+    visibility: familyContext ? familyContext.visibility : normalizeVisibility(payload.visibility),
+    receiverIds: contextReceiverIds,
     useFamilyMemory: payload.useFamilyMemory !== false
   }
 }
@@ -149,6 +159,44 @@ async function loadFamilyMembers(familyId, currentUserId, receiverIds = []) {
   return {
     current: mapped.find((member) => Number(member.userId) === Number(currentUserId)) || null,
     receivers: mapped.filter((member) => receiverIds.includes(Number(member.userId)))
+  }
+}
+
+async function resolveContextReceiverIds(userId, familyId, payload = {}, options = {}) {
+  const visibility = normalizeVisibility(payload.visibility || options.visibility)
+  if (visibility === 'self') {
+    return { visibility, receiverIds: [] }
+  }
+
+  if (visibility === 'family') {
+    const members = await prisma.familyMember.findMany({
+      where: {
+        familyId: Number(familyId),
+        userId: { not: Number(userId) }
+      },
+      select: { userId: true }
+    })
+    return {
+      visibility,
+      receiverIds: members.map((member) => member.userId)
+    }
+  }
+
+  const requestedReceiverIds = normalizeReceiverIds(payload.receiverIds || options.receiverIds || [], userId)
+  if (!requestedReceiverIds.length) {
+    return { visibility, receiverIds: [] }
+  }
+
+  const members = await prisma.familyMember.findMany({
+    where: {
+      familyId: Number(familyId),
+      userId: { in: requestedReceiverIds }
+    },
+    select: { userId: true }
+  })
+  return {
+    visibility,
+    receiverIds: members.map((member) => member.userId)
   }
 }
 
@@ -207,7 +255,7 @@ async function buildFamilyContext(userId, payload, options = {}) {
   }
 
   await ensureFamilyMember(userId, familyId)
-  const receiverIds = normalizeReceiverIds(payload.receiverIds || options.receiverIds || [], userId)
+  const { visibility, receiverIds } = await resolveContextReceiverIds(userId, familyId, payload, options)
   const useFamilyMemory = payload.useFamilyMemory !== false && options.useFamilyMemory !== false
   const [family, members, history, memoryContext] = await Promise.all([
     prisma.family.findUnique({ where: { id: familyId }, select: { id: true, name: true, description: true } }),
@@ -218,6 +266,8 @@ async function buildFamilyContext(userId, payload, options = {}) {
 
   return {
     family,
+    visibility,
+    receiverIds,
     currentMember: members.current,
     receivers: members.receivers,
     visibleRecentMessages: history,
@@ -290,7 +340,7 @@ async function optimizeMessage(userId, payload) {
   const familyContext = await buildFamilyContext(userId, payload)
   const raw = await callOpenAI(`${baseRules}
 将用户给家人的原始表达优化为更清晰、温和、尊重、适合家庭沟通的话。若有接收方身份，称呼和语气要适配该家庭关系。返回字段：optimizedText, emotionTags, coreNeed, communicationAdvice, riskLevel, attackWarning。`, {
-    request: sanitizeOptimizeMessagePayload(payload),
+    request: sanitizeOptimizeMessagePayload(payload, familyContext),
     familyContext
   })
   const result = normalizeOptimizeResult(raw)

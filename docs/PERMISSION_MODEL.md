@@ -14,6 +14,7 @@
 - Senders control whether receivers may view original text or play original audio.
 - Reply original text is visible only to the reply sender; other permitted readers see the optimized reply.
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
+- Self-only messages are accessible only to the sender and do not create receiver notifications.
 
 ## Admin Permissions
 

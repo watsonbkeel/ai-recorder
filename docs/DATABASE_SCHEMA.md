@@ -35,6 +35,12 @@ This project uses Prisma + MySQL 8.0 and has its own initial migration. It must 
 
 There is no report model.
 
+## Message Visibility
+
+- `private`: sender plus selected receivers.
+- `family`: approved members in the same family.
+- `self`: sender only.
+
 ## Family Identity
 
 `FamilyMember` and `FamilyJoinRequest` store:
