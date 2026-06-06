@@ -43,6 +43,14 @@ npm run dev
 
 AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
 
+迁移到 Mac 后可在仓库根目录运行：
+
+```bash
+npm run check
+```
+
+这个检查会覆盖 JS 语法、Prisma schema/generate、后端 app 加载、小程序页面清单、旧项目运行残留和已跟踪文件密钥扫描。
+
 ## 文档
 
 - `AGENTS.md`: 开发代理约束。

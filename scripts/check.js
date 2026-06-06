@@ -1,0 +1,194 @@
+const fs = require('fs')
+const path = require('path')
+const { spawnSync } = require('child_process')
+
+const root = path.resolve(__dirname, '..')
+
+function run(label, command, args, options = {}) {
+  process.stdout.write(`\n> ${label}\n`)
+  const result = spawnSync(command, args, {
+    cwd: options.cwd || root,
+    encoding: 'utf8',
+    shell: false
+  })
+
+  if (result.stdout) {
+    process.stdout.write(result.stdout)
+  }
+  if (result.stderr) {
+    process.stderr.write(result.stderr)
+  }
+  if (result.status !== 0) {
+    throw new Error(`${label} failed`)
+  }
+}
+
+function walkFiles(dir, predicate, output = []) {
+  if (!fs.existsSync(dir)) {
+    return output
+  }
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules') {
+        continue
+      }
+      walkFiles(fullPath, predicate, output)
+    } else if (predicate(fullPath)) {
+      output.push(fullPath)
+    }
+  }
+  return output
+}
+
+function checkJavaScriptSyntax() {
+  const files = [
+    ...walkFiles(path.join(root, 'miniprogram'), (file) => file.endsWith('.js')),
+    ...walkFiles(path.join(root, 'server', 'src'), (file) => file.endsWith('.js')),
+    ...walkFiles(path.join(root, 'scripts'), (file) => file.endsWith('.js'))
+  ]
+
+  for (const file of files) {
+    run(`node --check ${path.relative(root, file)}`, 'node', ['--check', file])
+  }
+}
+
+function checkMiniProgramPages() {
+  process.stdout.write('\n> mini program page manifest\n')
+  const appJsonPath = path.join(root, 'miniprogram', 'app.json')
+  const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'))
+  const missing = []
+
+  for (const page of appJson.pages || []) {
+    for (const ext of ['js', 'wxml', 'wxss', 'json']) {
+      const file = path.join(root, 'miniprogram', `${page}.${ext}`)
+      if (!fs.existsSync(file)) {
+        missing.push(path.relative(root, file))
+      }
+    }
+  }
+
+  if (missing.length) {
+    throw new Error(`Missing mini program page files:\n${missing.join('\n')}`)
+  }
+  process.stdout.write(`checked ${appJson.pages.length} pages\n`)
+}
+
+function gitTrackedFiles() {
+  const result = spawnSync('git', ['ls-files', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+    shell: false
+  })
+  if (result.status !== 0) {
+    throw new Error(result.stderr || 'git ls-files failed')
+  }
+  return result.stdout.split('\0').filter(Boolean)
+}
+
+function checkTrackedSecrets() {
+  process.stdout.write('\n> tracked secret scan\n')
+  const secretPatterns = [
+    /ghp_[A-Za-z0-9_]+/g,
+    /github_pat_[A-Za-z0-9_]+/g,
+    /sk-[A-Za-z0-9]{20,}/g,
+    /OPENAI_API_KEY\s*=\s*["']?(sk-[A-Za-z0-9]{20,})/g
+  ]
+  const findings = []
+
+  for (const file of gitTrackedFiles()) {
+    const fullPath = path.join(root, file)
+    if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
+      continue
+    }
+    const content = fs.readFileSync(fullPath, 'utf8')
+    secretPatterns.forEach((pattern) => {
+      const matches = content.match(pattern)
+      if (matches) {
+        findings.push(`${file}: ${matches[0].slice(0, 12)}...`)
+      }
+    })
+  }
+
+  if (findings.length) {
+    throw new Error(`Potential tracked secrets found:\n${findings.join('\n')}`)
+  }
+  process.stdout.write('no tracked secrets matched\n')
+}
+
+function checkOldRuntimeTerms() {
+  process.stdout.write('\n> old runtime keyword scan\n')
+  const targets = [
+    'miniprogram/app.json',
+    'miniprogram/app.js',
+    'miniprogram/pages',
+    'miniprogram/services',
+    'miniprogram/utils',
+    'server/src/app.js',
+    'server/src/routes',
+    'server/src/controllers',
+    'server/src/services',
+    'server/prisma/schema.prisma',
+    'server/package.json',
+    'server/package-lock.json'
+  ]
+  const patterns = [
+    /班级/g,
+    /日记本/g,
+    /举报/g,
+    /classId/g,
+    /currentClass/g,
+    /CURRENT_CLASS/g,
+    /\bdiary\b/gi,
+    /\bcomment\b/gi,
+    /\breport\b/gi
+  ]
+  const findings = []
+
+  for (const target of targets) {
+    const fullTarget = path.join(root, target)
+    const files = fs.existsSync(fullTarget) && fs.statSync(fullTarget).isDirectory()
+      ? walkFiles(fullTarget, () => true)
+      : [fullTarget]
+
+    for (const file of files) {
+      if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+        continue
+      }
+      const content = fs.readFileSync(file, 'utf8')
+      const lines = content.split(/\r?\n/)
+      lines.forEach((line, index) => {
+        if (patterns.some((pattern) => pattern.test(line))) {
+          findings.push(`${path.relative(root, file)}:${index + 1}: ${line.trim()}`)
+        }
+        patterns.forEach((pattern) => {
+          pattern.lastIndex = 0
+        })
+      })
+    }
+  }
+
+  if (findings.length) {
+    throw new Error(`Old runtime terms found:\n${findings.join('\n')}`)
+  }
+  process.stdout.write('no old runtime terms matched\n')
+}
+
+function main() {
+  checkJavaScriptSyntax()
+  run('prisma validate', 'npx', ['prisma', 'validate', '--schema', 'prisma/schema.prisma'], { cwd: path.join(root, 'server') })
+  run('prisma generate', 'npx', ['prisma', 'generate', '--schema', 'prisma/schema.prisma'], { cwd: path.join(root, 'server') })
+  run('backend app load', 'node', ['-e', "require('./src/app'); console.log('app loaded')"], { cwd: path.join(root, 'server') })
+  checkMiniProgramPages()
+  checkOldRuntimeTerms()
+  checkTrackedSecrets()
+  process.stdout.write('\nAll checks passed.\n')
+}
+
+try {
+  main()
+} catch (error) {
+  process.stderr.write(`\n${error.message}\n`)
+  process.exit(1)
+}

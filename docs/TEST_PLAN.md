@@ -115,6 +115,7 @@ curl http://127.0.0.1:3000/health
 
 ## Final Repository Checks
 
+- From the repository root, run `npm run check`.
 - `npx prisma validate --schema prisma/schema.prisma`
 - `npx prisma generate --schema prisma/schema.prisma`
 - `node -e "require('./src/app'); console.log('app loaded')"`
