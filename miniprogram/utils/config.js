@@ -35,11 +35,16 @@ function getApiBaseUrl() {
   return getRuntimeConfig().API_BASE_URL
 }
 
+function getApiRootUrl() {
+  return getApiBaseUrl().replace(/\/api$/, '')
+}
+
 module.exports = {
   PUBLIC_BASE_URL: defaultConfig.PUBLIC_BASE_URL,
   API_BASE_URL: defaultConfig.API_BASE_URL,
   LOCAL_CONFIG_KEY,
   getRuntimeConfig,
   getPublicBaseUrl,
-  getApiBaseUrl
+  getApiBaseUrl,
+  getApiRootUrl
 }

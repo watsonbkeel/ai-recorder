@@ -140,6 +140,7 @@ Rules:
 - Request uses `multipart/form-data`.
 - File field name: `file`.
 - Audio upload accepts common WeChat recorder formats and tolerates empty or `application/octet-stream` MIME when the extension is a known audio type.
+- Image upload may return a public `fullUrl`; audio upload returns only the storage `url` used when creating a message.
 - Files are stored by type and ISO week under the configured upload directory. Images may be served from `/uploads/image/...`; original audio is not exposed as a public static file and must be played through the authenticated message endpoint.
 
 ## Notification

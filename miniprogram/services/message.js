@@ -1,6 +1,6 @@
 const request = require('../utils/request')
 const auth = require('../utils/auth')
-const { getPublicBaseUrl } = require('../utils/config')
+const { getApiRootUrl } = require('../utils/config')
 
 function fullUrl(url) {
   if (!url) {
@@ -9,7 +9,7 @@ function fullUrl(url) {
   if (/^https?:\/\//.test(url)) {
     return url
   }
-  return `${getPublicBaseUrl().replace(/\/$/, '')}${url}`
+  return `${getApiRootUrl()}${url}`
 }
 
 function getMessages(familyId, params) {

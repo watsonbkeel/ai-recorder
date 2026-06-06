@@ -29,8 +29,7 @@ async function uploadAudio(file) {
   const relativePath = `/uploads/${relativeFilePath}`
 
   return {
-    url: relativePath,
-    fullUrl: buildPublicUrl(relativePath)
+    url: relativePath
   }
 }
 
