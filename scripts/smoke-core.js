@@ -1,10 +1,12 @@
 process.env.OPENAI_API_KEY = 'smoke_fake_openai_key'
 
 const fs = require('fs')
+const http = require('http')
 const path = require('path')
 const axios = require('../server/node_modules/axios')
 const prisma = require('../server/src/utils/prisma')
 const { UPLOAD_DIR_ABS } = require('../server/src/config/env')
+const app = require('../server/src/app')
 const authService = require('../server/src/services/auth.service')
 const familyService = require('../server/src/services/family.service')
 const adminService = require('../server/src/services/admin.service')
@@ -76,6 +78,53 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function listen(server) {
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`))
+  })
+}
+
+async function uploadFixture(baseUrl, token, routePath, content, mimeType, filename) {
+  const form = new FormData()
+  form.append('file', new Blob([Buffer.from(content)], { type: mimeType }), filename)
+  const response = await fetch(`${baseUrl}${routePath}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || !data.success) {
+    throw new Error(`upload ${routePath} failed: ${response.status} ${JSON.stringify(data)}`)
+  }
+  return data.data
+}
+
+async function uploadFixtureExpectError(baseUrl, token, routePath, content, mimeType, filename) {
+  const form = new FormData()
+  form.append('file', new Blob([content], { type: mimeType }), filename)
+  const response = await fetch(`${baseUrl}${routePath}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form
+  })
+  const data = await response.json().catch(() => ({}))
+  if (response.ok && data.success) {
+    throw new Error(`upload ${routePath} should fail but succeeded`)
+  }
+  return data.error || {}
+}
+
+function uploadedFilePathFromUrl(url) {
+  assert(url && url.startsWith('/uploads/'), 'uploaded file URL should stay under /uploads')
+  const relativePath = url.replace('/uploads/', '')
+  const filePath = path.resolve(UPLOAD_DIR_ABS, relativePath)
+  assert(
+    filePath === UPLOAD_DIR_ABS || filePath.startsWith(`${UPLOAD_DIR_ABS}${path.sep}`),
+    'uploaded file path should stay under upload root'
+  )
+  return filePath
+}
+
 function lastAiPayload(message) {
   const call = aiCalls[aiCalls.length - 1]
   assert(call, `${message}: expected AI call`)
@@ -107,7 +156,8 @@ async function main() {
   const accountPrefix = `smoke_${suffix}`.toLowerCase()
   const userIds = []
   let familyId = null
-  let audioSmokeDir = null
+  let smokeServer = null
+  let uploadedAudioFile = null
 
   try {
     const adminAuth = await authService.registerWithPassword({
@@ -123,6 +173,8 @@ async function main() {
     const adminId = adminAuth.user.id
     const memberId = memberAuth.user.id
     userIds.push(adminId, memberId)
+    smokeServer = http.createServer(app)
+    const smokeBaseUrl = await listen(smokeServer)
 
     const family = await familyService.createFamily(adminId, {
       name: `烟测家庭 ${suffix}`,
@@ -202,18 +254,30 @@ async function main() {
     const familyMessageForMember = await messageService.getMessageDetail(memberId, familyMessage.id)
     assertEqual(familyMessageForMember.visibility, 'family', 'family message should be visible to family members')
 
-    audioSmokeDir = path.join(UPLOAD_DIR_ABS, 'audio', 'smoke')
-    fs.mkdirSync(audioSmokeDir, { recursive: true })
-    const audioSmokeFile = path.join(audioSmokeDir, `${suffix}.mp3`)
-    fs.writeFileSync(audioSmokeFile, 'smoke audio')
-    const audioSmokeUrl = `/uploads/audio/smoke/${suffix}.mp3`
+    const uploadedAudio = await uploadFixture(smokeBaseUrl, adminAuth.token, '/api/upload/audio', 'smoke audio', 'audio/mpeg', 'voice.mp3')
+    assert(uploadedAudio.url && uploadedAudio.url.startsWith('/uploads/audio/'), 'audio upload should return protected audio storage URL')
+    assertEqual(uploadedAudio.fullUrl, undefined, 'audio upload should not return a public full URL')
+    uploadedAudioFile = uploadedFilePathFromUrl(uploadedAudio.url)
+    assert(fs.existsSync(uploadedAudioFile), 'uploaded audio file should exist on disk for message creation')
+
+    const tooLargeAudioError = await uploadFixtureExpectError(
+      smokeBaseUrl,
+      adminAuth.token,
+      '/api/upload/audio',
+      Buffer.alloc((20 * 1024 * 1024) + 1),
+      'audio/mpeg',
+      'too-large.mp3'
+    )
+    assertEqual(tooLargeAudioError.code, 'UPLOAD_ERROR', 'oversized audio should return upload error code')
+    assert(tooLargeAudioError.message.includes('20MB'), 'oversized audio should mention 20MB limit')
+    assert(!tooLargeAudioError.message.includes('图片'), 'oversized audio error should not use image-only wording')
 
     const message = await messageService.createMessage(adminId, familyId, {
       receiverIds: [memberId],
       visibility: 'private',
       messageType: 'request',
       originalText: '你今晚必须马上把作业说清楚。',
-      originalAudioUrl: audioSmokeUrl,
+      originalAudioUrl: uploadedAudio.url,
       audioDurationSec: 3,
       optimizedText: '宝贝，今晚我们找个合适的时间聊一下作业安排，好吗？',
       emotionTags: ['着急'],
@@ -237,7 +301,7 @@ async function main() {
     )
 
     const senderAudioFile = await messageService.getOriginalAudioFile(adminId, message.id)
-    assertEqual(senderAudioFile.filePath, audioSmokeFile, 'sender should fetch protected original audio file')
+    assertEqual(senderAudioFile.filePath, uploadedAudioFile, 'sender should fetch protected original audio file')
 
     const memberUnread = await notificationService.getUnreadCount(memberId)
     assert(memberUnread.count >= 1, 'member should have unread message notification')
@@ -354,6 +418,51 @@ async function main() {
     const adminUnread = await notificationService.getUnreadCount(adminId)
     assert(adminUnread.count >= 1, 'admin should have unread reply notification')
 
+    await expectError(
+      'NOT_FAMILY_ADMIN',
+      () => adminService.getDashboard(memberId, familyId),
+      'non-admin member should not access admin dashboard'
+    )
+    await expectError(
+      'FORBIDDEN',
+      () => adminService.updateMuteStatus(adminId, familyId, adminId, { isMuted: true }),
+      'admin should not mute self'
+    )
+    await expectError(
+      'FORBIDDEN',
+      () => adminService.updateMemberRole(adminId, familyId, adminId, { role: 'member' }),
+      'last admin should not be demoted'
+    )
+    await expectError(
+      'FORBIDDEN',
+      () => adminService.removeMember(adminId, familyId, adminId, { reason: '烟测自我移除' }),
+      'admin should not remove self'
+    )
+
+    await adminService.updateMuteStatus(adminId, familyId, memberId, { isMuted: true })
+    await expectError(
+      'USER_MUTED',
+      () => messageService.createMessage(memberId, familyId, {
+        receiverIds: [adminId],
+        visibility: 'private',
+        messageType: 'general',
+        originalText: '停用成员尝试留言',
+        optimizedText: '停用成员尝试留言',
+        riskLevel: 'low'
+      }),
+      'muted member should not create messages'
+    )
+    await expectError(
+      'USER_MUTED',
+      () => replyService.createReply(memberId, message.id, {
+        originalText: '停用成员尝试回复',
+        optimizedText: '停用成员尝试回复',
+        riskLevel: 'low'
+      }),
+      'muted member should not create replies'
+    )
+    await adminService.updateMuteStatus(adminId, familyId, memberId, { isMuted: false })
+
     await adminService.hideMessage(adminId, message.id, { reason: '烟测隐藏留言' })
     const staleMemoryCount = await prisma.familyMemory.count({ where: { familyId, status: 'stale' } })
     assert(staleMemoryCount >= 1, 'hiding message should mark related family memories stale')
@@ -391,8 +500,11 @@ async function main() {
     if (userIds.length) {
       await prisma.user.deleteMany({ where: { id: { in: userIds } } })
     }
-    if (audioSmokeDir) {
-      fs.rmSync(audioSmokeDir, { recursive: true, force: true })
+    if (uploadedAudioFile) {
+      fs.rmSync(uploadedAudioFile, { force: true })
+    }
+    if (smokeServer) {
+      await new Promise((resolve) => smokeServer.close(resolve))
     }
     await prisma.$disconnect()
   }
