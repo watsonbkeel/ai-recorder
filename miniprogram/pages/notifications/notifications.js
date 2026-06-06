@@ -84,7 +84,8 @@ Page({
       }
 
       if (item.messageId) {
-        wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}` })
+        const familyParam = item.familyId ? `&familyId=${item.familyId}` : ''
+        wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}${familyParam}` })
         return
       }
 

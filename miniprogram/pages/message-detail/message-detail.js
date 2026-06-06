@@ -3,6 +3,7 @@ const replyService = require('../../services/reply')
 const aiService = require('../../services/ai')
 const adminService = require('../../services/admin')
 const format = require('../../utils/format')
+const { handleFamilyAccessError } = require('../../utils/familyAccess')
 
 const VISIBILITY_TEXT = {
   private: '指定家人',
@@ -21,6 +22,7 @@ const REPLY_STATUS_STEPS = [
   '正在保留你的关心、观点和边界...',
   '快好了，正在整理成更容易被家人接住的表达...'
 ]
+const CONTENT_UNAVAILABLE_CODES = new Set(['CONTENT_NOT_VISIBLE', 'FORBIDDEN', 'NOT_FOUND'])
 
 function prepareMessage(message) {
   return {
@@ -40,6 +42,7 @@ function prepareReply(reply) {
 Page({
   data: {
     messageId: null,
+    familyId: null,
     message: null,
     replies: [],
     replyOriginalText: '',
@@ -64,7 +67,10 @@ Page({
   },
   onLoad(options) {
     this.audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
-    this.setData({ messageId: Number(options.messageId) })
+    this.setData({
+      messageId: Number(options.messageId),
+      familyId: Number(options.familyId) || null
+    })
     if (this.audio) {
       this.audio.onEnded(() => {
         this.setData({ playingOriginalAudio: false })
@@ -123,6 +129,32 @@ Page({
       this.setData({ replyAiStatusText: '' })
     }
   },
+  navigateBackOrList(familyId) {
+    const pages = getCurrentPages()
+    if (pages.length > 1) {
+      wx.navigateBack()
+      return
+    }
+    if (familyId) {
+      wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${familyId}` })
+      return
+    }
+    wx.redirectTo({ url: '/pages/family-select/family-select' })
+  },
+  fallbackFamilyId() {
+    return (this.data.message && this.data.message.familyId) || this.data.familyId
+  },
+  handleContentUnavailable(error, fallbackMessage) {
+    if (!error || !CONTENT_UNAVAILABLE_CODES.has(error.code)) {
+      return false
+    }
+    const familyId = this.fallbackFamilyId()
+    wx.showToast({ title: fallbackMessage || '这条留言已不可见', icon: 'none' })
+    setTimeout(() => {
+      this.navigateBackOrList(familyId)
+    }, 500)
+    return true
+  },
   async loadData() {
     this.setData({ loading: true, error: '' })
     try {
@@ -135,6 +167,12 @@ Page({
         replies: replies.map(prepareReply)
       })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+        return
+      }
+      if (this.handleContentUnavailable(error, '这条留言已不可见')) {
+        return
+      }
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
@@ -152,6 +190,9 @@ Page({
       audio.src = tempFilePath
       audio.play()
     } catch (error) {
+      if (this.handleContentUnavailable(error, '原始语音已不可播放')) {
+        return
+      }
       this.setData({ playingOriginalAudio: false, error: error.message || '原始语音播放失败' })
     }
   },
@@ -177,6 +218,12 @@ Page({
       })
       this.setData({ analysis })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+        return
+      }
+      if (this.handleContentUnavailable(error, '这条留言已不可分析')) {
+        return
+      }
       this.setData({ error: error.message || 'AI 理解失败' })
     } finally {
       this.clearAnalysisStatus()
@@ -207,6 +254,12 @@ Page({
         replyAttackWarning: result.attackWarning || ''
       })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+        return
+      }
+      if (this.handleContentUnavailable(error, '这条留言已不可回复')) {
+        return
+      }
       this.setData({ error: error.message || 'AI 整理失败' })
     } finally {
       this.clearReplyAiStatus()
@@ -235,6 +288,12 @@ Page({
       wx.showToast({ title: '已回复', icon: 'success' })
       this.loadData()
     } catch (error) {
+      if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+        return
+      }
+      if (this.handleContentUnavailable(error, '这条留言已不可回复')) {
+        return
+      }
       this.setData({ error: error.message || '回复失败' })
     } finally {
       this.setData({ submitting: false })
@@ -263,6 +322,12 @@ Page({
             wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
           }
         } catch (error) {
+          if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+            return
+          }
+          if (this.handleContentUnavailable(error, '这条留言已不可删除')) {
+            return
+          }
           this.setData({ error: error.message || '删除失败', loading: false, handlingMessageAction: '' })
         }
       }
@@ -291,6 +356,12 @@ Page({
             wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
           }
         } catch (error) {
+          if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+            return
+          }
+          if (this.handleContentUnavailable(error, '这条留言已不可隐藏')) {
+            return
+          }
           this.setData({ error: error.message || '隐藏失败', loading: false, handlingMessageAction: '' })
         }
       }
@@ -315,6 +386,12 @@ Page({
           wx.showToast({ title: '已删除', icon: 'success' })
           this.loadData()
         } catch (error) {
+          if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+            return
+          }
+          if (this.handleContentUnavailable(error, '这条回复已不可删除')) {
+            return
+          }
           this.setData({ error: error.message || '删除失败' })
         } finally {
           this.setData({ handlingReplyId: null, handlingReplyAction: '' })
@@ -341,6 +418,12 @@ Page({
           wx.showToast({ title: '已隐藏', icon: 'success' })
           this.loadData()
         } catch (error) {
+          if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+            return
+          }
+          if (this.handleContentUnavailable(error, '这条回复已不可隐藏')) {
+            return
+          }
           this.setData({ error: error.message || '隐藏失败' })
         } finally {
           this.setData({ handlingReplyId: null, handlingReplyAction: '' })

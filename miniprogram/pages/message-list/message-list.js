@@ -129,7 +129,7 @@ Page({
     wx.navigateTo({ url: `/pages/message-create/message-create?familyId=${this.data.familyId}` })
   },
   goDetail(event) {
-    wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${event.currentTarget.dataset.id}` })
+    wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${event.currentTarget.dataset.id}&familyId=${this.data.familyId}` })
   },
   goNotifications() {
     wx.navigateTo({ url: '/pages/notifications/notifications' })
