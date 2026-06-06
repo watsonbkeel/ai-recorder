@@ -1,7 +1,10 @@
 <view class="page">
-  <view class="card">
-    <view class="title">暖心留声机</view>
-    <view class="sub-title">把不容易说出口的话，温柔地传达给家人。</view>
+  <view class="card hero-card">
+    <view class="hero-content">
+      <image class="hero-image hero-image-compact" src="/images/loading-1.jpg" mode="aspectFill"></image>
+      <view class="title page-title">暖心留声机</view>
+      <view class="sub-title">选择一个家庭空间，把留声、暖心表达和家庭沟通习惯都留在这个家里。</view>
+    </view>
   </view>
 
   <view wx:if="{{loading}}" class="loading">正在加载家庭...</view>
@@ -9,7 +12,7 @@
 
   <view wx:else>
     <view wx:if="{{!families.length}}" class="empty">还没有家庭空间，先创建一个家。</view>
-    <view wx:for="{{families}}" wx:key="id" class="card" bindtap="selectFamily" data-item="{{item}}">
+    <view wx:for="{{families}}" wx:key="id" class="card family-card" bindtap="selectFamily" data-item="{{item}}">
       <view class="row-between">
         <view>
           <view class="title">{{item.name}}</view>
@@ -22,6 +25,7 @@
 
     <view class="card">
       <view class="title">创建家庭</view>
+      <view class="sub-title">为家人准备一个只属于这个家庭的暖心留声空间。</view>
       <input class="input" placeholder="家庭名称，例如：我们家" value="{{createName}}" bindinput="handleNameInput" />
       <textarea class="textarea" placeholder="一句家庭介绍，可不填" value="{{createDescription}}" bindinput="handleDescriptionInput"></textarea>
       <view class="sub-title">设置你在这个家庭里的身份</view>
@@ -39,7 +43,7 @@
       <button class="btn-primary" loading="{{creating}}" disabled="{{creating}}" bindtap="createFamily">创建并进入</button>
     </view>
 
-    <view class="card">
+    <view class="card soft-panel">
       <button class="btn-secondary" bindtap="goJoin">通过邀请码加入家庭</button>
     </view>
   </view>

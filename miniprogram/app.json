@@ -14,9 +14,9 @@
   ],
   "window": {
     "navigationBarTitleText": "暖心留声机",
-    "navigationBarBackgroundColor": "#25636f",
+    "navigationBarBackgroundColor": "#df7d62",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#f5f7fb",
+    "backgroundColor": "#f6efe2",
     "backgroundTextStyle": "light"
   },
   "networkTimeout": {

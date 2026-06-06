@@ -1,7 +1,7 @@
 <view class="page">
-  <view class="card">
+  <view class="card hero-card">
     <view class="title">写给家人</view>
-    <view class="sub-title">先写下文字原话或语音大意，再让 AI 帮你整理表达。</view>
+    <view class="sub-title">先留下原话或语音大意，再让暖心表达助手帮你说清楚。</view>
 
     <picker mode="selector" range="{{visibilityLabels}}" value="{{visibilityIndex}}" bindchange="handleVisibilityChange">
       <view class="input">留言范围：{{visibilityLabels[visibilityIndex]}}</view>
@@ -26,22 +26,23 @@
     </picker>
     <textarea class="textarea" placeholder="写下原话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput"></textarea>
 
-    <view class="actions">
+    <view class="voice-actions">
       <button class="btn-secondary" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="startRecord">开始录音</button>
       <button class="btn-secondary" disabled="{{loading || !recording}}" bindtap="stopRecord">停止录音</button>
       <button wx:if="{{audioTempPath}}" class="btn-secondary" loading="{{playingAudio}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="playAudio">{{playingAudio ? '试听中' : '试听原声'}}</button>
     </view>
-    <view wx:if="{{audioTempPath}}" class="muted">已录制语音，发送时会上传。当前版本不会自动转写语音，AI 整理需要你先写下文字原话或大意。</view>
+    <view wx:if="{{recording}}" class="voice-chip">正在留声</view>
+    <view wx:if="{{audioTempPath && !recording}}" class="voice-note">已录制语音，发送时会上传。当前版本不会自动转写语音，AI 整理需要你先写下文字原话或大意。</view>
 
     <view class="row-between memory-row">
       <view>
-        <view>使用家庭沟通记忆</view>
-        <view class="muted">参考本家庭内可见摘要、敏感点和有效表达。</view>
+        <view>参考家庭沟通习惯</view>
+        <view class="muted">只参考这个家庭内你有权限看到的沟通摘要和有效表达。</view>
       </view>
       <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
     </view>
 
-    <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="optimize">AI 帮我整理文字表达</button>
+    <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="optimize">暖心表达助手</button>
     <view wx:if="{{aiStatusText}}" class="ai-status">{{aiStatusText}}</view>
   </view>
 
@@ -52,8 +53,8 @@
     <view wx:if="{{emotionTags.length}}">
       <text wx:for="{{emotionTags}}" wx:key="*this" class="tag">{{item}}</text>
     </view>
-    <view wx:if="{{coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{coreNeed}}</view>
-    <view wx:if="{{aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{aiAdvice}}</view>
+    <view wx:if="{{coreNeed}}" class="muted message-meta">想说清楚的是：{{coreNeed}}</view>
+    <view wx:if="{{aiAdvice}}" class="muted message-meta">表达提示：{{aiAdvice}}</view>
     <view wx:if="{{visibilityIndex !== 2}}" class="row-between" style="margin-top:16rpx;">
       <view>允许对方看原始文字</view>
       <switch checked="{{allowOriginalTextView}}" bindchange="handleTextPermission"></switch>

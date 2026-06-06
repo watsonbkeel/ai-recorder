@@ -1,10 +1,16 @@
 <view class="page">
+  <view class="card hero-card">
+    <view class="hero-content">
+      <image class="hero-image" src="/images/loading-1.jpg" mode="aspectFill"></image>
+      <view class="title page-title">暖心留声机</view>
+      <view class="sub-title">把不好开口的话先放进家里的暖光里，再整理成家人更容易听懂的表达。</view>
+    </view>
+  </view>
+
   <view class="card">
-    <view class="title">暖心留声机</view>
-    <view class="sub-title">使用微信登录进入家庭空间；本地调试也可以使用账号名和密码。</view>
     <view class="help-list">
-      <view class="help-item"><view class="help-index">1</view><view class="help-text">推荐使用微信登录，首次登录会自动创建账号。</view></view>
-      <view class="help-item"><view class="help-index">2</view><view class="help-text">进入家庭后就能给家人留言、听原声、回复和查看通知。</view></view>
+      <view class="help-item"><view class="help-index">1</view><view class="help-text">推荐使用微信登录，首次进入会自动创建家庭账号。</view></view>
+      <view class="help-item"><view class="help-index">2</view><view class="help-text">进入家庭后可以留声、整理暖心表达、回复和查看家人通知。</view></view>
     </view>
     <input class="input" placeholder="昵称（可选）" value="{{nickname}}" bindinput="handleNicknameInput" />
     <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="handleWechatLogin">微信登录 / 注册</button>
