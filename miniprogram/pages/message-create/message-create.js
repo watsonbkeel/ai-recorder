@@ -15,6 +15,12 @@ const VISIBILITY_DESCRIPTIONS = [
   '家庭成员都能在时间线看到这条心声。',
   '只保存给自己，用来整理想法，不通知家人。'
 ]
+const AI_STATUS_STEPS = [
+  'AI 正在理解你的心里话...',
+  '正在识别这段话背后的情绪和需求...',
+  '正在整理成更容易被家人听见的表达...',
+  '快好了，正在保留你的本意和边界...'
+]
 
 Page({
   data: {
@@ -40,6 +46,7 @@ Page({
     allowOriginalAudioPlay: false,
     useFamilyMemory: true,
     aiLoading: false,
+    aiStatusText: '',
     membersLoading: false,
     loading: false,
     error: ''
@@ -58,6 +65,27 @@ Page({
       recorder.onError(() => {
         this.setData({ recording: false, error: '录音失败，请重试' })
       })
+    }
+  },
+  onUnload() {
+    this.clearAiStatus(false)
+  },
+  startAiStatus() {
+    this.clearAiStatus(false)
+    let index = 0
+    this.setData({ aiStatusText: AI_STATUS_STEPS[index] })
+    this.aiStatusTimer = setInterval(() => {
+      index = Math.min(index + 1, AI_STATUS_STEPS.length - 1)
+      this.setData({ aiStatusText: AI_STATUS_STEPS[index] })
+    }, 4500)
+  },
+  clearAiStatus(reset = true) {
+    if (this.aiStatusTimer) {
+      clearInterval(this.aiStatusTimer)
+      this.aiStatusTimer = null
+    }
+    if (reset) {
+      this.setData({ aiStatusText: '' })
     }
   },
   async loadMembers() {
@@ -164,6 +192,7 @@ Page({
       return
     }
     this.setData({ aiLoading: true, error: '' })
+    this.startAiStatus()
     try {
       const result = await aiService.optimizeMessage({
         familyId: this.data.familyId,
@@ -185,6 +214,7 @@ Page({
     } catch (error) {
       this.setData({ error: error.message || 'AI 整理失败' })
     } finally {
+      this.clearAiStatus()
       this.setData({ aiLoading: false })
     }
   },

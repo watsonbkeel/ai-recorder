@@ -12,6 +12,18 @@ const VISIBILITY_TEXT = {
   family: '全家可见',
   self: '仅自己'
 }
+const ANALYSIS_STATUS_STEPS = [
+  'AI 正在理解这段心声...',
+  '正在提炼情绪和真实需求...',
+  '正在整理回应时需要避开的表达...',
+  '快好了，正在生成更温和的回应建议...'
+]
+const REPLY_STATUS_STEPS = [
+  'AI 正在理解你的回复原意...',
+  '正在降低可能伤人的语气...',
+  '正在保留你的关心、观点和边界...',
+  '快好了，正在整理成更容易被家人接住的表达...'
+]
 
 function fullUrl(url) {
   if (!url) {
@@ -54,13 +66,55 @@ Page({
     useFamilyMemory: true,
     loading: true,
     analysisLoading: false,
+    analysisStatusText: '',
     aiLoading: false,
+    replyAiStatusText: '',
     submitting: false,
     error: ''
   },
   onLoad(options) {
     this.setData({ messageId: Number(options.messageId) })
     this.loadData()
+  },
+  onUnload() {
+    this.clearAnalysisStatus(false)
+    this.clearReplyAiStatus(false)
+  },
+  startAnalysisStatus() {
+    this.clearAnalysisStatus(false)
+    let index = 0
+    this.setData({ analysisStatusText: ANALYSIS_STATUS_STEPS[index] })
+    this.analysisStatusTimer = setInterval(() => {
+      index = Math.min(index + 1, ANALYSIS_STATUS_STEPS.length - 1)
+      this.setData({ analysisStatusText: ANALYSIS_STATUS_STEPS[index] })
+    }, 4500)
+  },
+  clearAnalysisStatus(reset = true) {
+    if (this.analysisStatusTimer) {
+      clearInterval(this.analysisStatusTimer)
+      this.analysisStatusTimer = null
+    }
+    if (reset) {
+      this.setData({ analysisStatusText: '' })
+    }
+  },
+  startReplyAiStatus() {
+    this.clearReplyAiStatus(false)
+    let index = 0
+    this.setData({ replyAiStatusText: REPLY_STATUS_STEPS[index] })
+    this.replyAiStatusTimer = setInterval(() => {
+      index = Math.min(index + 1, REPLY_STATUS_STEPS.length - 1)
+      this.setData({ replyAiStatusText: REPLY_STATUS_STEPS[index] })
+    }, 4500)
+  },
+  clearReplyAiStatus(reset = true) {
+    if (this.replyAiStatusTimer) {
+      clearInterval(this.replyAiStatusTimer)
+      this.replyAiStatusTimer = null
+    }
+    if (reset) {
+      this.setData({ replyAiStatusText: '' })
+    }
   },
   async loadData() {
     this.setData({ loading: true, error: '' })
@@ -97,6 +151,7 @@ Page({
   },
   async analyzeMessage() {
     this.setData({ analysisLoading: true, error: '' })
+    this.startAnalysisStatus()
     try {
       const analysis = await aiService.analyzeMessage({
         messageId: this.data.messageId,
@@ -106,6 +161,7 @@ Page({
     } catch (error) {
       this.setData({ error: error.message || 'AI 理解失败' })
     } finally {
+      this.clearAnalysisStatus()
       this.setData({ analysisLoading: false })
     }
   },
@@ -115,6 +171,7 @@ Page({
       return
     }
     this.setData({ aiLoading: true, error: '' })
+    this.startReplyAiStatus()
     try {
       const result = await aiService.optimizeReply({
         originalText: this.data.replyOriginalText,
@@ -131,6 +188,7 @@ Page({
     } catch (error) {
       this.setData({ error: error.message || 'AI 整理失败' })
     } finally {
+      this.clearReplyAiStatus()
       this.setData({ aiLoading: false })
     }
   },

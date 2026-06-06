@@ -28,6 +28,7 @@ One-line description:
 - Sender-controlled permission for original text and original audio.
 - AI optimized expression for messages and replies.
 - AI message analysis based on backend-verified visible context.
+- Staged AI waiting feedback for message optimization, message analysis, and reply optimization.
 - Family communication memory with `family`, `member`, and `pair` scopes.
 - User switch to disable AI family memory use.
 - Family timeline with sent, received, and family-visible messages.

@@ -43,6 +43,7 @@
         <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
       </view>
       <button class="btn-secondary" loading="{{analysisLoading}}" disabled="{{analysisLoading}}" bindtap="analyzeMessage">AI 帮我理解</button>
+      <view wx:if="{{analysisStatusText}}" class="ai-status">{{analysisStatusText}}</view>
       <view wx:if="{{analysis}}" class="analysis-box">
         <view wx:if="{{analysis.possibleEmotions && analysis.possibleEmotions.length}}" class="analysis-section">
           <view class="muted">可能情绪</view>
@@ -67,6 +68,7 @@
       <view class="title">回复家人</view>
       <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
       <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
+      <view wx:if="{{replyAiStatusText}}" class="ai-status">{{replyAiStatusText}}</view>
       <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
       <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>
     </view>

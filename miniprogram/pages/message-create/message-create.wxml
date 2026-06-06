@@ -42,6 +42,7 @@
     </view>
 
     <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading}}" bindtap="optimize">AI 帮我整理表达</button>
+    <view wx:if="{{aiStatusText}}" class="ai-status">{{aiStatusText}}</view>
   </view>
 
   <view wx:if="{{optimizedText || audioTempPath}}" class="card">

@@ -133,6 +133,16 @@ page {
   padding: 80rpx 24rpx;
 }
 
+.ai-status {
+  margin-top: 16rpx;
+  padding: 18rpx 22rpx;
+  border-left: 6rpx solid #25636f;
+  border-radius: 12rpx;
+  background: #f1f5f9;
+  color: #334155;
+  line-height: 40rpx;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

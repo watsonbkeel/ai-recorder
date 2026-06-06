@@ -38,19 +38,22 @@
 4. Enter original text, record voice, or both.
 5. Choose whether AI may use family communication memory. Default: on.
 6. Tap AI optimize.
-7. Review optimized expression, emotion tags, core need, advice, risk warning.
-8. If the message only has voice and no text, manually fill the expression family members should read first.
-9. For messages shared with family members, choose whether receivers may view original text or play original audio.
-10. Send or save message.
+7. While AI is working, the page shows staged status copy such as understanding the original expression, identifying emotions and needs, and preserving intent and boundaries. The user may continue editing the original input while waiting.
+8. Review optimized expression, emotion tags, core need, advice, risk warning.
+9. If the message only has voice and no text, manually fill the expression family members should read first.
+10. For messages shared with family members, choose whether receivers may view original text or play original audio.
+11. Send or save message.
 
 ## Detail And Reply
 
 1. Receiver sees optimized text first.
 2. Original text/audio appears only if the sender allowed it.
 3. Receiver may turn family memory on/off and ask AI to help understand the message.
-4. Receiver writes original reply.
-5. Receiver may turn family memory on/off before AI optimizes the reply.
-6. Reply is saved with original text and optimized text. The original reply is visible only to its sender.
+4. While AI is analyzing, the detail page shows staged status copy for understanding emotions, needs, avoid phrases, and suggested response.
+5. Receiver writes original reply.
+6. Receiver may turn family memory on/off before AI optimizes the reply.
+7. While AI is optimizing the reply, the page shows staged status copy and the reply textarea remains editable.
+8. Reply is saved with original text and optimized text. The original reply is visible only to its sender.
 
 ## Profile
 
