@@ -41,6 +41,8 @@ npm run dev
 
 微信登录需要在本地 `server/.env` 配置 `WECHAT_APPID` 和 `WECHAT_SECRET`。真实 `WECHAT_SECRET` 不能提交到仓库。
 
+AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
+
 ## 文档
 
 - `AGENTS.md`: 开发代理约束。

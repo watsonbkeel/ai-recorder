@@ -9,7 +9,7 @@ Use an OpenAI-compatible provider configured only through local environment vari
 - `OPENAI_MODEL`
 - `OPENAI_TIMEOUT_MS`
 
-Do not commit real keys or provider secrets. `server/.env` is ignored by git.
+Default provider values are `OPENAI_BASE_URL=https://token.bkeel.com/v1` and `OPENAI_MODEL=gpt-5.4-mini`. Do not commit real keys or provider secrets. `server/.env` is ignored by git.
 
 ## Backend-Built Context
 
