@@ -6,7 +6,6 @@ const auth = require('../../utils/auth')
 const { identitySummary } = require('../../utils/familyIdentity')
 
 const recorder = wx.getRecorderManager ? wx.getRecorderManager() : null
-const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
 const MESSAGE_TYPES = ['thanks', 'apology', 'grievance', 'request', 'explain', 'stress', 'repair', 'encouragement', 'general']
 const MESSAGE_TYPE_LABELS = ['感谢', '道歉', '委屈', '请求', '解释', '压力', '修复关系', '鼓励', '普通心声']
 const VISIBILITIES = ['private', 'family', 'self']
@@ -44,6 +43,7 @@ Page({
     audioTempPath: '',
     audioDurationSec: 0,
     recording: false,
+    playingAudio: false,
     allowOriginalTextView: false,
     allowOriginalAudioPlay: false,
     useFamilyMemory: true,
@@ -54,6 +54,7 @@ Page({
     error: ''
   },
   onLoad(options) {
+    this.audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
     this.setData({ familyId: Number(options.familyId) })
     if (!Number(options.familyId)) {
       this.exitInvalidFamily('请先选择家庭')
@@ -61,15 +62,25 @@ Page({
     }
     this.loadMembers()
     if (recorder) {
-      recorder.onStop((res) => {
+      this.handleRecorderStop = (res) => {
         this.setData({
           audioTempPath: res.tempFilePath,
           audioDurationSec: Math.round((res.duration || 0) / 1000),
           recording: false
         })
-      })
-      recorder.onError(() => {
+      }
+      this.handleRecorderError = () => {
         this.setData({ recording: false, error: '录音失败，请重试' })
+      }
+      recorder.onStop(this.handleRecorderStop)
+      recorder.onError(this.handleRecorderError)
+    }
+    if (this.audio) {
+      this.audio.onEnded(() => {
+        this.setData({ playingAudio: false })
+      })
+      this.audio.onError(() => {
+        this.setData({ playingAudio: false, error: '语音试听失败，请重新录制或稍后再试' })
       })
     }
   },
@@ -78,9 +89,20 @@ Page({
     if (this.data.recording && recorder) {
       recorder.stop()
     }
-    if (audio) {
-      audio.stop()
+    if (recorder && this.handleRecorderStop && recorder.offStop) {
+      recorder.offStop(this.handleRecorderStop)
     }
+    if (recorder && this.handleRecorderError && recorder.offError) {
+      recorder.offError(this.handleRecorderError)
+    }
+    if (this.audio) {
+      this.audio.stop()
+      if (this.audio.destroy) {
+        this.audio.destroy()
+      }
+      this.audio = null
+    }
+    this.setData({ playingAudio: false })
   },
   startAiStatus() {
     this.clearAiStatus(false)
@@ -181,7 +203,7 @@ Page({
     this.setData({ useFamilyMemory: event.detail.value })
   },
   startRecord() {
-    if (this.data.recording || this.data.loading || this.data.aiLoading) {
+    if (this.data.recording || this.data.playingAudio || this.data.loading || this.data.aiLoading) {
       return
     }
     if (!recorder) {
@@ -201,11 +223,13 @@ Page({
     }
   },
   playAudio() {
+    const audio = this.audio
     if (!audio || !this.data.audioTempPath || this.data.recording) {
       return
     }
     audio.stop()
     audio.src = this.data.audioTempPath
+    this.setData({ playingAudio: true, error: '' })
     audio.play()
   },
   effectiveReceiverIds() {
@@ -219,7 +243,7 @@ Page({
     return this.data.selectedReceiverIds
   },
   async optimize() {
-    if (this.data.aiLoading || this.data.loading || this.data.recording) {
+    if (this.data.aiLoading || this.data.loading || this.data.recording || this.data.playingAudio) {
       return
     }
     if (!this.data.originalText.trim()) {
@@ -258,7 +282,7 @@ Page({
     }
   },
   async submit() {
-    if (this.data.loading || this.data.aiLoading || this.data.recording) {
+    if (this.data.loading || this.data.aiLoading || this.data.recording || this.data.playingAudio) {
       return
     }
     const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'

@@ -69,6 +69,7 @@ curl http://127.0.0.1:3000/health
 - User can enter original text.
 - Text-only messages can be sent without AI; the original text is used as the family-visible expression unless the user writes or generates a separate expression.
 - User can record and upload original voice.
+- Recorded voice preview blocks duplicate playback and clears its loading state after playback ends or fails.
 - Oversized voice/image uploads return a clear upload-size error instead of image-only copy.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
 - AI message optimization refuses audio-only input unless the user also writes original text or a voice summary.
@@ -81,6 +82,7 @@ curl http://127.0.0.1:3000/health
 - Receiver sees AI optimized text first.
 - Receiver can only view/play original content when authorized.
 - Original audio playback uses an authenticated message endpoint; `/uploads/audio/...` is not publicly served.
+- Original audio playback clears its loading state after authenticated download/playback ends or fails.
 - Original text/audio permission switches do not appear for `仅自己` messages.
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.

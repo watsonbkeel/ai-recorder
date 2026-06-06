@@ -4,8 +4,6 @@ const aiService = require('../../services/ai')
 const adminService = require('../../services/admin')
 const format = require('../../utils/format')
 
-const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
-
 const VISIBILITY_TEXT = {
   private: '指定家人',
   family: '全家可见',
@@ -65,15 +63,29 @@ Page({
     error: ''
   },
   onLoad(options) {
+    this.audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
     this.setData({ messageId: Number(options.messageId) })
+    if (this.audio) {
+      this.audio.onEnded(() => {
+        this.setData({ playingOriginalAudio: false })
+      })
+      this.audio.onError(() => {
+        this.setData({ playingOriginalAudio: false, error: '原始语音播放失败，请稍后重试' })
+      })
+    }
     this.loadData()
   },
   onUnload() {
     this.clearAnalysisStatus(false)
     this.clearReplyAiStatus(false)
-    if (audio) {
-      audio.stop()
+    if (this.audio) {
+      this.audio.stop()
+      if (this.audio.destroy) {
+        this.audio.destroy()
+      }
+      this.audio = null
     }
+    this.setData({ playingOriginalAudio: false })
   },
   startAnalysisStatus() {
     this.clearAnalysisStatus(false)
@@ -129,6 +141,7 @@ Page({
     }
   },
   async playOriginalAudio() {
+    const audio = this.audio
     if (!audio || !this.data.message || !this.data.message.originalAudioUrl || this.data.playingOriginalAudio) {
       return
     }
@@ -139,9 +152,7 @@ Page({
       audio.src = tempFilePath
       audio.play()
     } catch (error) {
-      this.setData({ error: error.message || '原始语音播放失败' })
-    } finally {
-      this.setData({ playingOriginalAudio: false })
+      this.setData({ playingOriginalAudio: false, error: error.message || '原始语音播放失败' })
     }
   },
   handleReplyInput(event) {
