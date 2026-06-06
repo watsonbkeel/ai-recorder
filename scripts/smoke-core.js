@@ -1,3 +1,6 @@
+process.env.OPENAI_API_KEY = 'smoke_fake_openai_key'
+
+const axios = require('../server/node_modules/axios')
 const prisma = require('../server/src/utils/prisma')
 const authService = require('../server/src/services/auth.service')
 const familyService = require('../server/src/services/family.service')
@@ -5,6 +8,42 @@ const adminService = require('../server/src/services/admin.service')
 const messageService = require('../server/src/services/message.service')
 const replyService = require('../server/src/services/reply.service')
 const notificationService = require('../server/src/services/notification.service')
+const aiService = require('../server/src/services/ai.service')
+const { buildFamilyMemoryContext } = require('../server/src/services/familyMemory.service')
+
+const aiCalls = []
+const originalAxiosPost = axios.post
+
+axios.post = async (url, body, options) => {
+  const userPayload = JSON.parse(body.messages[1].content)
+  aiCalls.push({
+    url,
+    body,
+    options,
+    systemPrompt: body.messages[0].content,
+    userPayload
+  })
+  return {
+    data: {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            optimizedText: '烟测 AI 整理后的表达',
+            emotionTags: ['烟测'],
+            coreNeed: '确认上下文权限',
+            communicationAdvice: '保持温和、具体和尊重',
+            riskLevel: 'low',
+            attackWarning: null,
+            possibleEmotions: ['愿意沟通'],
+            realNeeds: ['被理解'],
+            whatToAvoid: ['指责和催促'],
+            suggestedResponse: '我听见你的意思了，我们慢慢说。'
+          })
+        }
+      }]
+    }
+  }
+}
 
 function assert(condition, message) {
   if (!condition) {
@@ -32,6 +71,18 @@ async function expectError(code, task, message) {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function lastAiPayload(message) {
+  const call = aiCalls[aiCalls.length - 1]
+  assert(call, `${message}: expected AI call`)
+  return call.userPayload
+}
+
+function assertNoHiddenOriginalText(value, message) {
+  const text = JSON.stringify(value)
+  assert(!text.includes('必须马上'), `${message}: hidden message original text leaked`)
+  assert(!text.includes('不想马上讲'), `${message}: hidden reply original text leaked`)
 }
 
 async function pollReplyMemory(familyId) {
@@ -141,6 +192,60 @@ async function main() {
     const replyMemory = await pollReplyMemory(familyId)
     assert(replyMemory, 'family memory should refresh after reply')
     assertEqual(replyMemory.scope, 'pair', 'private message memory should stay pair scoped')
+    const replyMemoryText = JSON.stringify(replyMemory)
+    assert(!replyMemoryText.includes('必须马上'), 'family memory should not store hidden original message text')
+    assert(!replyMemoryText.includes('不想马上讲'), 'family memory should not store hidden original reply text')
+
+    const enabledMemoryContext = await buildFamilyMemoryContext(adminId, familyId, [memberId], true)
+    assert(enabledMemoryContext.enabled, 'enabled family memory context should be marked enabled')
+    assert(
+      enabledMemoryContext.memories.some((memory) => memory.scope === 'pair'),
+      'enabled family memory context should include current pair memory'
+    )
+    const disabledMemoryContext = await buildFamilyMemoryContext(adminId, familyId, [memberId], false)
+    assertEqual(disabledMemoryContext.enabled, false, 'disabled family memory context should be marked disabled')
+    assertEqual(disabledMemoryContext.memories.length, 0, 'disabled family memory context should return no memories')
+
+    aiCalls.length = 0
+    await aiService.analyzeMessage(memberId, { messageId: message.id, useFamilyMemory: false })
+    const disabledAiPayload = lastAiPayload('disabled AI analysis')
+    assertEqual(
+      disabledAiPayload.request.familyContext.familyMemory.enabled,
+      false,
+      'AI analysis with disabled memory should mark family memory disabled'
+    )
+    assertEqual(
+      disabledAiPayload.request.familyContext.familyMemory.memories.length,
+      0,
+      'AI analysis with disabled memory should not include memories'
+    )
+    assertNoHiddenOriginalText(disabledAiPayload, 'disabled AI analysis payload')
+
+    await aiService.analyzeMessage(memberId, { messageId: message.id, useFamilyMemory: true })
+    const enabledAiPayload = lastAiPayload('enabled AI analysis')
+    assert(
+      enabledAiPayload.request.familyContext.familyMemory.memories.some((memory) => memory.scope === 'pair'),
+      'AI analysis with enabled memory should include pair memory'
+    )
+    assertNoHiddenOriginalText(enabledAiPayload, 'enabled AI analysis payload')
+
+    await aiService.optimizeReply(memberId, {
+      messageId: message.id,
+      originalText: '我想晚一点再说。',
+      useFamilyMemory: false
+    })
+    const replyAiPayload = lastAiPayload('reply AI optimization')
+    assertEqual(
+      replyAiPayload.request.familyContext.familyMemory.enabled,
+      false,
+      'AI reply optimization with disabled memory should mark family memory disabled'
+    )
+    assertEqual(
+      replyAiPayload.request.familyContext.familyMemory.memories.length,
+      0,
+      'AI reply optimization with disabled memory should not include memories'
+    )
+    assertNoHiddenOriginalText(replyAiPayload, 'reply AI optimization payload')
 
     const repliesForAdmin = await replyService.listReplies(adminId, message.id)
     const replyForAdmin = repliesForAdmin.find((item) => item.id === reply.id)
@@ -180,6 +285,7 @@ async function main() {
 
     process.stdout.write('Core smoke test passed.\n')
   } finally {
+    axios.post = originalAxiosPost
     if (familyId) {
       await prisma.family.deleteMany({ where: { id: familyId } })
     }
