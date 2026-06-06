@@ -515,6 +515,41 @@ async function main() {
     const adminUnread = await notificationService.getUnreadCount(adminId)
     assert(adminUnread.count >= 1, 'admin should have unread reply notification')
 
+    const detailBeforeDeletedReply = await messageService.getMessageDetail(adminId, message.id)
+    assertEqual(detailBeforeDeletedReply.replyCount, 1, 'message should count visible reply before reply deletion')
+    await replyService.deleteReply(memberId, reply.id)
+    const detailAfterDeletedReply = await messageService.getMessageDetail(adminId, message.id)
+    assertEqual(detailAfterDeletedReply.replyCount, 0, 'deleting a reply should decrement message reply count')
+    const deletedReplyMemoryCount = await prisma.familyMemory.count({ where: { familyId, status: 'stale' } })
+    assert(deletedReplyMemoryCount >= 1, 'deleting a reply should mark related family memories stale')
+    const adminNotificationsAfterDeletedReply = await notificationService.listNotifications(adminId, { page: 1, pageSize: 30 })
+    assert(
+      !adminNotificationsAfterDeletedReply.items.some((item) => item.replyId === reply.id),
+      'deleted reply notification should be filtered'
+    )
+
+    const replyForHide = await replyService.createReply(memberId, message.id, {
+      originalText: '我想先休息一下，晚饭后再说。',
+      optimizedText: '爸，我想先休息一下，晚饭后再和你聊作业安排。',
+      emotionTags: ['疲惫'],
+      aiAdvice: '先表达状态，再给出明确时间。',
+      riskLevel: 'low'
+    })
+    const activeMemoryBeforeHideReply = await pollReplyMemory(familyId)
+    assert(activeMemoryBeforeHideReply && activeMemoryBeforeHideReply.status === 'active', 'reply memory should refresh before hide reply test')
+    const detailBeforeHiddenReply = await messageService.getMessageDetail(adminId, message.id)
+    assertEqual(detailBeforeHiddenReply.replyCount, 1, 'message should count visible reply before admin hide')
+    await adminService.hideReply(adminId, replyForHide.id, { reason: '烟测隐藏回复' })
+    const detailAfterHiddenReply = await messageService.getMessageDetail(adminId, message.id)
+    assertEqual(detailAfterHiddenReply.replyCount, 0, 'hiding a reply should decrement message reply count')
+    const memoryAfterHiddenReply = await prisma.familyMemory.findUnique({ where: { id: activeMemoryBeforeHideReply.id } })
+    assertEqual(memoryAfterHiddenReply.status, 'stale', 'hiding a reply should mark active family memory stale')
+    const adminNotificationsAfterHiddenReply = await notificationService.listNotifications(adminId, { page: 1, pageSize: 30 })
+    assert(
+      !adminNotificationsAfterHiddenReply.items.some((item) => item.replyId === replyForHide.id),
+      'hidden reply notification should be filtered'
+    )
+
     await expectError(
       'NOT_FAMILY_ADMIN',
       () => adminService.getDashboard(memberId, familyId),
