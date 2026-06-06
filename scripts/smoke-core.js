@@ -1,7 +1,10 @@
 process.env.OPENAI_API_KEY = 'smoke_fake_openai_key'
 
+const fs = require('fs')
+const path = require('path')
 const axios = require('../server/node_modules/axios')
 const prisma = require('../server/src/utils/prisma')
+const { UPLOAD_DIR_ABS } = require('../server/src/config/env')
 const authService = require('../server/src/services/auth.service')
 const familyService = require('../server/src/services/family.service')
 const adminService = require('../server/src/services/admin.service')
@@ -104,6 +107,7 @@ async function main() {
   const accountPrefix = `smoke_${suffix}`.toLowerCase()
   const userIds = []
   let familyId = null
+  let audioSmokeDir = null
 
   try {
     const adminAuth = await authService.registerWithPassword({
@@ -162,11 +166,55 @@ async function main() {
     assertEqual(members.length, 2, 'family should have two members')
     assert(members.some((item) => item.userId === memberId && item.childOrder === 1 && item.gender === 'female'), 'member identity should be saved')
 
+    const memberUnreadBeforeSelfMessage = await notificationService.getUnreadCount(memberId)
+    const selfMessage = await messageService.createMessage(adminId, familyId, {
+      receiverIds: [memberId],
+      visibility: 'self',
+      messageType: 'general',
+      originalText: '这是一条只给自己整理想法的心声。',
+      optimizedText: '这是一条只给自己整理想法的心声。',
+      riskLevel: 'low'
+    })
+    await delay(100)
+    assertEqual(selfMessage.receivers.length, 0, 'self message should not create receiver records')
+    await expectError(
+      'FORBIDDEN',
+      () => messageService.getMessageDetail(memberId, selfMessage.id),
+      'self message should not be visible to other family members'
+    )
+    const memberUnreadAfterSelfMessage = await notificationService.getUnreadCount(memberId)
+    assertEqual(
+      memberUnreadAfterSelfMessage.count,
+      memberUnreadBeforeSelfMessage.count,
+      'self message should not create notifications for family members'
+    )
+
+    const familyMessage = await messageService.createMessage(adminId, familyId, {
+      receiverIds: [],
+      visibility: 'family',
+      messageType: 'encouragement',
+      originalText: '今天我们都辛苦了，晚上一起轻松聊一会儿。',
+      optimizedText: '今天我们都辛苦了，晚上一起轻松聊一会儿。',
+      riskLevel: 'low'
+    })
+    await delay(300)
+    assertEqual(familyMessage.receivers.length, 1, 'family message should create receiver records for current family members')
+    const familyMessageForMember = await messageService.getMessageDetail(memberId, familyMessage.id)
+    assertEqual(familyMessageForMember.visibility, 'family', 'family message should be visible to family members')
+
+    audioSmokeDir = path.join(UPLOAD_DIR_ABS, 'audio', 'smoke')
+    fs.mkdirSync(audioSmokeDir, { recursive: true })
+    const audioSmokeFile = path.join(audioSmokeDir, `${suffix}.mp3`)
+    fs.writeFileSync(audioSmokeFile, 'smoke audio')
+    const audioSmokeUrl = `/uploads/audio/smoke/${suffix}.mp3`
+
     const message = await messageService.createMessage(adminId, familyId, {
       receiverIds: [memberId],
       visibility: 'private',
       messageType: 'request',
       originalText: '你今晚必须马上把作业说清楚。',
+      originalAudioUrl: audioSmokeUrl,
+      audioDurationSec: 3,
       optimizedText: '宝贝，今晚我们找个合适的时间聊一下作业安排，好吗？',
       emotionTags: ['着急'],
       coreNeed: '希望了解作业安排',
@@ -179,7 +227,17 @@ async function main() {
 
     const receivedMessage = await messageService.getMessageDetail(memberId, message.id)
     assertEqual(receivedMessage.originalText, null, 'hidden original text should not be returned to receiver')
+    assertEqual(receivedMessage.originalAudioUrl, null, 'hidden original audio URL should not be returned to receiver')
+    assertEqual(receivedMessage.audioDurationSec, null, 'hidden original audio duration should not be returned to receiver')
     assertEqual(receivedMessage.receivers.length, 1, 'private message should keep one receiver')
+    await expectError(
+      'FORBIDDEN',
+      () => messageService.getOriginalAudioFile(memberId, message.id),
+      'receiver without audio permission should not fetch original audio'
+    )
+
+    const senderAudioFile = await messageService.getOriginalAudioFile(adminId, message.id)
+    assertEqual(senderAudioFile.filePath, audioSmokeFile, 'sender should fetch protected original audio file')
 
     const memberUnread = await notificationService.getUnreadCount(memberId)
     assert(memberUnread.count >= 1, 'member should have unread message notification')
@@ -332,6 +390,9 @@ async function main() {
     }
     if (userIds.length) {
       await prisma.user.deleteMany({ where: { id: { in: userIds } } })
+    }
+    if (audioSmokeDir) {
+      fs.rmSync(audioSmokeDir, { recursive: true, force: true })
     }
     await prisma.$disconnect()
   }
