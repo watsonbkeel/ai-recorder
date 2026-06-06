@@ -239,10 +239,16 @@ async function loadMessageContext(userId, messageId, payload = {}) {
   if (!canViewMessage(message, userId)) {
     throw createError('FORBIDDEN', '无权使用这条心声作为 AI 上下文', 403)
   }
+  const contextReceiverIds = Array.from(new Set([
+    message.senderId,
+    ...message.receivers
+      .map((receiver) => receiver.userId)
+      .filter((receiverUserId) => Number(receiverUserId) === Number(userId) || Number(message.senderId) === Number(userId))
+  ])).filter((receiverUserId) => Number(receiverUserId) !== Number(userId))
 
   const familyContext = await buildFamilyContext(userId, {
     familyId: message.familyId,
-    receiverIds: [message.senderId, ...message.receivers.map((receiver) => receiver.userId)],
+    receiverIds: contextReceiverIds,
     useFamilyMemory: payloadUseFamilyMemory(payload)
   }, { excludeMessageId: message.id, useFamilyMemory: payloadUseFamilyMemory(payload) })
 

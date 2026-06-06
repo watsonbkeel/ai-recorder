@@ -42,8 +42,10 @@ Page({
     replyAdvice: '',
     replyRiskLevel: 'low',
     replyAttackWarning: '',
+    analysis: null,
     useFamilyMemory: true,
     loading: true,
+    analysisLoading: false,
     aiLoading: false,
     submitting: false,
     error: ''
@@ -84,6 +86,20 @@ Page({
   },
   handleMemorySwitch(event) {
     this.setData({ useFamilyMemory: event.detail.value })
+  },
+  async analyzeMessage() {
+    this.setData({ analysisLoading: true, error: '' })
+    try {
+      const analysis = await aiService.analyzeMessage({
+        messageId: this.data.messageId,
+        useFamilyMemory: this.data.useFamilyMemory
+      })
+      this.setData({ analysis })
+    } catch (error) {
+      this.setData({ error: error.message || 'AI 理解失败' })
+    } finally {
+      this.setData({ analysisLoading: false })
+    }
   },
   async optimizeReply() {
     if (!this.data.replyOriginalText.trim()) {
@@ -133,5 +149,57 @@ Page({
     } finally {
       this.setData({ submitting: false })
     }
+  },
+  deleteMessage() {
+    if (!this.data.message || !this.data.message.canDelete) {
+      return
+    }
+    wx.showModal({
+      title: '删除留言',
+      content: '删除后这条留言将不可见，相关家庭沟通记忆会失效并等待重新整理。',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+        this.setData({ loading: true, error: '' })
+        try {
+          await messageService.deleteMessage(this.data.messageId)
+          wx.showToast({ title: '已删除', icon: 'success' })
+          const pages = getCurrentPages()
+          if (pages.length > 1) {
+            wx.navigateBack()
+          } else {
+            wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
+          }
+        } catch (error) {
+          this.setData({ error: error.message || '删除失败', loading: false })
+        }
+      }
+    })
+  },
+  deleteReply(event) {
+    const replyId = Number(event.currentTarget.dataset.id)
+    if (!replyId) {
+      return
+    }
+    wx.showModal({
+      title: '删除回复',
+      content: '删除后这条回复将不可见，相关家庭沟通记忆会失效并等待重新整理。',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+        this.setData({ error: '' })
+        try {
+          await replyService.deleteReply(replyId)
+          wx.showToast({ title: '已删除', icon: 'success' })
+          this.loadData()
+        } catch (error) {
+          this.setData({ error: error.message || '删除失败' })
+        }
+      }
+    })
   }
 })

@@ -12,6 +12,7 @@
 - Pending or rejected users may not access family content.
 - Muted members may read permitted content but may not create messages or replies.
 - Senders control whether receivers may view original text or play original audio.
+- Reply original text is visible only to the reply sender; other permitted readers see the optimized reply.
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
 
 ## Admin Permissions
@@ -41,4 +42,5 @@ There is no report workflow.
 - Admins cannot mute themselves.
 - The last admin cannot be demoted or removed.
 - Admins do not bypass sender-controlled original text/audio permissions through ordinary APIs.
+- Admins do not receive reply original text through ordinary reply APIs unless they wrote that reply.
 - Non-family members must not access messages, replies, notifications, upload metadata, member profiles, or memory by ID enumeration.

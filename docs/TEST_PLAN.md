@@ -49,6 +49,7 @@ curl http://127.0.0.1:3000/health
 - Gender can be set or left unspecified.
 - Multiple children can be distinguished by `childOrder`.
 - Birth year, family nickname, preferred title, and identity note can be saved and later edited.
+- Admin can edit a member's family identity from member management.
 - AI uses identity only for称呼、语气 and表达适配, not stereotypes.
 
 ## Message Checks
@@ -62,7 +63,9 @@ curl http://127.0.0.1:3000/health
 - Sender can choose whether original audio is playable.
 - Receiver sees AI optimized text first.
 - Receiver can only view/play original content when authorized.
+- Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
+- Reply original text is visible only to its sender; other permitted readers see the optimized reply.
 
 ## Family Memory Checks
 

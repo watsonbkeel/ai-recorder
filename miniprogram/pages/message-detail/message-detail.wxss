@@ -6,3 +6,32 @@
   border-radius: 14rpx;
   background: #f8fafc;
 }
+
+.analysis-box {
+  margin-top: 20rpx;
+}
+
+.inline-error {
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  background: #fef2f2;
+  border-radius: 14rpx;
+  color: #b91c1c;
+}
+
+.analysis-section {
+  margin-top: 18rpx;
+}
+
+.list-line {
+  margin-top: 10rpx;
+  color: #334155;
+  line-height: 42rpx;
+}
+
+.suggested-response {
+  margin-top: 12rpx;
+  color: #1f2937;
+  line-height: 44rpx;
+  white-space: pre-wrap;
+}

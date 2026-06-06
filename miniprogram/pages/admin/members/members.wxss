@@ -1,1 +1,13 @@
-/* no-op */
+.edit-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 82vh;
+  padding: 24rpx;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 -12rpx 28rpx rgba(15, 23, 42, 0.12);
+  overflow-y: auto;
+  box-sizing: border-box;
+  z-index: 20;
+}

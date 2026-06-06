@@ -1,8 +1,10 @@
 <view class="page">
   <view wx:if="{{loading}}" class="loading">加载中...</view>
-  <view wx:elif="{{error}}" class="error">{{error}}</view>
+  <view wx:elif="{{error && !message}}" class="error">{{error}}</view>
 
   <block wx:elif="{{message}}">
+    <view wx:if="{{error}}" class="error inline-error">{{error}}</view>
+
     <view class="card">
       <view class="row-between">
         <view>
@@ -17,6 +19,9 @@
       </view>
       <view wx:if="{{message.coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{message.coreNeed}}</view>
       <view wx:if="{{message.aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{message.aiAdvice}}</view>
+      <view wx:if="{{message.canDelete}}" class="actions">
+        <button class="btn-danger" size="mini" bindtap="deleteMessage">删除留言</button>
+      </view>
     </view>
 
     <view class="card">
@@ -28,8 +33,7 @@
     </view>
 
     <view class="card">
-      <view class="title">回复家人</view>
-      <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
+      <view class="title">理解这条留言</view>
       <view class="row-between memory-row">
         <view>
           <view>使用家庭沟通记忆</view>
@@ -37,6 +41,30 @@
         </view>
         <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
       </view>
+      <button class="btn-secondary" loading="{{analysisLoading}}" disabled="{{analysisLoading}}" bindtap="analyzeMessage">AI 帮我理解</button>
+      <view wx:if="{{analysis}}" class="analysis-box">
+        <view wx:if="{{analysis.possibleEmotions && analysis.possibleEmotions.length}}" class="analysis-section">
+          <view class="muted">可能情绪</view>
+          <text wx:for="{{analysis.possibleEmotions}}" wx:key="*this" class="tag">{{item}}</text>
+        </view>
+        <view wx:if="{{analysis.realNeeds && analysis.realNeeds.length}}" class="analysis-section">
+          <view class="muted">可能需求</view>
+          <view wx:for="{{analysis.realNeeds}}" wx:key="*this" class="list-line">{{item}}</view>
+        </view>
+        <view wx:if="{{analysis.whatToAvoid && analysis.whatToAvoid.length}}" class="analysis-section">
+          <view class="muted">回应时避免</view>
+          <view wx:for="{{analysis.whatToAvoid}}" wx:key="*this" class="list-line">{{item}}</view>
+        </view>
+        <view wx:if="{{analysis.suggestedResponse}}" class="analysis-section">
+          <view class="muted">建议回应</view>
+          <view class="suggested-response">{{analysis.suggestedResponse}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="title">回复家人</view>
+      <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
       <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
       <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
       <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>
@@ -49,6 +77,9 @@
         <view class="muted">{{item.createdAtText}}</view>
       </view>
       <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.optimizedText}}</view>
+      <view wx:if="{{item.canDelete}}" class="actions">
+        <button class="btn-danger" size="mini" data-id="{{item.id}}" bindtap="deleteReply">删除回复</button>
+      </view>
     </view>
   </block>
 </view>

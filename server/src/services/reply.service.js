@@ -23,11 +23,12 @@ function canViewMessage(message, userId) {
 }
 
 function mapReply(reply, userId) {
+  const isSender = reply.senderId === Number(userId)
   return {
     id: reply.id,
     familyId: reply.familyId,
     messageId: reply.messageId,
-    originalText: reply.originalText,
+    originalText: isSender ? reply.originalText : null,
     optimizedText: reply.optimizedText,
     emotionTags: reply.emotionTags || [],
     aiAdvice: reply.aiAdvice || '',
@@ -37,7 +38,7 @@ function mapReply(reply, userId) {
     createdAt: reply.createdAt,
     updatedAt: reply.updatedAt,
     sender: mapFamilyUser(reply.sender, reply.familyId),
-    canDelete: reply.senderId === Number(userId)
+    canDelete: isSender
   }
 }
 

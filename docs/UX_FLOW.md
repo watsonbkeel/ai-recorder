@@ -42,9 +42,10 @@
 
 1. Receiver sees optimized text first.
 2. Original text/audio appears only if the sender allowed it.
-3. Receiver writes original reply.
-4. Receiver may turn family memory on/off before AI optimizes the reply.
-5. Reply is saved with original text and optimized text.
+3. Receiver may turn family memory on/off and ask AI to help understand the message.
+4. Receiver writes original reply.
+5. Receiver may turn family memory on/off before AI optimizes the reply.
+6. Reply is saved with original text and optimized text. The original reply is visible only to its sender.
 
 ## Profile
 
@@ -57,7 +58,7 @@
 
 - Dashboard shows pending join requests, member count, message count, reply count, and muted member count.
 - Admin reviews join requests with applicant identity.
-- Admin manages members, roles, mute state, and removal.
+- Admin manages members, family identity, roles, mute state, and removal.
 - Admin may hide messages/replies.
 - No report page or report handling exists.
 
