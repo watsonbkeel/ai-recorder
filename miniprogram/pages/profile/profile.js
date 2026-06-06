@@ -51,6 +51,9 @@ Page({
       if (currentFamily) {
         auth.setCurrentFamily(currentFamily)
         getApp().setCurrentFamily(currentFamily)
+      } else {
+        auth.clearCurrentFamily()
+        getApp().setCurrentFamily(null)
       }
       auth.setUser(user)
       getApp().setUser(user, auth.getToken())

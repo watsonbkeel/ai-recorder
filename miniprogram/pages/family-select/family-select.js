@@ -29,6 +29,17 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const families = await familyService.getMyFamilies()
+      const storedFamily = auth.getCurrentFamily()
+      if (storedFamily) {
+        const refreshedFamily = families.find((family) => Number(family.id) === Number(storedFamily.id))
+        if (refreshedFamily) {
+          auth.setCurrentFamily(refreshedFamily)
+          getApp().setCurrentFamily(refreshedFamily)
+        } else {
+          auth.clearCurrentFamily()
+          getApp().setCurrentFamily(null)
+        }
+      }
       this.setData({ families })
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
