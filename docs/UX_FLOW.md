@@ -74,6 +74,8 @@
 
 - Message and reply notifications open the related message detail.
 - Join request notifications open the family join request review page when the receiver is an admin.
+- Join approval notifications refresh the user's family list, switch to the approved family, and open that family timeline.
+- Join rejection notifications show the application result message.
 
 ## Copy Rules
 

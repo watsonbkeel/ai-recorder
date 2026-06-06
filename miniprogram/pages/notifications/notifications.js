@@ -1,4 +1,6 @@
 const notificationService = require('../../services/notification')
+const familyService = require('../../services/family')
+const auth = require('../../utils/auth')
 const format = require('../../utils/format')
 
 function actorName(item) {
@@ -11,6 +13,12 @@ function actionText(item) {
   }
   if (item.type === 'family_join_requested') {
     return '前往家庭管理处理'
+  }
+  if (item.type === 'join_request_approved') {
+    return '进入家庭'
+  }
+  if (item.type === 'join_request_rejected') {
+    return '查看结果'
   }
   return '暂无可跳转内容'
 }
@@ -73,8 +81,43 @@ Page({
       return
     }
 
+    if (item.type === 'join_request_approved' && item.familyId) {
+      await this.enterApprovedFamily(item.familyId)
+      return
+    }
+
+    if (item.type === 'join_request_rejected') {
+      wx.showModal({
+        title: item.title || '申请结果',
+        content: item.content || '管理员暂未通过你的入家申请。',
+        showCancel: false
+      })
+      this.loadData()
+      return
+    }
+
     wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
     this.loadData()
+  },
+  async enterApprovedFamily(familyId) {
+    this.setData({ loading: true, error: '' })
+    try {
+      const families = await familyService.getMyFamilies()
+      const currentFamily = families.find((family) => Number(family.id) === Number(familyId))
+      if (!currentFamily) {
+        wx.showToast({ title: '暂未找到这个家庭，请稍后刷新', icon: 'none' })
+        this.loadData()
+        return
+      }
+
+      auth.setCurrentFamily(currentFamily)
+      getApp().setCurrentFamily(currentFamily)
+      wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${currentFamily.id}` })
+    } catch (error) {
+      this.setData({ error: error.message || '进入家庭失败' })
+    } finally {
+      this.setData({ loading: false })
+    }
   },
   async markAllRead() {
     try {

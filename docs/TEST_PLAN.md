@@ -116,6 +116,8 @@ curl http://127.0.0.1:3000/health
 - Notification can be marked read.
 - Notification opens related message when `messageId` exists.
 - Join request notification opens the family join request review page for admins.
+- Join approval notification switches into the approved family and opens the family timeline.
+- Join rejection notification shows the rejection result message.
 - After a member is removed from a family, old message/reply/join-review notifications from that family no longer appear in their notification list or unread count.
 - Join approval/rejection notifications remain visible to the applicant because they are personal application results.
 
