@@ -126,6 +126,7 @@ curl http://127.0.0.1:3000/health
 - Join approval notification switches into the approved family and opens the family timeline.
 - Join rejection notification shows the rejection result message.
 - After a member is removed from a family, old message/reply/join-review notifications from that family no longer appear in their notification list or unread count.
+- After a message or reply is hidden/deleted, linked message/reply notifications no longer appear in notification list or unread count.
 - Join approval/rejection notifications remain visible to the applicant because they are personal application results.
 
 ## Final Repository Checks

@@ -16,6 +16,7 @@
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
 - Self-only messages are accessible only to the sender and do not create receiver notifications.
 - Family-scoped notifications for messages, replies, and join-review work are visible only while the receiver is still a member of that family.
+- Notifications linked to hidden or deleted messages/replies are excluded from lists and unread counts.
 - Join approval/rejection notifications are personal outcome notices and remain visible to the applicant.
 
 ## Admin Permissions

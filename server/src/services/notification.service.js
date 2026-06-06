@@ -25,6 +25,20 @@ async function visibleNotificationWhere(userId) {
 
   return {
     userId: numericUserId,
+    AND: [
+      {
+        OR: [
+          { messageId: null },
+          { message: { is: { status: 'visible' } } }
+        ]
+      },
+      {
+        OR: [
+          { replyId: null },
+          { reply: { is: { status: 'visible' } } }
+        ]
+      }
+    ],
     OR: [
       { familyId: null },
       { type: { in: ['join_request_approved', 'join_request_rejected'] } },
