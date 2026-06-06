@@ -211,6 +211,20 @@ async function pollReplyMemory(familyId) {
   return null
 }
 
+async function pollMessageMemory(familyId, messageId) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const memory = await prisma.familyMemory.findFirst({
+      where: { familyId, status: 'active', sourceMessageId: Number(messageId) },
+      orderBy: { updatedAt: 'desc' }
+    })
+    if (memory) {
+      return memory
+    }
+    await delay(250)
+  }
+  return null
+}
+
 async function main() {
   assertFamilyMemberSort()
 
@@ -237,10 +251,16 @@ async function main() {
       password: 'smoke-pass-1',
       nickname: '烟测二宝'
     })
+    const rejectedAuth = await authService.registerWithPassword({
+      accountName: `${accountPrefix}_rejected`,
+      password: 'smoke-pass-1',
+      nickname: '烟测未通过成员'
+    })
     const adminId = adminAuth.user.id
     const memberId = memberAuth.user.id
     const secondMemberId = secondMemberAuth.user.id
-    userIds.push(adminId, memberId, secondMemberId)
+    const rejectedId = rejectedAuth.user.id
+    userIds.push(adminId, memberId, secondMemberId, rejectedId)
     smokeServer = http.createServer(app)
     const smokeBaseUrl = await listen(smokeServer)
 
@@ -277,10 +297,41 @@ async function main() {
     const pendingRequest = pendingRequests.find((item) => item.id === joinRequest.id)
     assert(pendingRequest, 'admin should see pending join request')
     assertEqual(pendingRequest.relationship, 'daughter', 'join identity should be visible to admin')
+    const adminJoinNotifications = await notificationService.listNotifications(adminId, { page: 1, pageSize: 30 })
+    const adminJoinNotification = adminJoinNotifications.items.find((item) => item.type === 'family_join_requested' && item.familyId === familyId)
+    assert(adminJoinNotification, 'admin should receive join request notification')
+    await notificationService.markRead(adminId, adminJoinNotification.id)
+    const adminJoinNotificationsAfterRead = await notificationService.listNotifications(adminId, { page: 1, pageSize: 30 })
+    const readAdminJoinNotification = adminJoinNotificationsAfterRead.items.find((item) => item.id === adminJoinNotification.id)
+    assert(readAdminJoinNotification && readAdminJoinNotification.isRead, 'markRead should mark join request notification read')
+    const adminReadAllResult = await notificationService.markAllRead(adminId)
+    assert(adminReadAllResult.updatedCount >= 0, 'markAllRead should return an updated count')
 
     await adminService.handleJoinRequest(adminId, joinRequest.id, { action: 'approve' })
     const memberFamilies = await familyService.listMyFamilies(memberId)
     assert(memberFamilies.some((item) => item.id === familyId), 'approved member should see family')
+
+    const rejectedJoinRequest = await familyService.createJoinRequest(rejectedId, familyId, {
+      message: '这条申请用于验证拒绝通知',
+      relationship: 'other',
+      gender: 'unspecified',
+      identityNote: '自动化烟测拒绝分支'
+    })
+    await adminService.handleJoinRequest(adminId, rejectedJoinRequest.id, { action: 'reject', reason: '烟测暂不通过' })
+    const rejectedFamilies = await familyService.listMyFamilies(rejectedId)
+    assert(!rejectedFamilies.some((item) => item.id === familyId), 'rejected applicant should not join family')
+    await expectError(
+      'NOT_FAMILY_MEMBER',
+      () => familyService.listFamilyMembers(rejectedId, familyId),
+      'rejected applicant should not gain family access'
+    )
+    const rejectedNotifications = await notificationService.listNotifications(rejectedId, { page: 1, pageSize: 30 })
+    const rejectedNotification = rejectedNotifications.items.find((item) => item.type === 'join_request_rejected' && item.familyId === familyId)
+    assert(rejectedNotification, 'rejected applicant should keep personal rejection notification without family membership')
+    assert(rejectedNotification.content.includes('烟测暂不通过'), 'rejection notification should include admin reason')
+    await notificationService.markAllRead(rejectedId)
+    const rejectedUnreadAfterReadAll = await notificationService.getUnreadCount(rejectedId)
+    assertEqual(rejectedUnreadAfterReadAll.count, 0, 'markAllRead should clear rejected applicant unread notifications')
 
     const secondJoinRequest = await familyService.createJoinRequest(secondMemberId, familyId, {
       message: '我是第二个孩子，用来验证子女排行',
@@ -343,6 +394,27 @@ async function main() {
     assertEqual(familyMessage.receivers.length, 2, 'family message should create receiver records for current family members')
     const familyMessageForMember = await messageService.getMessageDetail(memberId, familyMessage.id)
     assertEqual(familyMessageForMember.visibility, 'family', 'family message should be visible to family members')
+    const familyMessageForSecondMember = await messageService.getMessageDetail(secondMemberId, familyMessage.id)
+    assertEqual(familyMessageForSecondMember.visibility, 'family', 'family message should be visible to second family member')
+
+    aiCalls.length = 0
+    await aiService.optimizeMessage(adminId, {
+      familyId,
+      visibility: 'family',
+      receiverIds: [],
+      originalText: '我想给全家说一句今晚我们一起轻松聊聊。',
+      messageType: 'encouragement',
+      useFamilyMemory: false
+    })
+    const familyOptimizePayload = lastAiPayload('family visibility AI optimization')
+    assertEqual(
+      familyOptimizePayload.request.receiverIds.length,
+      2,
+      'AI family message optimization should resolve all current family receivers on backend'
+    )
+    assert(familyOptimizePayload.request.receiverIds.includes(memberId), 'AI family message optimization should include first child')
+    assert(familyOptimizePayload.request.receiverIds.includes(secondMemberId), 'AI family message optimization should include second child')
+    assert(!familyOptimizePayload.request.receiverIds.includes(rejectedId), 'AI family message optimization should exclude rejected applicants')
 
     const uploadedAudio = await uploadFixture(smokeBaseUrl, adminAuth.token, '/api/upload/audio', 'smoke audio', 'audio/mpeg', 'voice.mp3')
     assert(uploadedAudio.url && uploadedAudio.url.startsWith('/uploads/audio/'), 'audio upload should return protected audio storage URL')
@@ -391,6 +463,25 @@ async function main() {
     assertEqual(receivedMessage.originalAudioUrl, null, 'hidden original audio URL should not be returned to receiver')
     assertEqual(receivedMessage.audioDurationSec, null, 'hidden original audio duration should not be returned to receiver')
     assertEqual(receivedMessage.receivers.length, 1, 'private message should keep one receiver')
+    await expectError(
+      'FORBIDDEN',
+      () => messageService.getMessageDetail(secondMemberId, message.id),
+      'non-participant family member should not view private message detail'
+    )
+    await expectError(
+      'FORBIDDEN',
+      () => aiService.analyzeMessage(secondMemberId, { messageId: message.id, useFamilyMemory: true }),
+      'non-participant family member should not analyze private message'
+    )
+    await expectError(
+      'FORBIDDEN',
+      () => aiService.optimizeReply(secondMemberId, {
+        messageId: message.id,
+        originalText: '我不在这条私密留言里，不应该能回复。',
+        useFamilyMemory: true
+      }),
+      'non-participant family member should not optimize reply for private message'
+    )
     await expectError(
       'FORBIDDEN',
       () => messageService.getOriginalAudioFile(memberId, message.id),
@@ -594,6 +685,38 @@ async function main() {
       'muted member should not create replies'
     )
     await adminService.updateMuteStatus(adminId, familyId, memberId, { isMuted: false })
+
+    const messageForDelete = await messageService.createMessage(adminId, familyId, {
+      receiverIds: [memberId],
+      visibility: 'private',
+      messageType: 'explain',
+      originalText: '这条留言用于验证删除后的通知和记忆处理。',
+      optimizedText: '这条留言用于验证删除后的通知和记忆处理。',
+      emotionTags: ['平静'],
+      coreNeed: '确认删除后的边界',
+      aiAdvice: '删除后不再展示相关入口。',
+      riskLevel: 'low'
+    })
+    const deleteMessageMemory = await pollMessageMemory(familyId, messageForDelete.id)
+    assert(deleteMessageMemory, 'message memory should refresh before delete message test')
+    const memberNotificationsBeforeMessageDelete = await notificationService.listNotifications(memberId, { page: 1, pageSize: 30 })
+    assert(
+      memberNotificationsBeforeMessageDelete.items.some((item) => item.messageId === messageForDelete.id),
+      'message notification should exist before message deletion'
+    )
+    await messageService.deleteMessage(adminId, messageForDelete.id)
+    const memoryAfterDeletedMessage = await prisma.familyMemory.findUnique({ where: { id: deleteMessageMemory.id } })
+    assertEqual(memoryAfterDeletedMessage.status, 'stale', 'deleting a message should mark active family memory stale')
+    await expectError(
+      'CONTENT_NOT_VISIBLE',
+      () => messageService.getMessageDetail(memberId, messageForDelete.id),
+      'deleted message should not be visible'
+    )
+    const memberNotificationsAfterMessageDelete = await notificationService.listNotifications(memberId, { page: 1, pageSize: 30 })
+    assert(
+      !memberNotificationsAfterMessageDelete.items.some((item) => item.messageId === messageForDelete.id),
+      'deleted message notification should be filtered'
+    )
 
     await adminService.hideMessage(adminId, message.id, { reason: '烟测隐藏留言' })
     const staleMemoryCount = await prisma.familyMemory.count({ where: { familyId, status: 'stale' } })
