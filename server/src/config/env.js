@@ -12,6 +12,10 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET || 'replace_with_a_long_random_secret',
   WECHAT_APPID: process.env.WECHAT_APPID || '',
   WECHAT_SECRET: process.env.WECHAT_SECRET || '',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  OPENAI_TIMEOUT_MS: Number(process.env.OPENAI_TIMEOUT_MS || 30000),
   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || 'http://127.0.0.1:3000',
   UPLOAD_DIR,
   UPLOAD_DIR_ABS: path.resolve(__dirname, '../../', UPLOAD_DIR)

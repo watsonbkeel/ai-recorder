@@ -1,0 +1,47 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+
+  <block wx:elif="{{message}}">
+    <view class="card">
+      <view class="row-between">
+        <view>
+          <view>{{message.sender.nickname}}</view>
+          <view class="muted">{{message.createdAtText}}</view>
+        </view>
+        <view class="tag">{{message.riskLevel}}</view>
+      </view>
+      <view style="margin-top:16rpx; white-space:pre-wrap;">{{message.optimizedText}}</view>
+      <view style="margin-top:12rpx;">
+        <text wx:for="{{message.emotionTags}}" wx:key="*this" class="tag">{{item}}</text>
+      </view>
+      <view wx:if="{{message.coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{message.coreNeed}}</view>
+      <view wx:if="{{message.aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{message.aiAdvice}}</view>
+    </view>
+
+    <view class="card">
+      <view class="title">原始表达</view>
+      <view class="sub-title">原话可能带有情绪，请尝试理解情绪背后的真实需求。</view>
+      <view wx:if="{{message.originalText}}" style="margin-top:16rpx; white-space:pre-wrap;">{{message.originalText}}</view>
+      <button wx:if="{{message.originalAudioUrl}}" class="btn-secondary" bindtap="playOriginalAudio">播放原始语音</button>
+      <view wx:if="{{!message.originalText && !message.originalAudioUrl}}" class="muted" style="margin-top:16rpx;">发送者没有开放原始文字或语音。</view>
+    </view>
+
+    <view class="card">
+      <view class="title">回复家人</view>
+      <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
+      <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
+      <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
+      <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>
+    </view>
+
+    <view wx:if="{{!replies.length}}" class="empty">还没有回复。</view>
+    <view wx:for="{{replies}}" wx:key="id" class="card">
+      <view class="row-between">
+        <view>{{item.sender.nickname}}</view>
+        <view class="muted">{{item.createdAtText}}</view>
+      </view>
+      <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.optimizedText}}</view>
+    </view>
+  </block>
+</view>

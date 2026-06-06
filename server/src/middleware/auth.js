@@ -39,10 +39,29 @@ async function getClassMember(userId, classId) {
   })
 }
 
+async function getFamilyMember(userId, familyId) {
+  return prisma.familyMember.findUnique({
+    where: {
+      familyId_userId: {
+        familyId: Number(familyId),
+        userId: Number(userId)
+      }
+    }
+  })
+}
+
 async function ensureClassMember(userId, classId) {
   const member = await getClassMember(userId, classId)
   if (!member) {
     throw createError('NOT_CLASS_MEMBER', '不是班级成员', 403)
+  }
+  return member
+}
+
+async function ensureFamilyMember(userId, familyId) {
+  const member = await getFamilyMember(userId, familyId)
+  if (!member) {
+    throw createError('NOT_FAMILY_MEMBER', '不是家庭成员', 403)
   }
   return member
 }
@@ -55,8 +74,24 @@ async function ensureClassAdmin(userId, classId) {
   return member
 }
 
+async function ensureFamilyAdmin(userId, familyId) {
+  const member = await ensureFamilyMember(userId, familyId)
+  if (member.role !== 'admin') {
+    throw createError('NOT_FAMILY_ADMIN', '不是家庭管理员', 403)
+  }
+  return member
+}
+
 async function ensureNotMuted(userId, classId) {
   const member = await ensureClassMember(userId, classId)
+  if (member.isMuted) {
+    throw createError('USER_MUTED', '用户已被禁言', 403)
+  }
+  return member
+}
+
+async function ensureFamilyNotMuted(userId, familyId) {
+  const member = await ensureFamilyMember(userId, familyId)
   if (member.isMuted) {
     throw createError('USER_MUTED', '用户已被禁言', 403)
   }
@@ -68,5 +103,9 @@ module.exports = {
   getClassMember,
   ensureClassMember,
   ensureClassAdmin,
-  ensureNotMuted
+  ensureNotMuted,
+  getFamilyMember,
+  ensureFamilyMember,
+  ensureFamilyAdmin,
+  ensureFamilyNotMuted
 }

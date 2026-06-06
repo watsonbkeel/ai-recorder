@@ -6,6 +6,10 @@ const { createError } = require('../utils/errors')
 
 fs.mkdirSync(UPLOAD_DIR_ABS, { recursive: true })
 
+function resolveUploadType(req) {
+  return req.uploadType === 'audio' ? 'audio' : 'image'
+}
+
 function getWeeklyUploadFolder(date = new Date()) {
   const current = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
   const day = current.getUTCDay() || 7
@@ -18,7 +22,7 @@ function getWeeklyUploadFolder(date = new Date()) {
 const storage = multer.diskStorage({
   destination(req, file, callback) {
     const weeklyFolder = getWeeklyUploadFolder()
-    const uploadPath = path.join(UPLOAD_DIR_ABS, weeklyFolder)
+    const uploadPath = path.join(UPLOAD_DIR_ABS, resolveUploadType(req), weeklyFolder)
     fs.mkdirSync(uploadPath, { recursive: true })
     callback(null, uploadPath)
   },
@@ -28,19 +32,35 @@ const storage = multer.diskStorage({
   }
 })
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter(req, file, callback) {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!allowed.includes(file.mimetype)) {
-      return callback(createError('UPLOAD_ERROR', '仅支持 jpg/jpeg/png/webp 图片', 400))
+function fileFilter(req, file, callback) {
+  if (resolveUploadType(req) === 'audio') {
+    const allowedAudio = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/wav', 'audio/webm', 'audio/amr']
+    if (!allowedAudio.includes(file.mimetype)) {
+      return callback(createError('UPLOAD_ERROR', '仅支持微信录音常见音频格式', 400))
     }
     return callback(null, true)
   }
+
+  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.mimetype)) {
+    return callback(createError('UPLOAD_ERROR', '仅支持 jpg/jpeg/png/webp 图片', 400))
+  }
+  return callback(null, true)
+}
+
+function markAudioUpload(req, res, next) {
+  req.uploadType = 'audio'
+  next()
+}
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter
 })
 
 module.exports = {
   upload,
+  markAudioUpload,
   getWeeklyUploadFolder
 }

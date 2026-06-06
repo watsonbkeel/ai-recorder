@@ -21,11 +21,14 @@ async function createNotification(data, tx) {
     userId: data.userId || data.receiverId,
     actorId: data.actorId || data.triggerUserId || null,
     classId: data.classId || null,
+    familyId: data.familyId || null,
     type: data.type,
     title: data.title,
     content: data.content,
     diaryId: data.diaryId || null,
-    commentId: data.commentId || null
+    commentId: data.commentId || null,
+    messageId: data.messageId || null,
+    replyId: data.replyId || null
   }
   return client.notification.create({ data: notificationData })
 }

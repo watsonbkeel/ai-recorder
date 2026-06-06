@@ -1,0 +1,34 @@
+<view class="page">
+  <view class="card">
+    <view class="title">暖心留声机</view>
+    <view class="sub-title">把不容易说出口的话，温柔地传达给家人。</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">正在加载家庭...</view>
+  <view wx:elif="{{error}}" class="error">{{error}}</view>
+
+  <view wx:else>
+    <view wx:if="{{!families.length}}" class="empty">还没有家庭空间，先创建一个家。</view>
+    <view wx:for="{{families}}" wx:key="id" class="card" bindtap="selectFamily" data-item="{{item}}">
+      <view class="row-between">
+        <view>
+          <view class="title">{{item.name}}</view>
+          <view class="sub-title">{{item.description || '家人的心声都会在这里被好好保存'}}</view>
+        </view>
+        <view class="tag">{{item.role === 'admin' ? '管理员' : '成员'}}</view>
+      </view>
+      <view class="muted" style="margin-top:12rpx;">邀请码：{{item.inviteCode}}</view>
+    </view>
+
+    <view class="card">
+      <view class="title">创建家庭</view>
+      <input class="input" placeholder="家庭名称，例如：我们家" value="{{createName}}" bindinput="handleNameInput" />
+      <textarea class="textarea" placeholder="一句家庭介绍，可不填" value="{{createDescription}}" bindinput="handleDescriptionInput"></textarea>
+      <button class="btn-primary" loading="{{creating}}" disabled="{{creating}}" bindtap="createFamily">创建并进入</button>
+    </view>
+
+    <view class="card">
+      <button class="btn-secondary" bindtap="goJoin">通过邀请码加入家庭</button>
+    </view>
+  </view>
+</view>

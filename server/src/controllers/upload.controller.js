@@ -6,6 +6,12 @@ async function uploadImage(req, res) {
   return sendSuccess(res, data, 'ok')
 }
 
+async function uploadAudio(req, res) {
+  const data = await uploadService.uploadAudio(req.file)
+  return sendSuccess(res, data, 'ok')
+}
+
 module.exports = {
-  uploadImage
+  uploadImage,
+  uploadAudio
 }

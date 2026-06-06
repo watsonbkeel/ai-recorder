@@ -18,7 +18,7 @@ Page({
 
     try {
       await authService.getMe()
-      wx.reLaunch({ url: '/pages/class-select/class-select' })
+      wx.reLaunch({ url: '/pages/family-select/family-select' })
     } catch (error) {
       auth.clearSession()
     }
@@ -47,7 +47,7 @@ Page({
       auth.setSession(data.token, data.user)
       getApp().setUser(data.user, data.token)
       wx.showToast({ title: this.data.mode === 'register' ? '注册成功' : '登录成功', icon: 'success' })
-      wx.reLaunch({ url: '/pages/class-select/class-select' })
+      wx.reLaunch({ url: '/pages/family-select/family-select' })
     } catch (error) {
       this.setData({ error: error.message || '操作失败，请重试' })
     } finally {

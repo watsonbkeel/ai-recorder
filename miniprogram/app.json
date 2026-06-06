@@ -1,6 +1,11 @@
 {
   "pages": [
     "pages/login/login",
+    "pages/family-select/family-select",
+    "pages/join-family/join-family",
+    "pages/message-list/message-list",
+    "pages/message-create/message-create",
+    "pages/message-detail/message-detail",
     "pages/class-select/class-select",
     "pages/join-class/join-class",
     "pages/diary-list/diary-list",
@@ -14,8 +19,8 @@
     "pages/admin/reports/reports"
   ],
   "window": {
-    "navigationBarTitleText": "班级日记本",
-    "navigationBarBackgroundColor": "#4f46e5",
+    "navigationBarTitleText": "暖心留声机",
+    "navigationBarBackgroundColor": "#25636f",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#f5f7fb",
     "backgroundTextStyle": "light"

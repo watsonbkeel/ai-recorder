@@ -12,6 +12,22 @@ enum ClassRole {
   admin
 }
 
+enum FamilyRole {
+  member
+  admin
+}
+
+enum FamilyRelationship {
+  father
+  mother
+  son
+  daughter
+  grandparent
+  partner
+  sibling
+  other
+}
+
 enum JoinRequestStatus {
   pending
   approved
@@ -24,6 +40,36 @@ enum ContentStatus {
   deleted
 }
 
+enum MessageVisibility {
+  private
+  family
+  self
+}
+
+enum FamilyMessageType {
+  thanks
+  apology
+  grievance
+  request
+  explain
+  stress
+  repair
+  encouragement
+  general
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+enum MessageReceiverStatus {
+  unread
+  read
+  replied
+}
+
 enum LikeTargetType {
   diary
   comment
@@ -32,6 +78,8 @@ enum LikeTargetType {
 enum ReportTargetType {
   diary
   comment
+  message
+  reply
 }
 
 enum ReportStatus {
@@ -45,6 +93,8 @@ enum NotificationType {
   comment_liked
   diary_commented
   comment_replied
+  message_received
+  message_replied
   report_handled
   join_request_approved
   join_request_rejected
@@ -54,6 +104,8 @@ enum ModerationTargetType {
   join_request
   diary
   comment
+  message
+  reply
   member
   report
 }
@@ -63,6 +115,8 @@ enum ModerationAction {
   reject_join_request
   hide_diary
   hide_comment
+  hide_message
+  hide_reply
   mute_member
   unmute_member
   remove_member
@@ -73,60 +127,194 @@ enum ModerationAction {
 }
 
 model User {
-  id                       Int             @id @default(autoincrement())
-  openid                   String          @unique @db.VarChar(191)
-  accountName              String?         @unique @db.VarChar(191)
-  passwordHash             String?         @db.VarChar(255)
-  nickname                 String?         @db.VarChar(191)
-  avatarUrl                String?         @db.VarChar(500)
-  isGlobalAdmin            Boolean         @default(false)
-  createdAt                DateTime        @default(now())
-  updatedAt                DateTime        @updatedAt
-  createdClasses           Class[]         @relation("ClassCreatedBy")
-  classMembers             ClassMember[]
-  joinRequests             JoinRequest[]   @relation("JoinRequestUser")
-  handledJoinRequests      JoinRequest[]   @relation("JoinRequestHandledBy")
-  diaries                  Diary[]         @relation("DiaryAuthor")
-  comments                 Comment[]       @relation("CommentAuthor")
-  likes                    Like[]
-  reports                  Report[]        @relation("ReportReporter")
-  handledReports           Report[]        @relation("ReportHandledBy")
-  notificationsReceived    Notification[]  @relation("NotificationReceiver")
-  notificationsTriggered   Notification[]  @relation("NotificationActor")
-  moderationLogs           ModerationLog[] @relation("ModerationAdmin")
+  id                        Int                     @id @default(autoincrement())
+  openid                    String                  @unique @db.VarChar(191)
+  accountName               String?                 @unique @db.VarChar(191)
+  passwordHash              String?                 @db.VarChar(255)
+  nickname                  String?                 @db.VarChar(191)
+  avatarUrl                 String?                 @db.VarChar(500)
+  isGlobalAdmin             Boolean                 @default(false)
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  createdClasses            Class[]                 @relation("ClassCreatedBy")
+  createdFamilies           Family[]                @relation("FamilyCreatedBy")
+  classMembers              ClassMember[]
+  familyMembers             FamilyMember[]
+  joinRequests              JoinRequest[]           @relation("JoinRequestUser")
+  handledJoinRequests       JoinRequest[]           @relation("JoinRequestHandledBy")
+  familyJoinRequests        FamilyJoinRequest[]     @relation("FamilyJoinRequestUser")
+  handledFamilyJoinRequests FamilyJoinRequest[]     @relation("FamilyJoinRequestHandledBy")
+  diaries                   Diary[]                 @relation("DiaryAuthor")
+  comments                  Comment[]               @relation("CommentAuthor")
+  familyMessages            FamilyMessage[]         @relation("FamilyMessageSender")
+  familyReplies             FamilyReply[]           @relation("FamilyReplySender")
+  receivedFamilyMessages    FamilyMessageReceiver[]
+  likes                     Like[]
+  reports                   Report[]                @relation("ReportReporter")
+  handledReports            Report[]                @relation("ReportHandledBy")
+  notificationsReceived     Notification[]          @relation("NotificationReceiver")
+  notificationsTriggered    Notification[]          @relation("NotificationActor")
+  moderationLogs            ModerationLog[]         @relation("ModerationAdmin")
+}
+
+model Family {
+  id            Int                 @id @default(autoincrement())
+  name          String              @db.VarChar(191)
+  description   String?             @db.Text
+  inviteCode    String              @unique @db.VarChar(20)
+  createdById   Int
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  createdBy     User                @relation("FamilyCreatedBy", fields: [createdById], references: [id])
+  members       FamilyMember[]
+  joinRequests  FamilyJoinRequest[]
+  messages      FamilyMessage[]
+  replies       FamilyReply[]
+  notifications Notification[]
+
+  @@index([createdById])
+}
+
+model FamilyMember {
+  id             Int                @id @default(autoincrement())
+  familyId       Int
+  userId         Int
+  role           FamilyRole         @default(member)
+  relationship   FamilyRelationship @default(other)
+  familyNickname String?            @db.VarChar(191)
+  isMuted        Boolean            @default(false)
+  joinedAt       DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  family         Family             @relation(fields: [familyId], references: [id])
+  user           User               @relation(fields: [userId], references: [id])
+
+  @@unique([familyId, userId])
+  @@index([userId])
+  @@index([familyId, role])
+}
+
+model FamilyJoinRequest {
+  id          Int               @id @default(autoincrement())
+  familyId    Int
+  userId      Int
+  status      JoinRequestStatus @default(pending)
+  message     String?           @db.Text
+  handledById Int?
+  handledAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  family      Family            @relation(fields: [familyId], references: [id])
+  user        User              @relation("FamilyJoinRequestUser", fields: [userId], references: [id])
+  handledBy   User?             @relation("FamilyJoinRequestHandledBy", fields: [handledById], references: [id])
+
+  @@index([familyId, status])
+  @@index([userId, status])
+  @@index([familyId, userId])
+}
+
+model FamilyMessage {
+  id                     Int                     @id @default(autoincrement())
+  familyId               Int
+  senderId               Int
+  visibility             MessageVisibility       @default(private)
+  messageType            FamilyMessageType       @default(general)
+  originalText           String?                 @db.Text
+  originalAudioUrl       String?                 @db.VarChar(500)
+  audioDurationSec       Int?
+  optimizedText          String                  @db.Text
+  emotionTags            Json?
+  coreNeed               String?                 @db.Text
+  aiAdvice               String?                 @db.Text
+  riskLevel              RiskLevel               @default(low)
+  attackWarning          String?                 @db.Text
+  allowOriginalTextView  Boolean                 @default(false)
+  allowOriginalAudioPlay Boolean                 @default(false)
+  status                 ContentStatus           @default(visible)
+  replyCount             Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  family                 Family                  @relation(fields: [familyId], references: [id])
+  sender                 User                    @relation("FamilyMessageSender", fields: [senderId], references: [id])
+  receivers              FamilyMessageReceiver[]
+  replies                FamilyReply[]
+  notifications          Notification[]
+
+  @@index([familyId, status, createdAt])
+  @@index([senderId, status])
+  @@index([riskLevel, createdAt])
+}
+
+model FamilyMessageReceiver {
+  id        Int                   @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  status    MessageReceiverStatus @default(unread)
+  readAt    DateTime?
+  repliedAt DateTime?
+  createdAt DateTime              @default(now())
+  message   FamilyMessage         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([userId, status])
+}
+
+model FamilyReply {
+  id            Int            @id @default(autoincrement())
+  familyId      Int
+  messageId     Int
+  senderId      Int
+  originalText  String         @db.Text
+  optimizedText String         @db.Text
+  emotionTags   Json?
+  aiAdvice      String?        @db.Text
+  riskLevel     RiskLevel      @default(low)
+  attackWarning String?        @db.Text
+  status        ContentStatus  @default(visible)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  family        Family         @relation(fields: [familyId], references: [id])
+  message       FamilyMessage  @relation(fields: [messageId], references: [id])
+  sender        User           @relation("FamilyReplySender", fields: [senderId], references: [id])
+  notifications Notification[]
+
+  @@index([messageId, status, createdAt])
+  @@index([familyId, status])
+  @@index([senderId, status])
 }
 
 model Class {
-  id              Int             @id @default(autoincrement())
-  name            String          @db.VarChar(191)
-  description     String?         @db.Text
-  inviteCode      String          @unique @db.VarChar(20)
-  createdById     Int
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  createdBy       User            @relation("ClassCreatedBy", fields: [createdById], references: [id])
-  members         ClassMember[]
-  joinRequests    JoinRequest[]
-  diaries         Diary[]
-  comments        Comment[]
-  likes           Like[]
-  reports         Report[]
-  notifications   Notification[]
-  moderationLogs  ModerationLog[]
+  id             Int             @id @default(autoincrement())
+  name           String          @db.VarChar(191)
+  description    String?         @db.Text
+  inviteCode     String          @unique @db.VarChar(20)
+  createdById    Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdBy      User            @relation("ClassCreatedBy", fields: [createdById], references: [id])
+  members        ClassMember[]
+  joinRequests   JoinRequest[]
+  diaries        Diary[]
+  comments       Comment[]
+  likes          Like[]
+  reports        Report[]
+  notifications  Notification[]
+  moderationLogs ModerationLog[]
 }
 
 model ClassMember {
-  id        Int       @id @default(autoincrement())
-  classId    Int
-  userId     Int
-  role       ClassRole @default(member)
-  classNickname String? @db.VarChar(191)
-  isMuted    Boolean   @default(false)
-  joinedAt   DateTime  @default(now())
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  class      Class     @relation(fields: [classId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
+  id            Int       @id @default(autoincrement())
+  classId       Int
+  userId        Int
+  role          ClassRole @default(member)
+  classNickname String?   @db.VarChar(191)
+  isMuted       Boolean   @default(false)
+  joinedAt      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  class         Class     @relation(fields: [classId], references: [id])
+  user          User      @relation(fields: [userId], references: [id])
 
   @@unique([classId, userId])
   @@index([userId])
@@ -134,18 +322,18 @@ model ClassMember {
 }
 
 model JoinRequest {
-  id           Int               @id @default(autoincrement())
-  classId      Int
-  userId       Int
-  status       JoinRequestStatus @default(pending)
-  message      String?           @db.Text
-  handledById  Int?
-  handledAt    DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  class        Class             @relation(fields: [classId], references: [id])
-  user         User              @relation("JoinRequestUser", fields: [userId], references: [id])
-  handledBy    User?             @relation("JoinRequestHandledBy", fields: [handledById], references: [id])
+  id          Int               @id @default(autoincrement())
+  classId     Int
+  userId      Int
+  status      JoinRequestStatus @default(pending)
+  message     String?           @db.Text
+  handledById Int?
+  handledAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  class       Class             @relation(fields: [classId], references: [id])
+  user        User              @relation("JoinRequestUser", fields: [userId], references: [id])
+  handledBy   User?             @relation("JoinRequestHandledBy", fields: [handledById], references: [id])
 
   @@index([classId, status])
   @@index([userId, status])
@@ -153,20 +341,20 @@ model JoinRequest {
 }
 
 model Diary {
-  id           Int           @id @default(autoincrement())
-  classId      Int
-  authorId     Int
-  content      String        @db.Text
-  isAnonymous  Boolean       @default(false)
-  status       ContentStatus @default(visible)
-  likeCount    Int           @default(0)
-  commentCount Int           @default(0)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  class        Class         @relation(fields: [classId], references: [id])
-  author       User          @relation("DiaryAuthor", fields: [authorId], references: [id])
-  images       DiaryImage[]
-  comments     Comment[]
+  id            Int            @id @default(autoincrement())
+  classId       Int
+  authorId      Int
+  content       String         @db.Text
+  isAnonymous   Boolean        @default(false)
+  status        ContentStatus  @default(visible)
+  likeCount     Int            @default(0)
+  commentCount  Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  class         Class          @relation(fields: [classId], references: [id])
+  author        User           @relation("DiaryAuthor", fields: [authorId], references: [id])
+  images        DiaryImage[]
+  comments      Comment[]
   notifications Notification[]
 
   @@index([classId, status, createdAt])
@@ -175,7 +363,7 @@ model Diary {
 
 model DiaryImage {
   id        Int      @id @default(autoincrement())
-  diaryId    Int
+  diaryId   Int
   url       String   @db.VarChar(500)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -185,23 +373,23 @@ model DiaryImage {
 }
 
 model Comment {
-  id            Int           @id @default(autoincrement())
-  classId        Int
-  diaryId        Int
-  authorId       Int
-  parentId       Int?
-  content        String        @db.Text
-  isAnonymous    Boolean       @default(false)
-  status         ContentStatus @default(visible)
-  likeCount      Int           @default(0)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  class          Class         @relation(fields: [classId], references: [id])
-  diary          Diary         @relation(fields: [diaryId], references: [id])
-  author         User          @relation("CommentAuthor", fields: [authorId], references: [id])
-  parent         Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
-  replies        Comment[]     @relation("CommentReplies")
-  notifications  Notification[]
+  id            Int            @id @default(autoincrement())
+  classId       Int
+  diaryId       Int
+  authorId      Int
+  parentId      Int?
+  content       String         @db.Text
+  isAnonymous   Boolean        @default(false)
+  status        ContentStatus  @default(visible)
+  likeCount     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  class         Class          @relation(fields: [classId], references: [id])
+  diary         Diary          @relation(fields: [diaryId], references: [id])
+  author        User           @relation("CommentAuthor", fields: [authorId], references: [id])
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       Comment[]      @relation("CommentReplies")
+  notifications Notification[]
 
   @@index([diaryId, status, createdAt])
   @@index([classId, status])
@@ -247,25 +435,32 @@ model Report {
 }
 
 model Notification {
-  id            Int              @id @default(autoincrement())
-  userId        Int
-  actorId       Int?
-  classId       Int?
-  type          NotificationType
-  title         String           @db.VarChar(191)
-  content       String           @db.Text
-  isRead        Boolean          @default(false)
-  diaryId       Int?
-  commentId     Int?
-  createdAt     DateTime         @default(now())
-  user          User             @relation("NotificationReceiver", fields: [userId], references: [id])
-  actor         User?            @relation("NotificationActor", fields: [actorId], references: [id])
-  class         Class?           @relation(fields: [classId], references: [id])
-  diary         Diary?           @relation(fields: [diaryId], references: [id])
-  comment       Comment?         @relation(fields: [commentId], references: [id])
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  actorId   Int?
+  classId   Int?
+  familyId  Int?
+  type      NotificationType
+  title     String           @db.VarChar(191)
+  content   String           @db.Text
+  isRead    Boolean          @default(false)
+  diaryId   Int?
+  commentId Int?
+  messageId Int?
+  replyId   Int?
+  createdAt DateTime         @default(now())
+  user      User             @relation("NotificationReceiver", fields: [userId], references: [id])
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id])
+  class     Class?           @relation(fields: [classId], references: [id])
+  family    Family?          @relation(fields: [familyId], references: [id])
+  diary     Diary?           @relation(fields: [diaryId], references: [id])
+  comment   Comment?         @relation(fields: [commentId], references: [id])
+  message   FamilyMessage?   @relation(fields: [messageId], references: [id])
+  reply     FamilyReply?     @relation(fields: [replyId], references: [id])
 
   @@index([userId, isRead, createdAt])
   @@index([classId])
+  @@index([familyId])
 }
 
 model ModerationLog {

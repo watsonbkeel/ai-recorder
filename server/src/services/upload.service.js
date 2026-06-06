@@ -20,6 +20,21 @@ async function uploadImage(file) {
   }
 }
 
+async function uploadAudio(file) {
+  if (!file) {
+    throw createError('UPLOAD_ERROR', '请选择音频文件', 400)
+  }
+
+  const relativeFilePath = path.relative(UPLOAD_DIR_ABS, file.path).split(path.sep).join('/')
+  const relativePath = `/uploads/${relativeFilePath}`
+
+  return {
+    url: relativePath,
+    fullUrl: buildPublicUrl(relativePath)
+  }
+}
+
 module.exports = {
-  uploadImage
+  uploadImage,
+  uploadAudio
 }
