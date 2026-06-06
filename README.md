@@ -72,6 +72,7 @@ npm run check
 - `docs/API_SPEC.md`: API 规格。
 - `docs/AI_CONSTRAINTS.md`: AI 和家庭记忆约束。
 - `docs/DATABASE_SCHEMA.md`: 数据库模型。
+- `docs/MAC_HANDOFF.md`: Mac/微信开发者工具真实联调交接清单。
 - `docs/PERMISSION_MODEL.md`: 权限和隐私规则。
 - `docs/UX_FLOW.md`: 小程序流程。
 - `docs/TEST_PLAN.md`: 验收测试。

@@ -166,6 +166,7 @@ function checkProjectBoundaryConfig() {
   const envExample = fs.readFileSync(path.join(root, 'server', '.env.example'), 'utf8')
   const dockerCompose = fs.readFileSync(path.join(root, 'docker-compose.yml'), 'utf8')
   const projectConfig = JSON.parse(fs.readFileSync(path.join(root, 'miniprogram', 'project.config.json'), 'utf8'))
+  const openAiKeyLine = envExample.split(/\r?\n/).find((line) => /^OPENAI_API_KEY\s*=/.test(line.trim())) || ''
   const failures = []
 
   if (!/\/ai_recorder["']?/.test(envExample) && !/DATABASE_URL=.*ai_recorder/.test(envExample)) {
@@ -180,11 +181,76 @@ function checkProjectBoundaryConfig() {
   if (projectConfig.appid !== 'wxf73895336690e9a6') {
     failures.push('miniprogram/project.config.json must use AppID wxf73895336690e9a6')
   }
+  if (!/^OPENAI_API_KEY\s*=\s*(?:""|''|)$/.test(openAiKeyLine.trim())) {
+    failures.push('server/.env.example must keep OPENAI_API_KEY empty')
+  }
 
   if (failures.length) {
     throw new Error(`Project boundary config failures:\n${failures.join('\n')}`)
   }
   process.stdout.write('project boundary config is aligned\n')
+}
+
+function checkInitialMigrationBoundary() {
+  process.stdout.write('\n> initial migration boundary scan\n')
+  const migrationsDir = path.join(root, 'server', 'prisma', 'migrations')
+  const initialMigrationName = '20260606000000_init_ai_recorder'
+  const migrationNames = fs.readdirSync(migrationsDir)
+    .filter((entry) => fs.statSync(path.join(migrationsDir, entry)).isDirectory())
+    .filter((entry) => /^\d{14}_/.test(entry))
+    .sort()
+  const migrationPath = path.join(migrationsDir, initialMigrationName, 'migration.sql')
+  const lockPath = path.join(migrationsDir, 'migration_lock.toml')
+  const migrationSql = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, 'utf8') : ''
+  const lockFile = fs.existsSync(lockPath) ? fs.readFileSync(lockPath, 'utf8') : ''
+  const requiredFamilyMemoryColumns = [
+    'familyId',
+    'scope',
+    'memberId',
+    'relatedMemberId',
+    'summary',
+    'avoidPhrases',
+    'effectivePhrases',
+    'sensitiveTopics',
+    'status',
+    'sourceMessageId',
+    'sourceReplyId',
+    'version',
+    'createdAt',
+    'updatedAt'
+  ]
+  const failures = []
+
+  if (migrationNames[0] !== initialMigrationName) {
+    failures.push('server/prisma/migrations must start from the ai_recorder initial migration')
+  }
+  if (!/provider\s*=\s*"mysql"/.test(lockFile)) {
+    failures.push('migration_lock.toml must be locked to mysql')
+  }
+  if (!/CREATE TABLE `FamilyMemory`/.test(migrationSql)) {
+    failures.push('initial migration must create FamilyMemory')
+  }
+  requiredFamilyMemoryColumns.forEach((column) => {
+    if (!migrationSql.includes(`\`${column}\``)) {
+      failures.push(`FamilyMemory migration must include ${column}`)
+    }
+  })
+  migrationNames.forEach((migrationName) => {
+    const sqlPath = path.join(migrationsDir, migrationName, 'migration.sql')
+    if (!fs.existsSync(sqlPath)) {
+      failures.push(`migration ${migrationName} must include migration.sql`)
+      return
+    }
+    const sql = fs.readFileSync(sqlPath, 'utf8')
+    if (/Class|Diary|Report|举报|班级|日记本|class_member/i.test(`${migrationName}\n${sql}`)) {
+      failures.push(`migration ${migrationName} must not contain old class diary/report terms`)
+    }
+  })
+
+  if (failures.length) {
+    throw new Error(`Initial migration boundary failures:\n${failures.join('\n')}`)
+  }
+  process.stdout.write('initial migration boundary is aligned\n')
 }
 
 function checkOldRuntimeTerms() {
@@ -252,6 +318,7 @@ function main() {
   run('backend app load', 'node', ['-e', "require('./src/app'); console.log('app loaded')"], { cwd: path.join(root, 'server') })
   checkMiniProgramPages()
   checkProjectBoundaryConfig()
+  checkInitialMigrationBoundary()
   checkOldRuntimeTerms()
   checkTrackedLocalArtifacts()
   checkTrackedSecrets()

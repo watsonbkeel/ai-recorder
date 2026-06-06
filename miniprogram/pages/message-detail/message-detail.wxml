@@ -67,6 +67,13 @@
     <view class="card">
       <view class="title">回复家人</view>
       <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
+      <view class="row-between memory-row">
+        <view>
+          <view>整理回复时使用家庭沟通记忆</view>
+          <view class="muted">关闭后，AI 只参考这条可见留言和你的回复原意。</view>
+        </view>
+        <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
+      </view>
       <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
       <view wx:if="{{replyAiStatusText}}" class="ai-status">{{replyAiStatusText}}</view>
       <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
