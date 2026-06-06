@@ -19,8 +19,9 @@
       </view>
       <view wx:if="{{message.coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{message.coreNeed}}</view>
       <view wx:if="{{message.aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{message.aiAdvice}}</view>
-      <view wx:if="{{message.canDelete}}" class="actions">
-        <button class="btn-danger" size="mini" bindtap="deleteMessage">删除留言</button>
+      <view wx:if="{{message.canDelete || message.canHide}}" class="actions">
+        <button wx:if="{{message.canDelete}}" class="btn-danger" size="mini" bindtap="deleteMessage">删除留言</button>
+        <button wx:if="{{message.canHide}}" class="btn-danger" size="mini" bindtap="hideMessage">隐藏留言</button>
       </view>
     </view>
 
@@ -77,8 +78,9 @@
         <view class="muted">{{item.createdAtText}}</view>
       </view>
       <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.optimizedText}}</view>
-      <view wx:if="{{item.canDelete}}" class="actions">
-        <button class="btn-danger" size="mini" data-id="{{item.id}}" bindtap="deleteReply">删除回复</button>
+      <view wx:if="{{item.canDelete || item.canHide}}" class="actions">
+        <button wx:if="{{item.canDelete}}" class="btn-danger" size="mini" data-id="{{item.id}}" bindtap="deleteReply">删除回复</button>
+        <button wx:if="{{item.canHide}}" class="btn-danger" size="mini" data-id="{{item.id}}" bindtap="hideReply">隐藏回复</button>
       </view>
     </view>
   </block>

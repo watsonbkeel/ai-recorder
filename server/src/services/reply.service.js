@@ -22,8 +22,9 @@ function canViewMessage(message, userId) {
   return (message.receivers || []).some((receiver) => receiver.userId === numericUserId)
 }
 
-function mapReply(reply, userId) {
+function mapReply(reply, userId, viewerMember) {
   const isSender = reply.senderId === Number(userId)
+  const isFamilyAdmin = viewerMember && viewerMember.role === 'admin'
   return {
     id: reply.id,
     familyId: reply.familyId,
@@ -38,7 +39,8 @@ function mapReply(reply, userId) {
     createdAt: reply.createdAt,
     updatedAt: reply.updatedAt,
     sender: mapFamilyUser(reply.sender, reply.familyId),
-    canDelete: isSender
+    canDelete: isSender,
+    canHide: Boolean(isFamilyAdmin)
   }
 }
 
@@ -50,27 +52,27 @@ async function getVisibleMessageForReply(userId, messageId) {
   if (!message || message.status !== 'visible') {
     throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
   }
-  await ensureFamilyMember(userId, message.familyId)
+  const viewerMember = await ensureFamilyMember(userId, message.familyId)
   if (!canViewMessage(message, userId)) {
     throw createError('FORBIDDEN', '无权回复这条心声', 403)
   }
-  return message
+  return { message, viewerMember }
 }
 
 async function listReplies(userId, messageId) {
-  const message = await getVisibleMessageForReply(userId, messageId)
+  const { message, viewerMember } = await getVisibleMessageForReply(userId, messageId)
   const replies = await prisma.familyReply.findMany({
     where: { messageId: message.id, status: 'visible' },
     orderBy: { createdAt: 'asc' },
     include: { sender: { select: familyUserSelect(message.familyId) } }
   })
 
-  return replies.map((reply) => mapReply(reply, userId))
+  return replies.map((reply) => mapReply(reply, userId, viewerMember))
 }
 
 async function createReply(userId, messageId, payload) {
-  const message = await getVisibleMessageForReply(userId, messageId)
-  await ensureFamilyNotMuted(userId, message.familyId)
+  const { message } = await getVisibleMessageForReply(userId, messageId)
+  const viewerMember = await ensureFamilyNotMuted(userId, message.familyId)
   const originalText = String(payload.originalText || '').trim()
   const optimizedText = String(payload.optimizedText || originalText || '').trim()
   const riskLevel = VALID_RISK_LEVELS.has(payload.riskLevel) ? payload.riskLevel : 'low'
@@ -128,7 +130,7 @@ async function createReply(userId, messageId, payload) {
 
   scheduleMemoryRefresh(() => refreshMemoriesAfterReply(reply.id))
 
-  return mapReply(reply, userId)
+  return mapReply(reply, userId, viewerMember)
 }
 
 async function deleteReply(userId, replyId) {

@@ -35,8 +35,9 @@
 5. Choose whether AI may use family communication memory. Default: on.
 6. Tap AI optimize.
 7. Review optimized expression, emotion tags, core need, advice, risk warning.
-8. Choose whether receiver may view original text or play original audio.
-9. Send message.
+8. If the message only has voice and no text, manually fill the expression family members should read first.
+9. Choose whether receiver may view original text or play original audio.
+10. Send message.
 
 ## Detail And Reply
 
@@ -59,8 +60,13 @@
 - Dashboard shows pending join requests, member count, message count, reply count, and muted member count.
 - Admin reviews join requests with applicant identity.
 - Admin manages members, family identity, roles, mute state, and removal.
-- Admin may hide messages/replies.
+- Admin may hide messages/replies from the message detail page.
 - No report page or report handling exists.
+
+## Notifications
+
+- Message and reply notifications open the related message detail.
+- Join request notifications open the family join request review page when the receiver is an admin.
 
 ## Copy Rules
 

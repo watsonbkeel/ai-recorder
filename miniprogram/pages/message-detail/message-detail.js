@@ -1,6 +1,7 @@
 const messageService = require('../../services/message')
 const replyService = require('../../services/reply')
 const aiService = require('../../services/ai')
+const adminService = require('../../services/admin')
 const format = require('../../utils/format')
 const { PUBLIC_BASE_URL } = require('../../utils/config')
 
@@ -178,6 +179,34 @@ Page({
       }
     })
   },
+  hideMessage() {
+    if (!this.data.message || !this.data.message.canHide) {
+      return
+    }
+    wx.showModal({
+      title: '隐藏留言',
+      content: '隐藏后这条留言将不再展示给家庭成员，相关家庭沟通记忆会失效并等待重新整理。',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+        this.setData({ loading: true, error: '' })
+        try {
+          await adminService.hideMessage(this.data.messageId, { reason: '管理员隐藏留言' })
+          wx.showToast({ title: '已隐藏', icon: 'success' })
+          const pages = getCurrentPages()
+          if (pages.length > 1) {
+            wx.navigateBack()
+          } else {
+            wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
+          }
+        } catch (error) {
+          this.setData({ error: error.message || '隐藏失败', loading: false })
+        }
+      }
+    })
+  },
   deleteReply(event) {
     const replyId = Number(event.currentTarget.dataset.id)
     if (!replyId) {
@@ -198,6 +227,30 @@ Page({
           this.loadData()
         } catch (error) {
           this.setData({ error: error.message || '删除失败' })
+        }
+      }
+    })
+  },
+  hideReply(event) {
+    const replyId = Number(event.currentTarget.dataset.id)
+    if (!replyId) {
+      return
+    }
+    wx.showModal({
+      title: '隐藏回复',
+      content: '隐藏后这条回复将不再展示给家庭成员，相关家庭沟通记忆会失效并等待重新整理。',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) {
+          return
+        }
+        this.setData({ error: '' })
+        try {
+          await adminService.hideReply(replyId, { reason: '管理员隐藏回复' })
+          wx.showToast({ title: '已隐藏', icon: 'success' })
+          this.loadData()
+        } catch (error) {
+          this.setData({ error: error.message || '隐藏失败' })
         }
       }
     })

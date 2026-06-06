@@ -6,8 +6,18 @@ const { createError } = require('../utils/errors')
 
 fs.mkdirSync(UPLOAD_DIR_ABS, { recursive: true })
 
+const ALLOWED_AUDIO_EXTS = ['.mp3', '.m4a', '.aac', '.wav', '.webm', '.amr']
+
 function resolveUploadType(req) {
   return req.uploadType === 'audio' ? 'audio' : 'image'
+}
+
+function uploadExtension(req, file) {
+  const ext = path.extname(file.originalname || '').toLowerCase()
+  if (resolveUploadType(req) === 'audio') {
+    return ALLOWED_AUDIO_EXTS.includes(ext) ? ext : '.mp3'
+  }
+  return ext
 }
 
 function getWeeklyUploadFolder(date = new Date()) {
@@ -27,7 +37,7 @@ const storage = multer.diskStorage({
     callback(null, uploadPath)
   },
   filename(req, file, callback) {
-    const ext = path.extname(file.originalname || '').toLowerCase()
+    const ext = uploadExtension(req, file)
     callback(null, `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`)
   }
 })
@@ -35,7 +45,9 @@ const storage = multer.diskStorage({
 function fileFilter(req, file, callback) {
   if (resolveUploadType(req) === 'audio') {
     const allowedAudio = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/wav', 'audio/webm', 'audio/amr']
-    if (!allowedAudio.includes(file.mimetype)) {
+    const ext = path.extname(file.originalname || '').toLowerCase()
+    const looseMime = !file.mimetype || file.mimetype === 'application/octet-stream'
+    if (!allowedAudio.includes(file.mimetype) && !(looseMime && (!ext || ALLOWED_AUDIO_EXTS.includes(ext)))) {
       return callback(createError('UPLOAD_ERROR', '仅支持微信录音常见音频格式', 400))
     }
     return callback(null, true)

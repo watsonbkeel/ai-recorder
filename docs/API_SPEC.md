@@ -109,6 +109,7 @@ Rules:
 - Upload requires login.
 - Request uses `multipart/form-data`.
 - File field name: `file`.
+- Audio upload accepts common WeChat recorder formats and tolerates empty or `application/octet-stream` MIME when the extension is a known audio type.
 - Files are stored by type and ISO week under the configured upload directory.
 
 ## Notification
@@ -119,6 +120,7 @@ Rules:
 - `POST /api/notifications/:notificationId/read`
 
 Notifications may link to `familyId`, `messageId`, and `replyId`.
+Join request notifications use `familyId` to open the admin review page in the mini program.
 
 ## Admin
 

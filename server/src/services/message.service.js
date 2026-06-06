@@ -37,8 +37,9 @@ function canViewMessage(message, userId) {
   return (message.receivers || []).some((receiver) => receiver.userId === numericUserId)
 }
 
-function mapMessage(message, userId) {
+function mapMessage(message, userId, viewerMember) {
   const isSender = message.senderId === Number(userId)
+  const isFamilyAdmin = viewerMember && viewerMember.role === 'admin'
   const canViewOriginalText = isSender || message.allowOriginalTextView
   const canPlayOriginalAudio = isSender || message.allowOriginalAudioPlay
 
@@ -69,12 +70,13 @@ function mapMessage(message, userId) {
       readAt: receiver.readAt,
       user: receiver.user ? mapFamilyUser(receiver.user, message.familyId) : null
     })),
-    canDelete: isSender
+    canDelete: isSender,
+    canHide: Boolean(isFamilyAdmin)
   }
 }
 
 async function listMessages(userId, familyId, query) {
-  await ensureFamilyMember(userId, familyId)
+  const viewerMember = await ensureFamilyMember(userId, familyId)
   const { page, pageSize } = normalizePage(query)
   const where = {
     familyId: Number(familyId),
@@ -103,7 +105,7 @@ async function listMessages(userId, familyId, query) {
   ])
 
   return {
-    items: items.map((item) => mapMessage(item, userId)),
+    items: items.map((item) => mapMessage(item, userId, viewerMember)),
     pagination: buildPagination(page, pageSize, total)
   }
 }
@@ -133,7 +135,7 @@ async function validateReceivers(familyId, senderId, receiverIds, visibility) {
 }
 
 async function createMessage(userId, familyId, payload) {
-  await ensureFamilyNotMuted(userId, familyId)
+  const viewerMember = await ensureFamilyNotMuted(userId, familyId)
   const visibility = VALID_VISIBILITIES.has(payload.visibility) ? payload.visibility : 'private'
   const messageType = VALID_MESSAGE_TYPES.has(payload.messageType) ? payload.messageType : 'general'
   const riskLevel = VALID_RISK_LEVELS.has(payload.riskLevel) ? payload.riskLevel : 'low'
@@ -194,7 +196,7 @@ async function createMessage(userId, familyId, payload) {
 
   scheduleMemoryRefresh(() => refreshMemoriesAfterMessage(message.id))
 
-  return mapMessage(message, userId)
+  return mapMessage(message, userId, viewerMember)
 }
 
 async function getMessageDetail(userId, messageId) {
@@ -226,7 +228,7 @@ async function getMessageDetail(userId, messageId) {
   if (!message || message.status !== 'visible') {
     throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
   }
-  await ensureFamilyMember(userId, message.familyId)
+  const viewerMember = await ensureFamilyMember(userId, message.familyId)
   if (!canViewMessage(message, userId)) {
     throw createError('FORBIDDEN', '无权查看这条心声', 403)
   }
@@ -236,7 +238,7 @@ async function getMessageDetail(userId, messageId) {
     data: { status: 'read', readAt: new Date() }
   })
 
-  return mapMessage(message, userId)
+  return mapMessage(message, userId, viewerMember)
 }
 
 async function deleteMessage(userId, messageId) {

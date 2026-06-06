@@ -57,6 +57,7 @@ curl http://127.0.0.1:3000/health
 - User can select receiver(s) from family members.
 - User can enter original text.
 - User can record and upload original voice.
+- Voice-only messages can be sent after the user manually fills the expression family members should read first.
 - AI can generate optimized text, emotion tags, core need, advice, and risk level.
 - User can disable family memory before AI optimization.
 - Sender can choose whether original text is visible.
@@ -66,12 +67,14 @@ curl http://127.0.0.1:3000/health
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
 - Reply original text is visible only to its sender; other permitted readers see the optimized reply.
+- Admin can hide visible messages and replies from the message detail page.
 
 ## Family Memory Checks
 
 - Message creation refreshes relevant family/member/pair memories without blocking send on failure.
 - Reply creation refreshes relevant memories without blocking reply on failure.
 - Message/reply deletion marks relevant memories stale or causes recomputation.
+- Admin hiding a message/reply marks relevant memories stale or causes recomputation.
 - `useFamilyMemory: false` skips `FamilyMemory` query and injection.
 - Memory never crosses family boundaries.
 - Memory stores communication preferences, sensitive topics, avoid phrases, and effective phrases only.
@@ -102,6 +105,7 @@ curl http://127.0.0.1:3000/health
 - Join request and join decision create notifications.
 - Notification can be marked read.
 - Notification opens related message when `messageId` exists.
+- Join request notification opens the family join request review page for admins.
 
 ## Final Repository Checks
 

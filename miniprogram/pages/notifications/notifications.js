@@ -68,6 +68,11 @@ Page({
       return
     }
 
+    if (item.type === 'family_join_requested' && item.familyId) {
+      wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${item.familyId}` })
+      return
+    }
+
     wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
     this.loadData()
   },
