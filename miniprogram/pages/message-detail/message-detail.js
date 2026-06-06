@@ -70,6 +70,9 @@ Page({
     aiLoading: false,
     replyAiStatusText: '',
     submitting: false,
+    handlingMessageAction: '',
+    handlingReplyId: null,
+    handlingReplyAction: '',
     error: ''
   },
   onLoad(options) {
@@ -150,6 +153,9 @@ Page({
     this.setData({ useFamilyMemory: event.detail.value })
   },
   async analyzeMessage() {
+    if (this.data.analysisLoading) {
+      return
+    }
     this.setData({ analysisLoading: true, error: '' })
     this.startAnalysisStatus()
     try {
@@ -166,6 +172,9 @@ Page({
     }
   },
   async optimizeReply() {
+    if (this.data.aiLoading) {
+      return
+    }
     if (!this.data.replyOriginalText.trim()) {
       wx.showToast({ title: '请先写下回复', icon: 'none' })
       return
@@ -193,6 +202,9 @@ Page({
     }
   },
   async submitReply() {
+    if (this.data.submitting) {
+      return
+    }
     if (!this.data.replyOriginalText.trim()) {
       wx.showToast({ title: '请先写下回复', icon: 'none' })
       return
@@ -217,7 +229,7 @@ Page({
     }
   },
   deleteMessage() {
-    if (!this.data.message || !this.data.message.canDelete) {
+    if (!this.data.message || !this.data.message.canDelete || this.data.handlingMessageAction) {
       return
     }
     wx.showModal({
@@ -228,7 +240,7 @@ Page({
         if (!res.confirm) {
           return
         }
-        this.setData({ loading: true, error: '' })
+        this.setData({ loading: true, handlingMessageAction: 'delete', error: '' })
         try {
           await messageService.deleteMessage(this.data.messageId)
           wx.showToast({ title: '已删除', icon: 'success' })
@@ -239,13 +251,13 @@ Page({
             wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
           }
         } catch (error) {
-          this.setData({ error: error.message || '删除失败', loading: false })
+          this.setData({ error: error.message || '删除失败', loading: false, handlingMessageAction: '' })
         }
       }
     })
   },
   hideMessage() {
-    if (!this.data.message || !this.data.message.canHide) {
+    if (!this.data.message || !this.data.message.canHide || this.data.handlingMessageAction) {
       return
     }
     wx.showModal({
@@ -256,7 +268,7 @@ Page({
         if (!res.confirm) {
           return
         }
-        this.setData({ loading: true, error: '' })
+        this.setData({ loading: true, handlingMessageAction: 'hide', error: '' })
         try {
           await adminService.hideMessage(this.data.messageId, { reason: '管理员隐藏留言' })
           wx.showToast({ title: '已隐藏', icon: 'success' })
@@ -267,14 +279,14 @@ Page({
             wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${this.data.message.familyId}` })
           }
         } catch (error) {
-          this.setData({ error: error.message || '隐藏失败', loading: false })
+          this.setData({ error: error.message || '隐藏失败', loading: false, handlingMessageAction: '' })
         }
       }
     })
   },
   deleteReply(event) {
     const replyId = Number(event.currentTarget.dataset.id)
-    if (!replyId) {
+    if (!replyId || this.data.handlingReplyId) {
       return
     }
     wx.showModal({
@@ -285,20 +297,22 @@ Page({
         if (!res.confirm) {
           return
         }
-        this.setData({ error: '' })
+        this.setData({ handlingReplyId: replyId, handlingReplyAction: 'delete', error: '' })
         try {
           await replyService.deleteReply(replyId)
           wx.showToast({ title: '已删除', icon: 'success' })
           this.loadData()
         } catch (error) {
           this.setData({ error: error.message || '删除失败' })
+        } finally {
+          this.setData({ handlingReplyId: null, handlingReplyAction: '' })
         }
       }
     })
   },
   hideReply(event) {
     const replyId = Number(event.currentTarget.dataset.id)
-    if (!replyId) {
+    if (!replyId || this.data.handlingReplyId) {
       return
     }
     wx.showModal({
@@ -309,13 +323,15 @@ Page({
         if (!res.confirm) {
           return
         }
-        this.setData({ error: '' })
+        this.setData({ handlingReplyId: replyId, handlingReplyAction: 'hide', error: '' })
         try {
           await adminService.hideReply(replyId, { reason: '管理员隐藏回复' })
           wx.showToast({ title: '已隐藏', icon: 'success' })
           this.loadData()
         } catch (error) {
           this.setData({ error: error.message || '隐藏失败' })
+        } finally {
+          this.setData({ handlingReplyId: null, handlingReplyAction: '' })
         }
       }
     })

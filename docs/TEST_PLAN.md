@@ -83,6 +83,7 @@ curl http://127.0.0.1:3000/health
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
 - Message analysis and reply optimization each show their own AI waiting status.
+- Message detail AI, reply, delete, and hide actions block duplicate taps while a request is in progress.
 - Reply original text is visible only to its sender; other permitted readers see the optimized reply.
 - Admin can hide visible messages and replies from the message detail page.
 - Repeated delete/hide operations on already hidden or deleted messages/replies do not reapply moderation side effects.
