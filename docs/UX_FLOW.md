@@ -59,6 +59,7 @@
 
 - Edit global nickname/avatar.
 - Switch current family.
+- Returning to the family timeline after switching family reloads the timeline for the newly selected family.
 - Edit current family identity.
 - Enter family admin page when the current user is admin.
 

@@ -50,7 +50,8 @@ Page({
   },
   onShow() {
     const currentFamily = auth.getCurrentFamily()
-    this.setData({ currentFamily })
+    const familyId = Number(currentFamily && currentFamily.id) || this.data.familyId
+    this.setData({ currentFamily, familyId })
     this.refresh()
     this.loadUnreadCount()
   },
