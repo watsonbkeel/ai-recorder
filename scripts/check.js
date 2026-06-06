@@ -311,6 +311,39 @@ function checkOldRuntimeTerms() {
   process.stdout.write('no old runtime terms matched\n')
 }
 
+function checkMiniProgramStructuredIoErrors() {
+  process.stdout.write('\n> mini program structured IO error scan\n')
+  const files = [
+    'miniprogram/services/upload.js',
+    'miniprogram/services/message.js'
+  ]
+  const failures = []
+
+  files.forEach((file) => {
+    const content = fs.readFileSync(path.join(root, file), 'utf8')
+    if (!content.includes('buildRequestError')) {
+      failures.push(`${file} must build errors with request.buildRequestError`)
+    }
+    if (/reject\(\s*new Error\(/.test(content)) {
+      failures.push(`${file} must not reject plain Error objects from upload/download flows`)
+    }
+  })
+
+  const messageService = fs.readFileSync(path.join(root, 'miniprogram', 'services', 'message.js'), 'utf8')
+  const detailPage = fs.readFileSync(path.join(root, 'miniprogram', 'pages', 'message-detail', 'message-detail.js'), 'utf8')
+  if (!/readDownloadErrorBody/.test(messageService) || !/data\.error/.test(messageService)) {
+    failures.push('message download must parse backend error bodies for original audio permission failures')
+  }
+  if (!/playOriginalAudio[\s\S]*handleFamilyAccessError/.test(detailPage)) {
+    failures.push('message detail original audio playback must handle family access errors')
+  }
+
+  if (failures.length) {
+    throw new Error(`Mini program structured IO error failures:\n${failures.join('\n')}`)
+  }
+  process.stdout.write('mini program IO errors are structured\n')
+}
+
 function main() {
   checkJavaScriptSyntax()
   run('prisma validate', 'npx', ['prisma', 'validate', '--schema', 'prisma/schema.prisma'], { cwd: path.join(root, 'server') })
@@ -320,6 +353,7 @@ function main() {
   checkProjectBoundaryConfig()
   checkInitialMigrationBoundary()
   checkOldRuntimeTerms()
+  checkMiniProgramStructuredIoErrors()
   checkTrackedLocalArtifacts()
   checkTrackedSecrets()
   process.stdout.write('\nAll checks passed.\n')

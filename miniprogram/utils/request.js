@@ -56,4 +56,6 @@ function request(options) {
   })
 }
 
+request.buildRequestError = buildRequestError
+
 module.exports = request

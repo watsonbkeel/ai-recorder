@@ -190,10 +190,14 @@ Page({
       audio.src = tempFilePath
       audio.play()
     } catch (error) {
+      this.setData({ playingOriginalAudio: false })
+      if (handleFamilyAccessError(error, this.fallbackFamilyId())) {
+        return
+      }
       if (this.handleContentUnavailable(error, '原始语音已不可播放')) {
         return
       }
-      this.setData({ playingOriginalAudio: false, error: error.message || '原始语音播放失败' })
+      this.setData({ error: error.message || '原始语音播放失败' })
     }
   },
   handleReplyInput(event) {

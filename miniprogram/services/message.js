@@ -1,6 +1,7 @@
 const request = require('../utils/request')
 const auth = require('../utils/auth')
 const { getApiRootUrl } = require('../utils/config')
+const { buildRequestError } = request
 
 function fullUrl(url) {
   if (!url) {
@@ -28,6 +29,29 @@ function deleteMessage(messageId) {
   return request({ url: `/messages/${messageId}`, method: 'DELETE' })
 }
 
+function readDownloadErrorBody(tempFilePath) {
+  if (!tempFilePath || !wx.getFileSystemManager) {
+    return null
+  }
+
+  try {
+    const content = wx.getFileSystemManager().readFileSync(tempFilePath, 'utf8')
+    return JSON.parse(content || '{}')
+  } catch (error) {
+    return null
+  }
+}
+
+function buildDownloadError(res) {
+  const data = readDownloadErrorBody(res.tempFilePath)
+  const code = data && data.error ? data.error.code : 'DOWNLOAD_FAILED'
+  const message = data && data.error
+    ? data.error.message
+    : `原始语音下载失败（${res.statusCode || 0}）`
+
+  return buildRequestError(message, code, res.statusCode || 0)
+}
+
 function downloadOriginalAudio(originalAudioUrl) {
   const url = fullUrl(originalAudioUrl)
   const token = auth.getToken()
@@ -36,20 +60,22 @@ function downloadOriginalAudio(originalAudioUrl) {
       url,
       header: token ? { Authorization: `Bearer ${token}` } : {},
       success(res) {
-        if (res.statusCode === 401) {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
+          resolve(res.tempFilePath)
+          return
+        }
+
+        const downloadError = buildDownloadError(res)
+        if (downloadError.statusCode === 401 || downloadError.code === 'UNAUTHORIZED') {
           auth.clearSession()
           auth.redirectToLogin()
-          reject(new Error('UNAUTHORIZED'))
+          reject(buildRequestError('UNAUTHORIZED', 'UNAUTHORIZED', res.statusCode))
           return
         }
-        if (res.statusCode < 200 || res.statusCode >= 300 || !res.tempFilePath) {
-          reject(new Error(`原始语音下载失败（${res.statusCode || 0}）`))
-          return
-        }
-        resolve(res.tempFilePath)
+        reject(downloadError)
       },
       fail(error) {
-        reject(new Error(error.errMsg || '原始语音下载失败，请检查网络后重试'))
+        reject(buildRequestError(error.errMsg || '原始语音下载失败，请检查网络后重试', 'NETWORK_ERROR', 0))
       }
     })
   })

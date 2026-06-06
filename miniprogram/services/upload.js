@@ -1,5 +1,32 @@
 const { getApiBaseUrl } = require('../utils/config')
 const auth = require('../utils/auth')
+const { buildRequestError } = require('../utils/request')
+
+function parseUploadResponse(rawData) {
+  try {
+    return JSON.parse(rawData || '{}')
+  } catch (error) {
+    throw buildRequestError('上传失败：服务器返回异常', 'INVALID_RESPONSE', 0)
+  }
+}
+
+function rejectUploadResponse(res, fallbackMessage) {
+  const data = parseUploadResponse(res.data)
+  const code = data.error ? data.error.code : 'UPLOAD_FAILED'
+  const message = data.error ? data.error.message : fallbackMessage
+
+  if (res.statusCode === 401 || code === 'UNAUTHORIZED') {
+    auth.clearSession()
+    auth.redirectToLogin()
+    throw buildRequestError('UNAUTHORIZED', 'UNAUTHORIZED', res.statusCode)
+  }
+
+  if (res.statusCode < 200 || res.statusCode >= 300 || !data.success) {
+    throw buildRequestError(message, code, res.statusCode)
+  }
+
+  return data.data
+}
 
 function uploadImage(filePath) {
   const token = auth.getToken()
@@ -12,27 +39,15 @@ function uploadImage(filePath) {
       header: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: 120000,
       success(res) {
-        let data = null
         try {
-          data = JSON.parse(res.data || '{}')
+          const data = rejectUploadResponse(res, `上传失败（${res.statusCode}）`)
+          resolve(data)
         } catch (error) {
-          reject(new Error('上传失败：服务器返回异常'))
-          return
+          reject(error)
         }
-        if (res.statusCode === 401 || (data.error && data.error.code === 'UNAUTHORIZED')) {
-          auth.clearSession()
-          auth.redirectToLogin()
-          reject(new Error('UNAUTHORIZED'))
-          return
-        }
-        if (res.statusCode < 200 || res.statusCode >= 300 || !data.success) {
-          reject(new Error(data.error ? data.error.message : `上传失败（${res.statusCode}）`))
-          return
-        }
-        resolve(data.data)
       },
       fail(error) {
-        reject(new Error(error.errMsg || '上传失败，请检查网络后重试'))
+        reject(buildRequestError(error.errMsg || '上传失败，请检查网络后重试', 'NETWORK_ERROR', 0))
       }
     })
   })
@@ -49,27 +64,15 @@ function uploadAudio(filePath) {
       header: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: 120000,
       success(res) {
-        let data = null
         try {
-          data = JSON.parse(res.data || '{}')
+          const data = rejectUploadResponse(res, `上传失败（${res.statusCode}）`)
+          resolve(data)
         } catch (error) {
-          reject(new Error('上传失败：服务器返回异常'))
-          return
+          reject(error)
         }
-        if (res.statusCode === 401 || (data.error && data.error.code === 'UNAUTHORIZED')) {
-          auth.clearSession()
-          auth.redirectToLogin()
-          reject(new Error('UNAUTHORIZED'))
-          return
-        }
-        if (res.statusCode < 200 || res.statusCode >= 300 || !data.success) {
-          reject(new Error(data.error ? data.error.message : `上传失败（${res.statusCode}）`))
-          return
-        }
-        resolve(data.data)
       },
       fail(error) {
-        reject(new Error(error.errMsg || '上传失败，请检查网络后重试'))
+        reject(buildRequestError(error.errMsg || '上传失败，请检查网络后重试', 'NETWORK_ERROR', 0))
       }
     })
   })
