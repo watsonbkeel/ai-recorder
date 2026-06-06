@@ -124,6 +124,7 @@ async function main() {
       name: `烟测家庭 ${suffix}`,
       relationship: 'father',
       gender: 'male',
+      childOrder: 1,
       familyNickname: '爸爸',
       preferredTitle: '爸',
       identityNote: '自动化烟测账号'
@@ -131,6 +132,7 @@ async function main() {
     familyId = family.id
     assert(family.inviteCode, 'family invite code should exist')
     assertEqual(family.role, 'admin', 'creator should be family admin')
+    assertEqual(family.childOrder, null, 'non-child relationship should not keep child order')
 
     const foundFamily = await familyService.getFamilyByInviteCode(family.inviteCode)
     assertEqual(foundFamily.id, familyId, 'invite lookup should find family')
@@ -207,6 +209,45 @@ async function main() {
     assertEqual(disabledMemoryContext.memories.length, 0, 'disabled family memory context should return no memories')
 
     aiCalls.length = 0
+    await aiService.optimizeMessage(adminId, {
+      familyId,
+      visibility: 'private',
+      receiverIds: [memberId],
+      originalText: '我想和孩子重新约一个沟通作业的时间。',
+      messageType: 'request',
+      useFamilyMemory: false
+    })
+    const disabledOptimizeMessagePayload = lastAiPayload('disabled message AI optimization')
+    assertEqual(
+      disabledOptimizeMessagePayload.familyContext.familyMemory.enabled,
+      false,
+      'AI message optimization with disabled memory should mark family memory disabled'
+    )
+    assertEqual(
+      disabledOptimizeMessagePayload.familyContext.familyMemory.memories.length,
+      0,
+      'AI message optimization with disabled memory should not include memories'
+    )
+    assertEqual(
+      disabledOptimizeMessagePayload.request.receiverIds.includes(memberId),
+      true,
+      'AI message optimization should resolve selected receiver IDs on backend'
+    )
+
+    await aiService.optimizeMessage(adminId, {
+      familyId,
+      visibility: 'private',
+      receiverIds: [memberId],
+      originalText: '我想更温和地和孩子聊作业。',
+      messageType: 'request',
+      useFamilyMemory: true
+    })
+    const enabledOptimizeMessagePayload = lastAiPayload('enabled message AI optimization')
+    assert(
+      enabledOptimizeMessagePayload.familyContext.familyMemory.memories.some((memory) => memory.scope === 'pair'),
+      'AI message optimization with enabled memory should include pair memory'
+    )
+
     await aiService.analyzeMessage(memberId, { messageId: message.id, useFamilyMemory: false })
     const disabledAiPayload = lastAiPayload('disabled AI analysis')
     assertEqual(

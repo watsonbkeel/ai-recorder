@@ -31,11 +31,16 @@ function optionValue(options, index) {
   return options[Number(index)] ? options[Number(index)].value : options[0].value
 }
 
+function isChildRelationship(relationship) {
+  return ['son', 'daughter', 'child'].includes(relationship)
+}
+
 function buildIdentityPayload(data) {
+  const relationship = data.relationship || 'other'
   return {
-    relationship: data.relationship || 'other',
+    relationship,
     gender: data.gender || 'unspecified',
-    childOrder: data.childOrder ? Number(data.childOrder) : null,
+    childOrder: isChildRelationship(relationship) && data.childOrder ? Number(data.childOrder) : null,
     birthYear: data.birthYear ? Number(data.birthYear) : null,
     familyNickname: String(data.familyNickname || '').trim(),
     preferredTitle: String(data.preferredTitle || '').trim(),
@@ -63,6 +68,7 @@ module.exports = {
   GENDER_LABELS: optionLabels(GENDER_OPTIONS),
   optionIndex,
   optionValue,
+  isChildRelationship,
   buildIdentityPayload,
   identitySummary
 }

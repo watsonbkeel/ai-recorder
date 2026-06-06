@@ -50,10 +50,11 @@ function normalizeText(value, maxLength) {
 
 function normalizeIdentityPayload(payload = {}) {
   const currentYear = new Date().getFullYear()
+  const relationship = normalizeRelationship(payload.relationship)
   return {
-    relationship: normalizeRelationship(payload.relationship),
+    relationship,
     gender: normalizeGender(payload.gender),
-    childOrder: normalizeOptionalInt(payload.childOrder, 1, 20),
+    childOrder: isChildRelationship(relationship) ? normalizeOptionalInt(payload.childOrder, 1, 20) : null,
     birthYear: normalizeOptionalInt(payload.birthYear, 1900, currentYear),
     familyNickname: normalizeText(payload.familyNickname || payload.nickname, 191),
     preferredTitle: normalizeText(payload.preferredTitle, 191),
@@ -64,10 +65,13 @@ function normalizeIdentityPayload(payload = {}) {
 function normalizeIdentityUpdatePayload(payload = {}, existing = {}) {
   const currentYear = new Date().getFullYear()
   const has = (key) => Object.prototype.hasOwnProperty.call(payload, key)
+  const relationship = has('relationship') ? normalizeRelationship(payload.relationship) : normalizeRelationship(existing.relationship)
   return {
-    relationship: has('relationship') ? normalizeRelationship(payload.relationship) : normalizeRelationship(existing.relationship),
+    relationship,
     gender: has('gender') ? normalizeGender(payload.gender) : normalizeGender(existing.gender),
-    childOrder: has('childOrder') ? normalizeOptionalInt(payload.childOrder, 1, 20) : (existing.childOrder || null),
+    childOrder: isChildRelationship(relationship)
+      ? (has('childOrder') ? normalizeOptionalInt(payload.childOrder, 1, 20) : (existing.childOrder || null))
+      : null,
     birthYear: has('birthYear') ? normalizeOptionalInt(payload.birthYear, 1900, currentYear) : (existing.birthYear || null),
     familyNickname: has('familyNickname') || has('nickname')
       ? normalizeText(payload.familyNickname || payload.nickname, 191)
@@ -125,13 +129,14 @@ function buildIdentityText(member) {
 function mapIdentity(member) {
   const relationship = normalizeRelationship(member && member.relationship)
   const gender = normalizeGender(member && member.gender)
+  const childOrder = member && isChildRelationship(relationship) && member.childOrder ? member.childOrder : null
   return {
     relationship,
     relationshipLabel: relationshipLabel(relationship),
     gender,
     genderLabel: genderLabel(gender),
-    childOrder: member && member.childOrder ? member.childOrder : null,
-    childOrderLabel: member && member.childOrder ? childOrderLabel(member.childOrder) : '',
+    childOrder,
+    childOrderLabel: childOrder ? childOrderLabel(childOrder) : '',
     birthYear: member && member.birthYear ? member.birthYear : null,
     familyNickname: member && member.familyNickname ? member.familyNickname : '',
     preferredTitle: member && member.preferredTitle ? member.preferredTitle : '',
