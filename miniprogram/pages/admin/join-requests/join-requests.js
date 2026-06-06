@@ -7,6 +7,8 @@ Page({
     familyId: null,
     loading: true,
     error: '',
+    handlingRequestId: null,
+    handlingAction: '',
     items: []
   },
   onLoad(options) {
@@ -32,10 +34,22 @@ Page({
   },
   async handleAction(event) {
     const { id, action } = event.currentTarget.dataset
+    if (!id || this.data.handlingRequestId) {
+      return
+    }
+    this.setData({
+      handlingRequestId: Number(id),
+      handlingAction: action,
+      error: ''
+    })
     try {
       await adminService.handleJoinRequest(id, { action })
       wx.showToast({ title: '处理成功', icon: 'success' })
       this.loadData()
-    } catch (error) {}
+    } catch (error) {
+      this.setData({ error: error.message || '处理失败' })
+    } finally {
+      this.setData({ handlingRequestId: null, handlingAction: '' })
+    }
   }
 })

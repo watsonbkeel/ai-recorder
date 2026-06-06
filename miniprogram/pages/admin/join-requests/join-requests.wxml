@@ -11,8 +11,8 @@
     <view wx:if="{{item.identityNote}}" class="muted">身份备注：{{item.identityNote}}</view>
     <view class="muted">状态：{{item.status}} · {{item.createdAtText}}</view>
     <view wx:if="{{item.status === 'pending'}}" class="actions">
-      <button class="btn-primary" data-id="{{item.id}}" data-action="approve" bindtap="handleAction">通过</button>
-      <button class="btn-danger" data-id="{{item.id}}" data-action="reject" bindtap="handleAction">拒绝</button>
+      <button class="btn-primary" loading="{{handlingRequestId === item.id && handlingAction === 'approve'}}" disabled="{{handlingRequestId}}" data-id="{{item.id}}" data-action="approve" bindtap="handleAction">通过</button>
+      <button class="btn-danger" loading="{{handlingRequestId === item.id && handlingAction === 'reject'}}" disabled="{{handlingRequestId}}" data-id="{{item.id}}" data-action="reject" bindtap="handleAction">拒绝</button>
     </view>
   </view>
 </view>

@@ -43,6 +43,7 @@ curl http://127.0.0.1:3000/health
 - User can create a family and set family identity.
 - User can request to join by invite code and submit family identity.
 - Admin can approve the request and see applicant identity.
+- Admin sees a clear error if join request handling fails, and duplicate taps are blocked while a request is being processed.
 - Approved member can enter the family timeline.
 - Switching current family from profile and returning to the timeline reloads messages for the newly selected family, not the previous family.
 - If the selected family is no longer accessible, timeline and message creation clear the stale family selection and return to family selection.
