@@ -1,4 +1,4 @@
-const { API_BASE_URL } = require('./config')
+const { getApiBaseUrl } = require('./config')
 const auth = require('./auth')
 
 function showError(message) {
@@ -14,9 +14,10 @@ function buildRequestError(message, code, statusCode) {
 
 function request(options) {
   const token = auth.getToken()
+  const apiBaseUrl = getApiBaseUrl()
   return new Promise((resolve, reject) => {
     wx.request({
-      url: `${API_BASE_URL}${options.url}`,
+      url: `${apiBaseUrl}${options.url}`,
       method: options.method || 'GET',
       data: options.data || {},
       header: {

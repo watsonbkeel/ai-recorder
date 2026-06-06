@@ -31,7 +31,7 @@ curl http://127.0.0.1:3000/health
 - `WECHAT_APPID` is `wxf73895336690e9a6`.
 - `WECHAT_SECRET` is configured only in ignored local `server/.env` before testing real WeChat login.
 - AI provider values are read from ignored `server/.env`.
-- Mac local mini program API values can follow `miniprogram/utils/config.local.example.js`; do not commit local API endpoint edits.
+- Mac local mini program API values use the ignored local storage key `AI_RECORDER_LOCAL_CONFIG`; do not commit local API endpoint edits.
 - No real GitHub PAT, AI key, or provider secret is tracked.
 
 ## Mini Program Checks

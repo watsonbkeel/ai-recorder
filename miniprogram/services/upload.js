@@ -1,11 +1,12 @@
-const { API_BASE_URL } = require('../utils/config')
+const { getApiBaseUrl } = require('../utils/config')
 const auth = require('../utils/auth')
 
 function uploadImage(filePath) {
   const token = auth.getToken()
+  const apiBaseUrl = getApiBaseUrl()
   return new Promise((resolve, reject) => {
     wx.uploadFile({
-      url: `${API_BASE_URL}/upload/image`,
+      url: `${apiBaseUrl}/upload/image`,
       filePath,
       name: 'file',
       header: token ? { Authorization: `Bearer ${token}` } : {},
@@ -39,9 +40,10 @@ function uploadImage(filePath) {
 
 function uploadAudio(filePath) {
   const token = auth.getToken()
+  const apiBaseUrl = getApiBaseUrl()
   return new Promise((resolve, reject) => {
     wx.uploadFile({
-      url: `${API_BASE_URL}/upload/audio`,
+      url: `${apiBaseUrl}/upload/audio`,
       filePath,
       name: 'file',
       header: token ? { Authorization: `Bearer ${token}` } : {},

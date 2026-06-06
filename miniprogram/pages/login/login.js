@@ -27,6 +27,9 @@ Page({
     this.setData({ mode: this.data.mode === 'login' ? 'register' : 'login', error: '' })
   },
   async handleSubmit() {
+    if (this.data.loading) {
+      return
+    }
     const accountName = this.data.accountName.trim()
     const password = this.data.password
     if (!accountName || !password) {
@@ -55,6 +58,9 @@ Page({
     }
   },
   async handleWechatLogin() {
+    if (this.data.loading) {
+      return
+    }
     if (!wx.login) {
       wx.showToast({ title: '当前环境不支持微信登录', icon: 'none' })
       return

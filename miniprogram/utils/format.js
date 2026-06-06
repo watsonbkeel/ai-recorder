@@ -1,4 +1,4 @@
-const { PUBLIC_BASE_URL } = require('./config')
+const { getPublicBaseUrl } = require('./config')
 
 function formatDate(value) {
   if (!value) {
@@ -20,7 +20,7 @@ function fullImage(url) {
   if (/^https?:\/\//.test(url)) {
     return url
   }
-  return `${PUBLIC_BASE_URL.replace(/\/$/, '')}${url}`
+  return `${getPublicBaseUrl().replace(/\/$/, '')}${url}`
 }
 
 module.exports = {

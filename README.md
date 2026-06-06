@@ -37,7 +37,22 @@ npm run dev
 
 小程序使用微信开发者工具打开 `miniprogram/`。
 
-如果在 Mac 上本地联调，可以参考 `miniprogram/utils/config.local.example.js` 的地址格式，把 `miniprogram/utils/config.js` 里的 `PUBLIC_BASE_URL` 和 `API_BASE_URL` 临时改成你的本机或局域网后端地址，例如 `http://127.0.0.1:3000` 和 `http://127.0.0.1:3000/api`。`config.local.example.js` 只是模板，运行时仍以 `config.js` 为准；联调结束后恢复为正式 HTTPS 域名再提交。
+如果在 Mac 上本地联调，不要修改已跟踪的 `miniprogram/utils/config.js`。在微信开发者工具控制台设置本地覆盖：
+
+```js
+wx.setStorageSync('AI_RECORDER_LOCAL_CONFIG', {
+  PUBLIC_BASE_URL: 'http://127.0.0.1:3000',
+  API_BASE_URL: 'http://127.0.0.1:3000/api'
+})
+```
+
+如果用真机预览，把地址改成 Mac 的局域网 IP，并在开发者工具里开启“不校验合法域名、web-view、TLS 版本以及 HTTPS 证书”。清除本地覆盖可执行：
+
+```js
+wx.removeStorageSync('AI_RECORDER_LOCAL_CONFIG')
+```
+
+正式提交仍保留 `config.js` 里的 HTTPS 默认域名。
 
 微信登录需要在本地 `server/.env` 配置 `WECHAT_APPID` 和 `WECHAT_SECRET`。真实 `WECHAT_SECRET` 不能提交到仓库。
 

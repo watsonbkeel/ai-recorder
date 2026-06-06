@@ -3,7 +3,7 @@ const replyService = require('../../services/reply')
 const aiService = require('../../services/ai')
 const adminService = require('../../services/admin')
 const format = require('../../utils/format')
-const { PUBLIC_BASE_URL } = require('../../utils/config')
+const { getPublicBaseUrl } = require('../../utils/config')
 
 const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
 
@@ -32,7 +32,7 @@ function fullUrl(url) {
   if (/^https?:\/\//.test(url)) {
     return url
   }
-  return `${PUBLIC_BASE_URL.replace(/\/$/, '')}${url}`
+  return `${getPublicBaseUrl().replace(/\/$/, '')}${url}`
 }
 
 function prepareMessage(message) {
