@@ -3,6 +3,12 @@ const format = require('../../../utils/format')
 const { identitySummary } = require('../../../utils/familyIdentity')
 const { handleFamilyAccessError } = require('../../../utils/familyAccess')
 
+const STATUS_TEXT = {
+  pending: '等待确认',
+  approved: '已通过',
+  rejected: '暂不通过'
+}
+
 Page({
   data: {
     familyId: null,
@@ -24,6 +30,7 @@ Page({
         items: items.map((item) => ({
           ...item,
           createdAtText: format.formatDate(item.createdAt),
+          statusText: STATUS_TEXT[item.status] || item.status,
           identitySummary: identitySummary(item)
         }))
       })

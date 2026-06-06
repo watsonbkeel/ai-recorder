@@ -2,7 +2,7 @@
   <view wx:if="{{loading}}" class="loading">加载中...</view>
   <view wx:elif="{{error}}" class="error">{{error}}</view>
   <block wx:else>
-    <view class="card">
+    <view class="card hero-card">
       <view class="title">{{user.nickname || '家庭成员'}}</view>
       <view class="sub-title">当前家庭：{{currentFamily ? currentFamily.name : '未选择'}}</view>
       <view wx:if="{{currentFamily}}" class="muted">
@@ -23,7 +23,7 @@
 
     <view wx:if="{{currentFamily}}" class="card">
       <view class="title">家庭身份</view>
-      <view class="sub-title">身份用于称呼和表达适配，AI 不会据此做性格判断或心理诊断。</view>
+      <view class="sub-title">身份只用于称呼、语气和表达适配，帮助话说得更清楚，不用于评价家人或贴标签。</view>
       <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
         <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
       </picker>

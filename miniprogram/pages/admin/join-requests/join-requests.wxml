@@ -1,18 +1,23 @@
 <view class="page">
+  <view class="card hero-card">
+    <view class="title">入家申请</view>
+    <view class="sub-title">确认申请人的家庭身份，让这个留声空间只属于真正的家人。</view>
+  </view>
+
   <view wx:if="{{loading}}" class="loading">加载中...</view>
   <view wx:elif="{{error}}" class="error">{{error}}</view>
   <view wx:elif="{{!items.length}}" class="empty">暂无入家申请。</view>
-  <view wx:for="{{items}}" wx:key="id" class="card">
+  <view wx:for="{{items}}" wx:key="id" class="card family-card">
     <view class="title">{{item.user.nickname || item.familyNickname || '未命名用户'}}</view>
     <view class="sub-title">申请备注：{{item.message || '无'}}</view>
     <view class="muted">家庭身份：{{item.identitySummary}}</view>
     <view wx:if="{{item.familyNickname}}" class="muted">家庭昵称：{{item.familyNickname}}</view>
     <view wx:if="{{item.preferredTitle}}" class="muted">希望被称呼：{{item.preferredTitle}}</view>
     <view wx:if="{{item.identityNote}}" class="muted">身份备注：{{item.identityNote}}</view>
-    <view class="muted">状态：{{item.status}} · {{item.createdAtText}}</view>
+    <view class="muted">状态：{{item.statusText}} · {{item.createdAtText}}</view>
     <view wx:if="{{item.status === 'pending'}}" class="actions">
       <button class="btn-primary" loading="{{handlingRequestId === item.id && handlingAction === 'approve'}}" disabled="{{handlingRequestId}}" data-id="{{item.id}}" data-action="approve" bindtap="handleAction">通过</button>
-      <button class="btn-danger" loading="{{handlingRequestId === item.id && handlingAction === 'reject'}}" disabled="{{handlingRequestId}}" data-id="{{item.id}}" data-action="reject" bindtap="handleAction">拒绝</button>
+      <button class="btn-danger" loading="{{handlingRequestId === item.id && handlingAction === 'reject'}}" disabled="{{handlingRequestId}}" data-id="{{item.id}}" data-action="reject" bindtap="handleAction">暂不通过</button>
     </view>
   </view>
 </view>

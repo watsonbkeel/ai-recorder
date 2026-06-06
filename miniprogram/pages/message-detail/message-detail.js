@@ -13,7 +13,7 @@ const ANALYSIS_STATUS_STEPS = [
   'AI 正在理解这段心声...',
   '正在提炼情绪和真实需求...',
   '正在整理回应时需要避开的表达...',
-  '快好了，正在生成更温和的回应建议...'
+  '快好了，正在生成更温和的回应方式...'
 ]
 const REPLY_STATUS_STEPS = [
   'AI 正在理解你的回复原意...',
@@ -247,7 +247,7 @@ Page({
     wx.showModal({
       title: '删除留言',
       content: '删除后这条留言将不可见，相关家庭沟通记忆会失效并等待重新整理。',
-      confirmColor: '#ef4444',
+      confirmColor: '#c75f52',
       success: async (res) => {
         if (!res.confirm) {
           return
@@ -275,7 +275,7 @@ Page({
     wx.showModal({
       title: '隐藏留言',
       content: '隐藏后这条留言将不再展示给家庭成员，相关家庭沟通记忆会失效并等待重新整理。',
-      confirmColor: '#ef4444',
+      confirmColor: '#c75f52',
       success: async (res) => {
         if (!res.confirm) {
           return
@@ -304,7 +304,7 @@ Page({
     wx.showModal({
       title: '删除回复',
       content: '删除后这条回复将不可见，相关家庭沟通记忆会失效并等待重新整理。',
-      confirmColor: '#ef4444',
+      confirmColor: '#c75f52',
       success: async (res) => {
         if (!res.confirm) {
           return
@@ -330,7 +330,7 @@ Page({
     wx.showModal({
       title: '隐藏回复',
       content: '隐藏后这条回复将不再展示给家庭成员，相关家庭沟通记忆会失效并等待重新整理。',
-      confirmColor: '#ef4444',
+      confirmColor: '#c75f52',
       success: async (res) => {
         if (!res.confirm) {
           return

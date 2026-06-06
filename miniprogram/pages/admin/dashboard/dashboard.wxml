@@ -2,15 +2,15 @@
   <view wx:if="{{loading}}" class="loading">加载中...</view>
   <view wx:elif="{{error}}" class="error">{{error}}</view>
   <block wx:elif="{{stats}}">
-    <view class="card">
+    <view class="card hero-card">
       <view class="title">{{currentFamily ? currentFamily.name : '家庭管理'}}</view>
-      <view class="sub-title">管理家庭成员、入家申请和留言秩序。</view>
+      <view class="sub-title">维护家庭留声空间，确认家人身份，保护每个人的表达边界。</view>
     </view>
-    <view class="card row-between"><view>待审核申请</view><view>{{stats.pendingJoinRequests}}</view></view>
-    <view class="card row-between"><view>成员数量</view><view>{{stats.memberCount}}</view></view>
-    <view class="card row-between"><view>留言数量</view><view>{{stats.messageCount}}</view></view>
-    <view class="card row-between"><view>回复数量</view><view>{{stats.replyCount}}</view></view>
-    <view class="card row-between"><view>停用留言成员</view><view>{{stats.mutedMemberCount}}</view></view>
+    <view class="card stat-card row-between"><view class="stat-label">待确认入家申请</view><view class="stat-value">{{stats.pendingJoinRequests}}</view></view>
+    <view class="card stat-card row-between"><view class="stat-label">家庭成员</view><view class="stat-value">{{stats.memberCount}}</view></view>
+    <view class="card stat-card row-between"><view class="stat-label">家庭留言</view><view class="stat-value">{{stats.messageCount}}</view></view>
+    <view class="card stat-card row-between"><view class="stat-label">暖心回复</view><view class="stat-value">{{stats.replyCount}}</view></view>
+    <view class="card stat-card row-between"><view class="stat-label">暂时停用留言成员</view><view class="stat-value">{{stats.mutedMemberCount}}</view></view>
     <view class="card actions">
       <button class="btn-primary" bindtap="goJoinRequests">入家申请</button>
       <button class="btn-secondary" bindtap="goMembers">成员管理</button>

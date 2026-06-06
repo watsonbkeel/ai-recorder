@@ -172,9 +172,9 @@ Page({
     }
     const item = event.currentTarget.dataset.item
     wx.showModal({
-      title: '移除成员',
-      content: `确认移除 ${item.displayName || item.user.nickname || '这位成员'} 吗？`,
-      confirmColor: '#ef4444',
+      title: '移出家庭',
+      content: `确认将 ${item.displayName || item.user.nickname || '这位成员'} 移出这个家庭吗？`,
+      confirmColor: '#c75f52',
       success: async (res) => {
         if (!res.confirm) {
           return

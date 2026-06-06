@@ -5,20 +5,19 @@
   <block wx:elif="{{message}}">
     <view wx:if="{{error}}" class="error inline-error">{{error}}</view>
 
-    <view class="card">
+    <view class="card message-card">
       <view class="row-between">
         <view>
           <view>{{message.sender.nickname}}</view>
           <view class="muted">{{message.visibilityText}} · {{message.createdAtText}}</view>
         </view>
-        <view class="tag">{{message.riskLevel}}</view>
       </view>
-      <view style="margin-top:16rpx; white-space:pre-wrap;">{{message.optimizedText}}</view>
-      <view style="margin-top:12rpx;">
-        <text wx:for="{{message.emotionTags}}" wx:key="*this" class="tag">{{item}}</text>
+      <view class="message-body">{{message.optimizedText}}</view>
+      <view class="message-meta">
+        <text wx:for="{{message.emotionTags}}" wx:key="*this" class="tag tag-peach">{{item}}</text>
       </view>
-      <view wx:if="{{message.coreNeed}}" class="muted" style="margin-top:12rpx;">核心诉求：{{message.coreNeed}}</view>
-      <view wx:if="{{message.aiAdvice}}" class="muted" style="margin-top:12rpx;">建议：{{message.aiAdvice}}</view>
+      <view wx:if="{{message.coreNeed}}" class="muted message-meta">想说清楚的是：{{message.coreNeed}}</view>
+      <view wx:if="{{message.aiAdvice}}" class="muted message-meta">表达提示：{{message.aiAdvice}}</view>
       <view wx:if="{{message.canDelete || message.canHide}}" class="actions">
         <button wx:if="{{message.canDelete}}" class="btn-danger" size="mini" loading="{{handlingMessageAction === 'delete'}}" disabled="{{handlingMessageAction}}" bindtap="deleteMessage">删除留言</button>
         <button wx:if="{{message.canHide}}" class="btn-danger" size="mini" loading="{{handlingMessageAction === 'hide'}}" disabled="{{handlingMessageAction}}" bindtap="hideMessage">隐藏留言</button>
@@ -28,29 +27,29 @@
     <view class="card">
       <view class="title">原始表达</view>
       <view class="sub-title">原话可能带有情绪，请尝试理解情绪背后的真实需求。</view>
-      <view wx:if="{{message.originalText}}" style="margin-top:16rpx; white-space:pre-wrap;">{{message.originalText}}</view>
+      <view wx:if="{{message.originalText}}" class="message-body">{{message.originalText}}</view>
       <button wx:if="{{message.originalAudioUrl}}" class="btn-secondary" loading="{{playingOriginalAudio}}" disabled="{{playingOriginalAudio}}" bindtap="playOriginalAudio">{{playingOriginalAudio ? '播放中' : '播放原始语音'}}</button>
       <view wx:if="{{!message.originalText && !message.originalAudioUrl}}" class="muted" style="margin-top:16rpx;">发送者没有开放原始文字或语音。</view>
     </view>
 
     <view class="card">
-      <view class="title">理解这条留言</view>
+      <view class="title">暖心表达助手</view>
       <view class="row-between memory-row">
         <view>
-          <view>使用家庭沟通记忆</view>
-          <view class="muted">参考本家庭内可见摘要、敏感点和有效表达。</view>
+          <view>参考家庭沟通习惯</view>
+          <view class="muted">只参考这个家庭里你有权限看到的摘要、敏感点和有效表达。</view>
         </view>
         <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
       </view>
-      <button class="btn-secondary" loading="{{analysisLoading}}" disabled="{{analysisLoading}}" bindtap="analyzeMessage">AI 帮我理解</button>
+      <button class="btn-secondary" loading="{{analysisLoading}}" disabled="{{analysisLoading}}" bindtap="analyzeMessage">帮我更好理解</button>
       <view wx:if="{{analysisStatusText}}" class="ai-status">{{analysisStatusText}}</view>
       <view wx:if="{{analysis}}" class="analysis-box">
         <view wx:if="{{analysis.possibleEmotions && analysis.possibleEmotions.length}}" class="analysis-section">
-          <view class="muted">可能情绪</view>
+          <view class="muted">可能传达的感受</view>
           <text wx:for="{{analysis.possibleEmotions}}" wx:key="*this" class="tag">{{item}}</text>
         </view>
         <view wx:if="{{analysis.realNeeds && analysis.realNeeds.length}}" class="analysis-section">
-          <view class="muted">可能需求</view>
+          <view class="muted">想被理解的地方</view>
           <view wx:for="{{analysis.realNeeds}}" wx:key="*this" class="list-line">{{item}}</view>
         </view>
         <view wx:if="{{analysis.whatToAvoid && analysis.whatToAvoid.length}}" class="analysis-section">
@@ -58,7 +57,7 @@
           <view wx:for="{{analysis.whatToAvoid}}" wx:key="*this" class="list-line">{{item}}</view>
         </view>
         <view wx:if="{{analysis.suggestedResponse}}" class="analysis-section">
-          <view class="muted">建议回应</view>
+          <view class="muted">可以这样回应</view>
           <view class="suggested-response">{{analysis.suggestedResponse}}</view>
         </view>
       </view>
@@ -69,12 +68,12 @@
       <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
       <view class="row-between memory-row">
         <view>
-          <view>整理回复时使用家庭沟通记忆</view>
+          <view>参考家庭沟通习惯</view>
           <view class="muted">关闭后，AI 只参考这条可见留言和你的回复原意。</view>
         </view>
         <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
       </view>
-      <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
+      <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">暖心整理回复</button>
       <view wx:if="{{replyAiStatusText}}" class="ai-status">{{replyAiStatusText}}</view>
       <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
       <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>
@@ -86,7 +85,7 @@
         <view>{{item.sender.nickname}}</view>
         <view class="muted">{{item.createdAtText}}</view>
       </view>
-      <view style="margin-top:12rpx; white-space:pre-wrap;">{{item.optimizedText}}</view>
+      <view class="message-body">{{item.optimizedText}}</view>
       <view wx:if="{{item.canDelete || item.canHide}}" class="actions">
         <button wx:if="{{item.canDelete}}" class="btn-danger" size="mini" loading="{{handlingReplyId === item.id && handlingReplyAction === 'delete'}}" disabled="{{handlingReplyId}}" data-id="{{item.id}}" bindtap="deleteReply">删除回复</button>
         <button wx:if="{{item.canHide}}" class="btn-danger" size="mini" loading="{{handlingReplyId === item.id && handlingReplyAction === 'hide'}}" disabled="{{handlingReplyId}}" data-id="{{item.id}}" bindtap="hideReply">隐藏回复</button>

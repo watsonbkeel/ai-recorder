@@ -1,8 +1,13 @@
 <view class="page">
+  <view class="card hero-card">
+    <view class="title">成员管理</view>
+    <view class="sub-title">整理家庭身份、称呼和留言权限，让家人之间的表达更清楚。</view>
+  </view>
+
   <view wx:if="{{loading}}" class="loading">加载中...</view>
   <view wx:elif="{{error}}" class="error">{{error}}</view>
   <view wx:elif="{{!items.length}}" class="empty">暂无成员。</view>
-  <view wx:for="{{items}}" wx:key="id" class="card">
+  <view wx:for="{{items}}" wx:key="id" class="card family-card">
     <view class="row-between">
       <view>
         <view class="title" style="font-size:30rpx;">{{item.displayName || item.user.nickname || '未命名用户'}}</view>
@@ -16,7 +21,7 @@
       <button class="btn-secondary" size="mini" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="startEditIdentity">编辑身份</button>
       <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'mute'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '恢复留言' : '停用留言'}}</button>
       <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'role'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
-      <button class="btn-danger" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'remove'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="removeMember">移除</button>
+      <button class="btn-danger" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'remove'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="removeMember">移出家庭</button>
     </view>
   </view>
 

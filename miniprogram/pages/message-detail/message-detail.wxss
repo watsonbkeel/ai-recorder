@@ -1,22 +1,17 @@
-.memory-row {
-  gap: 20rpx;
-  margin: 24rpx 0;
-  padding: 20rpx;
-  border: 2rpx solid #dbe3ec;
-  border-radius: 14rpx;
-  background: #f8fafc;
-}
-
 .analysis-box {
   margin-top: 20rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid rgba(199, 234, 216, 0.9);
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, rgba(232, 246, 238, 0.96), rgba(255, 248, 236, 0.96));
 }
 
 .inline-error {
   padding: 24rpx;
   margin-bottom: 20rpx;
-  background: #fef2f2;
-  border-radius: 14rpx;
-  color: #b91c1c;
+  background: var(--danger-soft);
+  border-radius: 20rpx;
+  color: var(--danger);
 }
 
 .analysis-section {
@@ -25,13 +20,13 @@
 
 .list-line {
   margin-top: 10rpx;
-  color: #334155;
+  color: var(--text-main);
   line-height: 42rpx;
 }
 
 .suggested-response {
   margin-top: 12rpx;
-  color: #1f2937;
+  color: var(--text-main);
   line-height: 44rpx;
   white-space: pre-wrap;
 }

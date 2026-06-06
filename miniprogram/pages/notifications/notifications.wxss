@@ -3,8 +3,8 @@
 }
 
 .notification-card:active {
-  border-color: #c7d2fe;
-  background: #f8fafc;
+  border-color: rgba(223, 125, 98, 0.35);
+  background: rgba(255, 243, 223, 0.96);
 }
 
 .notification-meta {

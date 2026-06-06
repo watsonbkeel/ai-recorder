@@ -1,6 +1,11 @@
 <view class="page">
-  <view class="card">
+  <view class="card hero-card">
+    <image class="hero-image hero-image-compact" src="/images/loading-1.jpg" mode="aspectFill"></image>
     <view class="title">加入家庭</view>
+    <view class="sub-title">用家人给你的邀请码进入这个家庭留声空间，先确认身份，再开始留下心声。</view>
+  </view>
+
+  <view class="card">
     <input class="input" placeholder="输入家人给你的邀请码" value="{{inviteCode}}" bindinput="handleInviteInput" />
     <textarea class="textarea" placeholder="给管理员留一句话，可不填" value="{{message}}" bindinput="handleMessageInput"></textarea>
     <view class="sub-title">说明你在这个家庭里的身份，方便管理员确认。</view>

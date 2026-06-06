@@ -1,6 +1,9 @@
 <view class="page">
-  <view class="card row-between">
-    <view class="title">通知中心</view>
+  <view class="card row-between hero-card">
+    <view>
+      <view class="title">家庭通知</view>
+      <view class="sub-title">新的留言、回复和入家申请都会在这里提醒。</view>
+    </view>
     <button size="mini" class="btn-secondary" loading="{{markingAllRead}}" disabled="{{loading || markingAllRead}}" bindtap="markAllRead">全部已读</button>
   </view>
   <view wx:if="{{loading}}" class="loading">加载中...</view>
