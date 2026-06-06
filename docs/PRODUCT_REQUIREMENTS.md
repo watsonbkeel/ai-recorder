@@ -25,6 +25,7 @@ One-line description:
 - Family identity fields: relationship, gender, child order, birth year, family nickname, preferred title, identity note.
 - Send text and/or voice messages to selected family members, the whole family, or self only.
 - Store original text/audio and AI optimized text separately.
+- Current MVP records and uploads voice, but does not auto-transcribe voice; AI message optimization requires text original content or a manually written voice summary.
 - Sender-controlled permission for original text and original audio.
 - AI optimized expression for messages and replies.
 - AI message analysis based on backend-verified visible context.
@@ -71,5 +72,6 @@ One-line description:
 - Emotion trend visualization.
 - Anniversary and care reminders.
 - Professional counseling resource integration.
+- Automatic voice transcription.
 - Multiple family advanced management.
 - Public sharing.

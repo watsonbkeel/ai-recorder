@@ -35,12 +35,12 @@
    - 指定家人: choose one or more receivers from family members.
    - 全家可见: all approved family members can see the message; backend computes receivers and notifications.
    - 仅自己: save for self, do not notify family members, and do not show original-content permission switches.
-4. Enter original text, record voice, or both.
+4. Enter original text, a short text summary of the voice message, record voice, or combine them.
 5. Choose whether AI may use family communication memory. Default: on.
-6. Tap AI optimize.
+6. Tap AI optimize. Current MVP does not auto-transcribe voice; AI optimization requires text original content or a manually written voice summary.
 7. While AI is working, the page shows staged status copy such as understanding the original expression, identifying emotions and needs, and preserving intent and boundaries. The user may continue editing the original input while waiting.
 8. Review optimized expression, emotion tags, core need, advice, risk warning.
-9. If the message only has voice and no text, manually fill the expression family members should read first.
+9. If the message only has voice and no text summary, manually fill the expression family members should read first.
 10. For messages shared with family members, choose whether receivers may view original text or play original audio.
 11. Send or save message.
 

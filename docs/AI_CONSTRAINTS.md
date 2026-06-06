@@ -39,6 +39,7 @@ Rules:
 
 - Hidden original text must not enter AI context.
 - Hidden original audio or transcript must not enter AI context.
+- Current MVP does not generate transcripts from original audio; AI message optimization may use only the text original content or user-written voice summary supplied in the request.
 - AI context may include optimized text, AI summaries, visible replies, identity metadata, and active family memory that the current user may access.
 - Identity metadata may be used for称呼、语气、边界表达, not stereotypes.
 

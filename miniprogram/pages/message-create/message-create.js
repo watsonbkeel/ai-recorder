@@ -187,8 +187,8 @@ Page({
     return this.data.selectedReceiverIds
   },
   async optimize() {
-    if (!this.data.originalText.trim() && !this.data.audioTempPath) {
-      wx.showToast({ title: '请先写下心声或录音', icon: 'none' })
+    if (!this.data.originalText.trim()) {
+      wx.showToast({ title: '请先写下文字原话或语音大意', icon: 'none' })
       return
     }
     this.setData({ aiLoading: true, error: '' })

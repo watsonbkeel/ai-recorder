@@ -119,6 +119,7 @@ Rules:
 
 - Backend builds the AI context.
 - For `optimize-message`, backend resolves receiver identity context from `familyId`, `visibility`, and permitted family members.
+- `optimize-message` requires `originalText`; current MVP does not auto-transcribe `hasOriginalAudio`.
 - Existing content context must be loaded by `messageId` after permission checks.
 - Frontend must not inject arbitrary history, summaries, or memory.
 - `useFamilyMemory: false` fully disables `FamilyMemory` query and injection.

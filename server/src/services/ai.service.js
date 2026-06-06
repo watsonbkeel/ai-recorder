@@ -337,6 +337,9 @@ async function optimizeMessage(userId, payload) {
   if (!Number(payload.familyId || 0)) {
     throw createError('VALIDATION_ERROR', 'AI 整理需要指定家庭', 400)
   }
+  if (!normalizeOriginalText(payload.originalText)) {
+    throw createError('VALIDATION_ERROR', 'AI 整理需要先提供文字原话或语音大意', 400)
+  }
   const familyContext = await buildFamilyContext(userId, payload)
   const raw = await callOpenAI(`${baseRules}
 将用户给家人的原始表达优化为更清晰、温和、尊重、适合家庭沟通的话。若有接收方身份，称呼和语气要适配该家庭关系。返回字段：optimizedText, emotionTags, coreNeed, communicationAdvice, riskLevel, attackWarning。`, {
