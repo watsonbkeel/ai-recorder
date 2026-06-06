@@ -65,7 +65,7 @@ async function cacheImage(url) {
 
   const response = await requestImage(url)
   const extension = getExtension(url, response.contentType)
-  const filePath = `${wx.env.USER_DATA_PATH}/diary-image-${hashText(url)}${extension}`
+  const filePath = `${wx.env.USER_DATA_PATH}/ai-recorder-image-${hashText(url)}${extension}`
   return writeFile(filePath, response.data)
 }
 

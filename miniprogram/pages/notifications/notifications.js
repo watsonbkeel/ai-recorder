@@ -1,45 +1,35 @@
 const notificationService = require('../../services/notification')
 const format = require('../../utils/format')
 
-function getActorText(item) {
-  if (!item.actor) {
-    return item.type === 'diary_commented' || item.type === 'comment_replied' ? '来自：匿名同学' : ''
+function actorName(item) {
+  return item.actor ? (item.actor.nickname || '家人') : ''
+}
+
+function actionText(item) {
+  if (item.messageId) {
+    return '查看留言'
   }
-  return `来自：${item.actor.nickname || '同学'}`
+  if (item.type === 'family_join_requested') {
+    return '前往家庭管理处理'
+  }
+  return '暂无可跳转内容'
 }
 
 function prepareNotification(item) {
+  const name = actorName(item)
   return {
     ...item,
     createdAtText: format.formatDate(item.createdAt),
-    actorText: getActorText(item),
-    actionText: item.diaryId ? '点击查看日记' : '暂无可跳转内容'
+    actorText: name ? `来自：${name}` : '',
+    actionText: actionText(item)
   }
-}
-
-function buildNoticeText(item) {
-  const actorName = item.actor ? (item.actor.nickname || '同学') : '匿名同学'
-  if (item.type === 'diary_liked') {
-    return `${actorName} 点赞了这篇日记`
-  }
-  if (item.type === 'comment_liked') {
-    return `${actorName} 点赞了你的评论`
-  }
-  if (item.type === 'diary_commented') {
-    return `${actorName} 评论了这篇日记`
-  }
-  if (item.type === 'comment_replied') {
-    return `${actorName} 回复了你的评论`
-  }
-  return item.title || '通知详情'
 }
 
 Page({
   data: {
     loading: true,
     error: '',
-    items: [],
-    formatDate: format.formatDate
+    items: []
   },
   onShow() {
     this.loadData()
@@ -73,18 +63,13 @@ Page({
       } catch (error) {}
     }
 
-    if (!item.diaryId) {
-      wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
-      this.loadData()
+    if (item.messageId) {
+      wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}` })
       return
     }
 
-    const params = [`diaryId=${item.diaryId}`]
-    if (item.commentId) {
-      params.push(`commentId=${item.commentId}`)
-    }
-    params.push(`noticeText=${encodeURIComponent(buildNoticeText(item))}`)
-    wx.navigateTo({ url: `/pages/diary-detail/diary-detail?${params.join('&')}` })
+    wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
+    this.loadData()
   },
   async markAllRead() {
     try {

@@ -1,6 +1,8 @@
 const messageService = require('../../services/message')
 const uploadService = require('../../services/upload')
 const aiService = require('../../services/ai')
+const familyService = require('../../services/family')
+const { identitySummary } = require('../../utils/familyIdentity')
 
 const recorder = wx.getRecorderManager ? wx.getRecorderManager() : null
 const audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
@@ -10,7 +12,8 @@ const MESSAGE_TYPE_LABELS = ['感谢', '道歉', '委屈', '请求', '解释', '
 Page({
   data: {
     familyId: null,
-    receiverText: '',
+    members: [],
+    selectedReceiverIds: [],
     messageTypeIndex: 8,
     messageTypeLabels: MESSAGE_TYPE_LABELS,
     originalText: '',
@@ -25,12 +28,15 @@ Page({
     recording: false,
     allowOriginalTextView: false,
     allowOriginalAudioPlay: false,
+    useFamilyMemory: true,
     aiLoading: false,
+    membersLoading: false,
     loading: false,
     error: ''
   },
   onLoad(options) {
     this.setData({ familyId: Number(options.familyId) })
+    this.loadMembers()
     if (recorder) {
       recorder.onStop((res) => {
         this.setData({
@@ -44,8 +50,44 @@ Page({
       })
     }
   },
-  handleReceiverInput(event) {
-    this.setData({ receiverText: event.detail.value })
+  async loadMembers() {
+    if (!this.data.familyId) {
+      return
+    }
+    this.setData({ membersLoading: true, error: '' })
+    try {
+      const members = await familyService.getFamilyMembers(this.data.familyId)
+      this.setData({
+        members: members
+          .filter((member) => !member.isSelf)
+          .map((member) => ({
+            ...member,
+            selected: false,
+            identitySummary: identitySummary(member)
+          }))
+      })
+    } catch (error) {
+      this.setData({ error: error.message || '加载家庭成员失败' })
+    } finally {
+      this.setData({ membersLoading: false })
+    }
+  },
+  toggleReceiver(event) {
+    const userId = Number(event.currentTarget.dataset.userId)
+    const selectedSet = new Set(this.data.selectedReceiverIds)
+    if (selectedSet.has(userId)) {
+      selectedSet.delete(userId)
+    } else {
+      selectedSet.add(userId)
+    }
+    const selectedReceiverIds = Array.from(selectedSet)
+    this.setData({
+      selectedReceiverIds,
+      members: this.data.members.map((member) => ({
+        ...member,
+        selected: selectedSet.has(Number(member.userId))
+      }))
+    })
   },
   handleTypeChange(event) {
     this.setData({ messageTypeIndex: Number(event.detail.value) })
@@ -61,6 +103,9 @@ Page({
   },
   handleAudioPermission(event) {
     this.setData({ allowOriginalAudioPlay: event.detail.value })
+  },
+  handleMemorySwitch(event) {
+    this.setData({ useFamilyMemory: event.detail.value })
   },
   startRecord() {
     if (!recorder) {
@@ -90,9 +135,12 @@ Page({
     this.setData({ aiLoading: true, error: '' })
     try {
       const result = await aiService.optimizeMessage({
+        familyId: this.data.familyId,
+        receiverIds: this.data.selectedReceiverIds,
         originalText: this.data.originalText,
         hasOriginalAudio: Boolean(this.data.audioTempPath),
-        messageType: MESSAGE_TYPES[this.data.messageTypeIndex]
+        messageType: MESSAGE_TYPES[this.data.messageTypeIndex],
+        useFamilyMemory: this.data.useFamilyMemory
       })
       this.setData({
         optimizedText: result.optimizedText || this.data.originalText,
@@ -108,13 +156,10 @@ Page({
       this.setData({ aiLoading: false })
     }
   },
-  parseReceiverIds() {
-    return this.data.receiverText.split(',').map((item) => Number(item.trim())).filter((id) => Number.isInteger(id) && id > 0)
-  },
   async submit() {
-    const receiverIds = this.parseReceiverIds()
+    const receiverIds = this.data.selectedReceiverIds
     if (!receiverIds.length) {
-      wx.showToast({ title: '请输入接收人用户ID', icon: 'none' })
+      wx.showToast({ title: '请选择接收家人', icon: 'none' })
       return
     }
     if (!this.data.optimizedText.trim()) {

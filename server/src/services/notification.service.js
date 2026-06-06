@@ -20,13 +20,10 @@ async function createNotification(data, tx) {
   const notificationData = {
     userId: data.userId || data.receiverId,
     actorId: data.actorId || data.triggerUserId || null,
-    classId: data.classId || null,
     familyId: data.familyId || null,
     type: data.type,
     title: data.title,
     content: data.content,
-    diaryId: data.diaryId || null,
-    commentId: data.commentId || null,
     messageId: data.messageId || null,
     replyId: data.replyId || null
   }
@@ -47,7 +44,7 @@ async function listNotifications(userId, query) {
         actor: {
           select: { id: true, nickname: true, avatarUrl: true }
         },
-        class: {
+        family: {
           select: { id: true, name: true }
         }
       }
@@ -59,7 +56,7 @@ async function listNotifications(userId, query) {
       ...item,
       actor: item.actor ? {
         id: item.actor.id,
-        nickname: item.actor.nickname || '同学',
+        nickname: item.actor.nickname || '家人',
         avatarUrl: item.actor.avatarUrl || ''
       } : null
     })),

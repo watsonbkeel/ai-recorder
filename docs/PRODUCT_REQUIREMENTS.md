@@ -4,7 +4,7 @@
 
 Name: 暖心留声机
 
-Positioning: a family AI voice recorder mini program that helps family members express difficult thoughts through text and voice. AI turns unclear or emotionally charged wording into clearer, warmer, and more respectful communication while preserving the user's real feelings and needs.
+Positioning: 家庭 AI 留声机小程序，帮助家庭成员用文字和语音表达不容易说出口的心声。AI 将不清晰、情绪化或容易激化矛盾的表达整理成更清楚、更温和、更容易被家人理解的暖心表达，同时保留用户真实意图和边界。
 
 One-line description:
 
@@ -12,28 +12,34 @@ One-line description:
 
 ## Core Value
 
-- Help children, parents, partners, siblings, and elders express feelings that are hard to say directly.
-- Reduce misunderstanding caused by harsh wording, unclear intent, emotional escalation, or generational communication gaps.
-- Help receivers understand the emotion and need behind the original words.
-- Encourage reflection, repair, boundaries, and mutual respect.
+- 帮助父母、子女、伴侣、手足和长辈表达难以直接说出口的话。
+- 减少因为表达方式、代际差异、情绪升级和理解偏差造成的误会。
+- 帮助接收方理解表达背后的情绪、需要和边界。
+- 鼓励倾听、修复、尊重和真实沟通。
 
 ## MVP Features
 
 - Account registration and login.
-- Family space creation.
-- Invite or approve family members.
-- Family relationship labels.
-- Write a message to selected family member(s).
-- Record and upload an original voice message.
-- Store original text and/or original audio.
-- Generate AI optimized expression.
-- Generate emotion tags, core need, risk level, and communication advice.
-- Let the sender choose whether the receiver may view original text or play original audio.
-- Receiver reads the optimized version first.
-- Receiver can view AI interpretation and suggested response direction.
-- Receiver can use AI to optimize a reply.
+- Family space creation and invite-code join flow.
+- Admin approval for join requests.
+- Family identity fields: relationship, gender, child order, birth year, family nickname, preferred title, identity note.
+- Send text and/or voice messages to selected family members.
+- Store original text/audio and AI optimized text separately.
+- Sender-controlled permission for original text and original audio.
+- AI optimized expression for messages and replies.
+- AI message analysis based on backend-verified visible context.
+- Family communication memory with `family`, `member`, and `pair` scopes.
+- User switch to disable AI family memory use.
 - Family timeline with sent, received, and family-visible messages.
-- Notifications for new messages, replies, join decisions, and moderation events.
+- Notifications for new messages, replies, join requests, and join decisions.
+- Admin dashboard, member management, muting, role management, and hide message/reply.
+
+## Explicit Non-Goals
+
+- No report/举报 feature.
+- No public feed, popularity, ranking, likes, or social metrics.
+- No cross-family AI memory.
+- No reuse of old project users, uploads, migration history, or runtime data.
 
 ## Message Types
 
@@ -52,16 +58,14 @@ One-line description:
 - Family content is not public.
 - A message is private to sender and receiver(s) by default.
 - Original text and original audio are hidden unless the sender enables access.
-- Original content should be visually folded behind a clear warning when available:
-  "以下是对方的原始表达，可能带有情绪，请尝试理解情绪背后的真实需求。"
+- AI context must not include hidden original text/audio.
+- Family memory is used only inside the current family and only when enabled by the user.
 
 ## Deferred Features
 
-- Family weekly report.
-- Family temperature score.
-- Emotion trend analysis.
+- Family periodic summary.
+- Emotion trend visualization.
 - Anniversary and care reminders.
 - Professional counseling resource integration.
-- Multiple family space advanced management.
-- Image-first diary features.
+- Multiple family advanced management.
 - Public sharing.

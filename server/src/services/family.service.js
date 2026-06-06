@@ -1,12 +1,14 @@
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { generateInviteCode } = require('../utils/inviteCode')
-
-const VALID_RELATIONSHIPS = new Set(['father', 'mother', 'son', 'daughter', 'grandparent', 'partner', 'sibling', 'other'])
-
-function normalizeRelationship(value) {
-  return VALID_RELATIONSHIPS.has(value) ? value : 'other'
-}
+const { ensureFamilyMember } = require('../middleware/auth')
+const {
+  normalizeIdentityPayload,
+  normalizeIdentityUpdatePayload,
+  mapIdentity,
+  mapMember
+} = require('../utils/familyIdentity')
+const { createNotification } = require('./notification.service')
 
 async function createUniqueInviteCode(tx) {
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -20,6 +22,7 @@ async function createUniqueInviteCode(tx) {
 }
 
 function mapFamily(family, member) {
+  const identity = member ? mapIdentity(member) : {}
   return {
     id: family.id,
     name: family.name,
@@ -28,18 +31,29 @@ function mapFamily(family, member) {
     memberCount: family._count ? family._count.members : undefined,
     messageCount: family._count ? family._count.messages : undefined,
     role: member ? member.role : null,
-    familyNickname: member ? member.familyNickname : null,
-    relationship: member ? member.relationship : null,
     isMuted: member ? member.isMuted : false,
-    joinedAt: member ? member.joinedAt : null
+    joinedAt: member ? member.joinedAt : null,
+    ...identity
+  }
+}
+
+function memberInclude() {
+  return {
+    user: {
+      select: {
+        id: true,
+        nickname: true,
+        avatarUrl: true,
+        isGlobalAdmin: true
+      }
+    }
   }
 }
 
 async function createFamily(userId, payload) {
   const name = String(payload.name || '').trim()
   const description = String(payload.description || '').trim()
-  const relationship = normalizeRelationship(payload.relationship)
-  const familyNickname = String(payload.familyNickname || payload.nickname || '').trim()
+  const identity = normalizeIdentityPayload(payload)
 
   if (!name) {
     throw createError('VALIDATION_ERROR', '家庭名称不能为空', 400)
@@ -61,8 +75,7 @@ async function createFamily(userId, payload) {
         familyId: family.id,
         userId: Number(userId),
         role: 'admin',
-        relationship,
-        familyNickname: familyNickname || null
+        ...identity
       }
     })
 
@@ -103,48 +116,58 @@ async function getFamilyByInviteCode(inviteCode) {
   return mapFamily(family, null)
 }
 
-async function updateFamilyNickname(userId, familyId, payload) {
-  const familyNickname = String(payload.familyNickname || '').trim()
-  if (!familyNickname) {
-    throw createError('VALIDATION_ERROR', '家庭昵称不能为空', 400)
-  }
+async function listFamilyMembers(userId, familyId) {
+  await ensureFamilyMember(userId, familyId)
+  const members = await prisma.familyMember.findMany({
+    where: { familyId: Number(familyId) },
+    orderBy: [
+      { role: 'desc' },
+      { relationship: 'asc' },
+      { childOrder: 'asc' },
+      { joinedAt: 'asc' }
+    ],
+    include: memberInclude()
+  })
+  return members.map((member) => mapMember(member, userId))
+}
 
+async function updateMyIdentity(userId, familyId, payload) {
   const member = await prisma.familyMember.findUnique({
     where: { familyId_userId: { familyId: Number(familyId), userId: Number(userId) } },
-    include: { family: { include: { _count: { select: { members: true, messages: true } } } } }
+    include: {
+      family: { include: { _count: { select: { members: true, messages: true } } } }
+    }
   })
   if (!member) {
     throw createError('FORBIDDEN', '未加入该家庭', 403)
   }
 
+  const identity = normalizeIdentityUpdatePayload(payload, member)
   const updated = await prisma.familyMember.update({
     where: { id: member.id },
-    data: { familyNickname }
+    data: identity
   })
   return mapFamily(member.family, updated)
 }
 
-async function updateRelationship(userId, familyId, payload) {
-  const relationship = normalizeRelationship(payload.relationship)
-  const member = await prisma.familyMember.findUnique({
-    where: { familyId_userId: { familyId: Number(familyId), userId: Number(userId) } },
-    include: { family: { include: { _count: { select: { members: true, messages: true } } } } }
-  })
-  if (!member) {
-    throw createError('FORBIDDEN', '未加入该家庭', 403)
-  }
+async function updateFamilyNickname(userId, familyId, payload) {
+  return updateMyIdentity(userId, familyId, { familyNickname: payload.familyNickname })
+}
 
-  const updated = await prisma.familyMember.update({
-    where: { id: member.id },
-    data: { relationship }
+async function updateRelationship(userId, familyId, payload) {
+  return updateMyIdentity(userId, familyId, {
+    relationship: payload.relationship
   })
-  return mapFamily(member.family, updated)
 }
 
 async function createJoinRequest(userId, familyId, payload) {
   const numericFamilyId = Number(familyId)
   const message = String(payload.message || '').trim()
-  const family = await prisma.family.findUnique({ where: { id: numericFamilyId } })
+  const identity = normalizeIdentityPayload(payload)
+  const family = await prisma.family.findUnique({
+    where: { id: numericFamilyId },
+    include: { members: { where: { role: 'admin' }, select: { userId: true } } }
+  })
   if (!family) {
     throw createError('NOT_FOUND', '家庭不存在', 404)
   }
@@ -163,26 +186,43 @@ async function createJoinRequest(userId, familyId, payload) {
     throw createError('ALREADY_EXISTS', '你已提交申请，请等待审核', 400)
   }
 
-  const joinRequest = await prisma.familyJoinRequest.create({
-    data: {
-      familyId: numericFamilyId,
-      userId: Number(userId),
-      message: message || null
+  return prisma.$transaction(async (tx) => {
+    const joinRequest = await tx.familyJoinRequest.create({
+      data: {
+        familyId: numericFamilyId,
+        userId: Number(userId),
+        message: message || null,
+        ...identity
+      }
+    })
+
+    for (const admin of family.members) {
+      await createNotification({
+        receiverId: admin.userId,
+        triggerUserId: Number(userId),
+        familyId: numericFamilyId,
+        type: 'family_join_requested',
+        title: '有新的家人申请加入',
+        content: message || '请在家庭管理中确认申请人的身份。'
+      }, tx)
+    }
+
+    return {
+      id: joinRequest.id,
+      familyId: joinRequest.familyId,
+      status: joinRequest.status,
+      message: joinRequest.message,
+      ...mapIdentity(joinRequest)
     }
   })
-
-  return {
-    id: joinRequest.id,
-    familyId: joinRequest.familyId,
-    status: joinRequest.status,
-    message: joinRequest.message
-  }
 }
 
 module.exports = {
   createFamily,
   listMyFamilies,
   getFamilyByInviteCode,
+  listFamilyMembers,
+  updateMyIdentity,
   updateFamilyNickname,
   updateRelationship,
   createJoinRequest

@@ -2,6 +2,8 @@ const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { ensureFamilyMember, ensureFamilyNotMuted } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
+const { familyUserSelect, mapFamilyUser } = require('../utils/familyIdentity')
+const { invalidateFamilyMemories, refreshMemoriesAfterReply, scheduleMemoryRefresh } = require('./familyMemory.service')
 
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high'])
 
@@ -10,33 +12,6 @@ function normalizeJsonArray(value) {
     return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
   }
   return []
-}
-
-function getFamilyNickname(user, familyId) {
-  const member = user.familyMembers && user.familyMembers.find((item) => item.familyId === Number(familyId))
-  return member && member.familyNickname ? member.familyNickname : ''
-}
-
-function mapUser(user, familyId) {
-  return {
-    id: user.id,
-    nickname: getFamilyNickname(user, familyId) || user.nickname || '家人',
-    familyNickname: getFamilyNickname(user, familyId),
-    avatarUrl: user.avatarUrl || ''
-  }
-}
-
-function userSelect(familyId) {
-  return {
-    id: true,
-    nickname: true,
-    avatarUrl: true,
-    familyMembers: {
-      where: { familyId: Number(familyId) },
-      select: { familyId: true, familyNickname: true },
-      take: 1
-    }
-  }
 }
 
 function canViewMessage(message, userId) {
@@ -61,7 +36,7 @@ function mapReply(reply, userId) {
     status: reply.status,
     createdAt: reply.createdAt,
     updatedAt: reply.updatedAt,
-    sender: mapUser(reply.sender, reply.familyId),
+    sender: mapFamilyUser(reply.sender, reply.familyId),
     canDelete: reply.senderId === Number(userId)
   }
 }
@@ -86,7 +61,7 @@ async function listReplies(userId, messageId) {
   const replies = await prisma.familyReply.findMany({
     where: { messageId: message.id, status: 'visible' },
     orderBy: { createdAt: 'asc' },
-    include: { sender: { select: userSelect(message.familyId) } }
+    include: { sender: { select: familyUserSelect(message.familyId) } }
   })
 
   return replies.map((reply) => mapReply(reply, userId))
@@ -119,7 +94,7 @@ async function createReply(userId, messageId, payload) {
         riskLevel,
         attackWarning: String(payload.attackWarning || '').trim() || null
       },
-      include: { sender: { select: userSelect(message.familyId) } }
+      include: { sender: { select: familyUserSelect(message.familyId) } }
     })
 
     await tx.familyMessage.update({
@@ -150,6 +125,8 @@ async function createReply(userId, messageId, payload) {
     return created
   })
 
+  scheduleMemoryRefresh(() => refreshMemoriesAfterReply(reply.id))
+
   return mapReply(reply, userId)
 }
 
@@ -170,6 +147,7 @@ async function deleteReply(userId, replyId) {
       where: { id: reply.messageId },
       data: { replyCount: Math.max(0, (message ? message.replyCount : 1) - 1) }
     })
+    await invalidateFamilyMemories(reply.familyId, tx)
   })
 
   return { id: reply.id }

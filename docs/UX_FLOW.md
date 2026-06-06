@@ -13,84 +13,56 @@
 - `pages/admin/dashboard/dashboard`
 - `pages/admin/join-requests/join-requests`
 - `pages/admin/members/members`
-- `pages/admin/reports/reports`
 
-Current code may still use old class diary file names during migration. Final user-facing wording must use family recorder terms.
+## Login
 
-## Login Flow
+1. User registers or logs in with account name and password.
+2. After login, user enters family selection.
 
-1. Open mini program.
-2. Check local token.
-3. Without token, enter login page.
-4. New user registers with account name, password, and nickname.
-5. Existing user logs in with account name and password.
-6. After login, enter family selection.
+## Family Setup
 
-## Family Selection Flow
-
-1. Show user's joined families.
-2. Each family card shows role, family nickname, relationship, and member count.
-3. Tapping a family enters the family message timeline.
-4. User can create a family from the family selection page.
-5. Creator becomes family admin.
-6. Other members join through invite code and admin approval.
+1. User creates a family or joins by invite code.
+2. User sets family identity: relationship, gender, child order, birth year, family nickname, preferred title, and identity note.
+3. Creator becomes family admin.
+4. Join requests require admin approval.
 
 ## Message Flow
 
 1. Enter family timeline.
-2. Tap "写给家人".
-3. Select receiver(s) and message type.
-4. Enter original text, record original voice, or provide both.
-5. Tap "AI 帮我整理表达".
-6. Review AI optimized text, emotion tags, core need, communication advice, and risk warning.
-7. Choose whether the receiver may view original text or play original audio.
-8. Send message.
-9. Receiver reads AI optimized text first.
-10. Receiver may view AI interpretation.
-11. Receiver may expand original text or play original voice only if permitted.
-12. Receiver uses AI assisted reply.
+2. Tap write message.
+3. Select receiver(s) from family members.
+4. Enter original text, record voice, or both.
+5. Choose whether AI may use family communication memory. Default: on.
+6. Tap AI optimize.
+7. Review optimized expression, emotion tags, core need, advice, risk warning.
+8. Choose whether receiver may view original text or play original audio.
+9. Send message.
 
-## Detail Page
+## Detail And Reply
 
-- Show AI optimized message as the primary content.
-- Show sender, receiver, message type, emotion tags, and core need.
-- Fold original content behind a warning.
-- Display original text and voice controls only when permission allows.
-- Show replies in chronological order.
-- Provide "AI 帮我回复" action.
+1. Receiver sees optimized text first.
+2. Original text/audio appears only if the sender allowed it.
+3. Receiver writes original reply.
+4. Receiver may turn family memory on/off before AI optimizes the reply.
+5. Reply is saved with original text and optimized text.
 
-## Notification Flow
+## Profile
 
-1. New message, new reply, join request handling, and report handling produce notifications.
-2. Notification list shows unread state.
-3. Tapping a notification marks it read and opens the related message.
-4. If linked to a reply, message detail highlights that reply.
+- Edit global nickname/avatar.
+- Switch current family.
+- Edit current family identity.
+- Enter family admin page when the current user is admin.
 
-## Profile Page
+## Admin
 
-- View current user info.
-- Edit global nickname.
-- Edit family nickname and relationship.
-- Manage notification preferences.
-- Log out and clear local token.
+- Dashboard shows pending join requests, member count, message count, reply count, and muted member count.
+- Admin reviews join requests with applicant identity.
+- Admin manages members, roles, mute state, and removal.
+- Admin may hide messages/replies.
+- No report page or report handling exists.
 
-## Admin Flow
+## Copy Rules
 
-Only `currentFamily.role === 'admin'` displays admin entry.
-
-Admins can:
-
-- Review join requests.
-- View and manage members.
-- Mute or unmute members.
-- Set or remove admin role.
-- Remove members.
-- Review reports.
-- Hide inappropriate messages or replies.
-
-## UX Requirements
-
-- Every page needs loading, empty, and error states.
-- Use warm, plain, non-judgmental Chinese copy.
-- Do not use public-social patterns such as ranking, popularity, or competitive metrics.
-- Original expression is folded by default and preceded by a gentle warning.
+- User-facing copy uses family / 留声 / 留言 / 暖心表达 language.
+- Avoid public-social mechanics such as ranking and popularity.
+- Original expression is handled as private, sensitive family content.

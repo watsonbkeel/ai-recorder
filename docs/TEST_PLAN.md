@@ -14,8 +14,8 @@ docker compose up -d mysql
 cd server
 npm install
 cp .env.example .env
-npx prisma generate
-npx prisma migrate dev --name init
+npx prisma generate --schema prisma/schema.prisma
+npx prisma migrate dev
 npm run dev
 ```
 
@@ -25,81 +25,86 @@ npm run dev
 curl http://127.0.0.1:3000/health
 ```
 
-Experience environment may use:
+## Configuration Checks
 
-```bash
-curl http://bkeel.com:5300/health
-```
+- `DATABASE_URL` uses `ai_recorder`.
+- `WECHAT_APPID` is `wxf73895336690e9a6`.
+- AI provider values are read from ignored `server/.env`.
+- No real GitHub PAT, AI key, or provider secret is tracked.
 
 ## Mini Program Checks
 
-1. Open `miniprogram/` in WeChat DevTools.
-2. Login page appears by default.
-3. New user can register with account name, password, and nickname.
-4. Existing user can log in.
-5. User enters family selection after login.
-6. User can create a family and becomes admin.
-7. Another user can request to join by invite code.
-8. Admin can approve the request.
-9. Approved member can enter the family timeline.
+- Login page appears by default.
+- New user can register with account name, password, and nickname.
+- Existing user can log in.
+- User enters family selection after login.
+- User can create a family and set family identity.
+- User can request to join by invite code and submit family identity.
+- Admin can approve the request and see applicant identity.
+- Approved member can enter the family timeline.
+
+## Identity Checks
+
+- Relationship can be set to parent, child, partner, sibling, elder, or other.
+- Gender can be set or left unspecified.
+- Multiple children can be distinguished by `childOrder`.
+- Birth year, family nickname, preferred title, and identity note can be saved and later edited.
+- AI uses identity only for称呼、语气 and表达适配, not stereotypes.
 
 ## Message Checks
 
-- User can select receiver(s) and message type.
+- User can select receiver(s) from family members.
 - User can enter original text.
 - User can record and upload original voice.
 - AI can generate optimized text, emotion tags, core need, advice, and risk level.
+- User can disable family memory before AI optimization.
 - Sender can choose whether original text is visible.
 - Sender can choose whether original audio is playable.
 - Receiver sees AI optimized text first.
 - Receiver can only view/play original content when authorized.
-- Receiver can use AI assisted reply.
+- Receiver can use AI assisted reply with family memory on/off.
+
+## Family Memory Checks
+
+- Message creation refreshes relevant family/member/pair memories without blocking send on failure.
+- Reply creation refreshes relevant memories without blocking reply on failure.
+- Message/reply deletion marks relevant memories stale or causes recomputation.
+- `useFamilyMemory: false` skips `FamilyMemory` query and injection.
+- Memory never crosses family boundaries.
+- Memory stores communication preferences, sensitive topics, avoid phrases, and effective phrases only.
 
 ## Permission Checks
 
 - Unauthenticated users cannot access business APIs.
 - Pending or rejected users cannot access family content.
-- Non-family users cannot access messages, replies, notifications, or member profiles by ID.
+- Non-family users cannot access messages, replies, notifications, member profiles, or memory by ID.
 - Non-admin users cannot access admin APIs or admin pages.
 - Muted users cannot create messages or replies.
-- Admins cannot remove themselves, mute themselves, or demote the last admin.
-
-## Voice Checks
-
-- WeChat recorder can start, stop, and cancel.
-- Audio upload accepts configured WeChat recorder formats.
-- Oversized audio returns a clear error.
-- Successful upload path looks like `/uploads/audio/YYYY-Www/xxxx.m4a`.
-- Authorized receiver can play audio on message detail.
-- Unauthorized receiver does not receive audio URL.
+- Admins cannot remove themselves, mute themselves, or demote/remove the last admin.
+- Hidden original text/audio is not returned and does not enter AI context.
 
 ## AI Checks
 
-- Ordinary conflict content returns optimized expression, emotion tags, core need, advice, and risk level.
-- AI does not invent facts.
-- AI does not force apology or forgiveness.
-- Aggressive wording is de-escalated while the real need remains.
-- Self-harm, domestic violence, credible threat, and severe abuse content returns high-risk handling, not ordinary warm rewriting.
+- AI requests with existing content require `messageId`.
+- Backend loads context only after permission checks.
+- Ordinary conflict content returns optimized expression and advice.
+- AI does not invent facts, force apology, force forgiveness, diagnose, or label personality.
+- High-risk content returns high-risk handling, not ordinary warm rewriting.
 - Provider failure returns a stable backend error and does not save partial AI output.
 
 ## Notification Checks
 
 - New message creates notification for receiver.
 - New reply creates notification for target user.
-- Join request handling creates notification.
-- Report handling creates notification.
+- Join request and join decision create notifications.
 - Notification can be marked read.
-- Notification opens related message and highlights reply when applicable.
+- Notification opens related message when `messageId` exists.
 
-## GitHub Checks
+## Final Repository Checks
 
-Before commit, confirm Git does not track:
-
-- `server/.env`
-- `server/node_modules/`
-- user files under `server/uploads/`
-- `server/server.log`
-- `server/server.pid`
-- `miniprogram/project.private.config.json`
-- `.DS_Store`
-- `._*`
+- `npx prisma validate --schema prisma/schema.prisma`
+- `npx prisma generate --schema prisma/schema.prisma`
+- `node -e "require('./src/app'); console.log('app loaded')"`
+- App page list only contains family/message/admin pages.
+- No old runtime class/diary/comment/like/report routes/pages/services.
+- No tracked `server/.env`, uploads, logs, pid files, private WeChat config, OS metadata, or secrets.

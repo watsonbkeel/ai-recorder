@@ -13,7 +13,7 @@
     </view>
     <view class="sub-title">{{item.content}}</view>
     <view wx:if="{{item.actorText}}" class="muted">{{item.actorText}}</view>
-    <view wx:if="{{item.class}}" class="muted">班级：{{item.class.name}}</view>
+    <view wx:if="{{item.family}}" class="muted">家庭：{{item.family.name}}</view>
     <view class="row-between notification-meta">
       <view class="muted">{{item.createdAtText}}</view>
       <view class="muted">{{item.actionText}}</view>

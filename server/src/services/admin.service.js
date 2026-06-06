@@ -1,99 +1,51 @@
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
-const { ensureClassAdmin } = require('../middleware/auth')
+const { ensureFamilyAdmin } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
+const { normalizeIdentityPayload, mapIdentity, mapMember } = require('../utils/familyIdentity')
+const { invalidateFamilyMemories } = require('./familyMemory.service')
 
-function realAuthor(author) {
+function memberInclude() {
   return {
-    id: author.id,
-    nickname: author.nickname || '未命名用户',
-    avatarUrl: author.avatarUrl || ''
-  }
-}
-
-function reportTargetAuthor(author, isAnonymous) {
-  if (!isAnonymous) {
-    return realAuthor(author)
-  }
-
-  return {
-    id: null,
-    nickname: '匿名同学',
-    avatarUrl: ''
-  }
-}
-
-async function writeModerationLog(tx, data) {
-  await tx.moderationLog.create({ data })
-}
-
-async function countVisibleCommentThread(tx, comment) {
-  if (comment.parentId) {
-    return comment.status === 'visible' ? 1 : 0
-  }
-
-  return tx.comment.count({
-    where: {
-      diaryId: comment.diaryId,
-      status: 'visible',
-      OR: [{ id: comment.id }, { parentId: comment.id }]
+    user: {
+      select: {
+        id: true,
+        nickname: true,
+        avatarUrl: true,
+        isGlobalAdmin: true
+      }
     }
-  })
-}
-
-async function softHideCommentThread(tx, comment) {
-  if (comment.parentId) {
-    await tx.comment.update({ where: { id: comment.id }, data: { status: 'hidden' } })
-    return
   }
-
-  await tx.comment.updateMany({
-    where: {
-      diaryId: comment.diaryId,
-      OR: [{ id: comment.id }, { parentId: comment.id }]
-    },
-    data: { status: 'hidden' }
-  })
 }
 
-async function decrementDiaryCommentCountIfNeeded(tx, comment) {
-  const decrementBy = await countVisibleCommentThread(tx, comment)
-  if (!decrementBy) {
-    return
-  }
-  const diary = await tx.diary.findUnique({ where: { id: Number(comment.diaryId) } })
-  if (!diary) {
-    return
-  }
-  await tx.diary.update({
-    where: { id: diary.id },
-    data: { commentCount: Math.max(0, diary.commentCount - decrementBy) }
-  })
+async function writeAdminLog(tx, data) {
+  await tx.familyAdminLog.create({ data })
 }
 
-async function countAdmins(tx, classId) {
-  return tx.classMember.count({ where: { classId: Number(classId), role: 'admin' } })
+async function countAdmins(tx, familyId) {
+  return tx.familyMember.count({ where: { familyId: Number(familyId), role: 'admin' } })
 }
 
-async function getDashboard(userId, classId) {
-  await ensureClassAdmin(userId, classId)
-  const numericClassId = Number(classId)
-  const [pendingJoinRequests, pendingReports, memberCount, diaryCount] = await Promise.all([
-    prisma.joinRequest.count({ where: { classId: numericClassId, status: 'pending' } }),
-    prisma.report.count({ where: { classId: numericClassId, status: 'pending' } }),
-    prisma.classMember.count({ where: { classId: numericClassId } }),
-    prisma.diary.count({ where: { classId: numericClassId, status: 'visible' } })
+async function getDashboard(userId, familyId) {
+  await ensureFamilyAdmin(userId, familyId)
+  const numericFamilyId = Number(familyId)
+  const [pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount] = await Promise.all([
+    prisma.familyJoinRequest.count({ where: { familyId: numericFamilyId, status: 'pending' } }),
+    prisma.familyMember.count({ where: { familyId: numericFamilyId } }),
+    prisma.familyMessage.count({ where: { familyId: numericFamilyId, status: 'visible' } }),
+    prisma.familyReply.count({ where: { familyId: numericFamilyId, status: 'visible' } }),
+    prisma.familyMember.count({ where: { familyId: numericFamilyId, isMuted: true } })
   ])
 
-  return { pendingJoinRequests, pendingReports, memberCount, diaryCount }
+  return { pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount }
 }
 
-async function listJoinRequests(userId, classId, query) {
-  await ensureClassAdmin(userId, classId)
+async function listJoinRequests(userId, familyId, query) {
+  await ensureFamilyAdmin(userId, familyId)
   const status = query && query.status ? String(query.status).trim() : ''
-  return prisma.joinRequest.findMany({
+  const requests = await prisma.familyJoinRequest.findMany({
     where: {
-      classId: Number(classId),
+      familyId: Number(familyId),
       ...(status ? { status } : {})
     },
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
@@ -102,16 +54,30 @@ async function listJoinRequests(userId, classId, query) {
       handledBy: { select: { id: true, nickname: true } }
     }
   })
+
+  return requests.map((request) => ({
+    id: request.id,
+    familyId: request.familyId,
+    userId: request.userId,
+    status: request.status,
+    message: request.message || '',
+    handledAt: request.handledAt,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+    ...mapIdentity(request),
+    user: request.user,
+    handledBy: request.handledBy
+  }))
 }
 
 async function handleJoinRequest(adminUserId, requestId, payload) {
   const action = String(payload.action || '').trim()
   const reason = String(payload.reason || '').trim()
-  const request = await prisma.joinRequest.findUnique({ where: { id: Number(requestId) } })
+  const request = await prisma.familyJoinRequest.findUnique({ where: { id: Number(requestId) } })
   if (!request) {
     throw createError('NOT_FOUND', '申请不存在', 404)
   }
-  await ensureClassAdmin(adminUserId, request.classId)
+  await ensureFamilyAdmin(adminUserId, request.familyId)
   if (request.status !== 'pending') {
     throw createError('VALIDATION_ERROR', '该申请已处理', 400)
   }
@@ -121,30 +87,41 @@ async function handleJoinRequest(adminUserId, requestId, payload) {
 
   return prisma.$transaction(async (tx) => {
     const status = action === 'approve' ? 'approved' : 'rejected'
-    const updatedRequest = await tx.joinRequest.update({
+    const updatedRequest = await tx.familyJoinRequest.update({
       where: { id: request.id },
       data: { status, handledById: Number(adminUserId), handledAt: new Date() }
     })
 
     if (action === 'approve') {
-      const existingMember = await tx.classMember.findUnique({
-        where: { classId_userId: { classId: request.classId, userId: request.userId } }
+      const existingMember = await tx.familyMember.findUnique({
+        where: { familyId_userId: { familyId: request.familyId, userId: request.userId } }
       })
       if (!existingMember) {
-        await tx.classMember.create({
-          data: { classId: request.classId, userId: request.userId, role: 'member' }
+        await tx.familyMember.create({
+          data: {
+            familyId: request.familyId,
+            userId: request.userId,
+            role: 'member',
+            relationship: request.relationship,
+            gender: request.gender,
+            childOrder: request.childOrder,
+            birthYear: request.birthYear,
+            familyNickname: request.familyNickname,
+            preferredTitle: request.preferredTitle,
+            identityNote: request.identityNote
+          }
         })
       }
       await createNotification({
         receiverId: request.userId,
         triggerUserId: Number(adminUserId),
-        classId: request.classId,
+        familyId: request.familyId,
         type: 'join_request_approved',
-        title: '你的入班申请已通过',
-        content: '管理员已通过你的入班申请'
+        title: '你的入家申请已通过',
+        content: '管理员已确认你的家庭身份。'
       }, tx)
-      await writeModerationLog(tx, {
-        classId: request.classId,
+      await writeAdminLog(tx, {
+        familyId: request.familyId,
         adminId: Number(adminUserId),
         targetType: 'join_request',
         targetId: request.id,
@@ -155,13 +132,13 @@ async function handleJoinRequest(adminUserId, requestId, payload) {
       await createNotification({
         receiverId: request.userId,
         triggerUserId: Number(adminUserId),
-        classId: request.classId,
+        familyId: request.familyId,
         type: 'join_request_rejected',
-        title: '你的入班申请被拒绝',
-        content: reason || '管理员拒绝了你的入班申请'
+        title: '你的入家申请未通过',
+        content: reason || '管理员暂未通过你的入家申请。'
       }, tx)
-      await writeModerationLog(tx, {
-        classId: request.classId,
+      await writeAdminLog(tx, {
+        familyId: request.familyId,
         adminId: Number(adminUserId),
         targetType: 'join_request',
         targetId: request.id,
@@ -170,67 +147,77 @@ async function handleJoinRequest(adminUserId, requestId, payload) {
       })
     }
 
-    return updatedRequest
+    return {
+      ...updatedRequest,
+      ...mapIdentity(updatedRequest)
+    }
   })
 }
 
-async function listMembers(userId, classId) {
-  await ensureClassAdmin(userId, classId)
-  return prisma.classMember.findMany({
-    where: { classId: Number(classId) },
-    orderBy: [{ role: 'desc' }, { joinedAt: 'asc' }],
-    include: { user: { select: { id: true, nickname: true, avatarUrl: true, isGlobalAdmin: true } } }
+async function listMembers(userId, familyId) {
+  await ensureFamilyAdmin(userId, familyId)
+  const members = await prisma.familyMember.findMany({
+    where: { familyId: Number(familyId) },
+    orderBy: [
+      { role: 'desc' },
+      { relationship: 'asc' },
+      { childOrder: 'asc' },
+      { joinedAt: 'asc' }
+    ],
+    include: memberInclude()
   })
+  return members.map((member) => mapMember(member, userId))
 }
 
-async function updateMuteStatus(adminUserId, classId, targetUserId, payload) {
-  await ensureClassAdmin(adminUserId, classId)
+async function updateMuteStatus(adminUserId, familyId, targetUserId, payload) {
+  await ensureFamilyAdmin(adminUserId, familyId)
   const isMuted = Boolean(payload.isMuted)
   const reason = String(payload.reason || '').trim()
-  const numericClassId = Number(classId)
+  const numericFamilyId = Number(familyId)
   const numericUserId = Number(targetUserId)
 
   if (numericUserId === Number(adminUserId)) {
-    throw createError('FORBIDDEN', '管理员不能禁言自己', 403)
+    throw createError('FORBIDDEN', '管理员不能停用自己', 403)
   }
 
-  const member = await prisma.classMember.findUnique({
-    where: { classId_userId: { classId: numericClassId, userId: numericUserId } }
+  const member = await prisma.familyMember.findUnique({
+    where: { familyId_userId: { familyId: numericFamilyId, userId: numericUserId } }
   })
   if (!member) {
     throw createError('NOT_FOUND', '成员不存在', 404)
   }
 
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.classMember.update({
+    const updated = await tx.familyMember.update({
       where: { id: member.id },
-      data: { isMuted }
+      data: { isMuted },
+      include: memberInclude()
     })
-    await writeModerationLog(tx, {
-      classId: numericClassId,
+    await writeAdminLog(tx, {
+      familyId: numericFamilyId,
       adminId: Number(adminUserId),
       targetType: 'member',
       targetId: numericUserId,
       action: isMuted ? 'mute_member' : 'unmute_member',
       reason: reason || null
     })
-    return updated
+    return mapMember(updated, adminUserId)
   })
 }
 
-async function updateMemberRole(adminUserId, classId, targetUserId, payload) {
-  await ensureClassAdmin(adminUserId, classId)
+async function updateMemberRole(adminUserId, familyId, targetUserId, payload) {
+  await ensureFamilyAdmin(adminUserId, familyId)
   const role = String(payload.role || '').trim()
   const reason = String(payload.reason || '').trim()
-  const numericClassId = Number(classId)
+  const numericFamilyId = Number(familyId)
   const numericUserId = Number(targetUserId)
 
   if (!['member', 'admin'].includes(role)) {
     throw createError('VALIDATION_ERROR', '角色不合法', 400)
   }
 
-  const member = await prisma.classMember.findUnique({
-    where: { classId_userId: { classId: numericClassId, userId: numericUserId } }
+  const member = await prisma.familyMember.findUnique({
+    where: { familyId_userId: { familyId: numericFamilyId, userId: numericUserId } }
   })
   if (!member) {
     throw createError('NOT_FOUND', '成员不存在', 404)
@@ -238,41 +225,73 @@ async function updateMemberRole(adminUserId, classId, targetUserId, payload) {
 
   return prisma.$transaction(async (tx) => {
     if (member.role === 'admin' && role === 'member') {
-      const adminCount = await countAdmins(tx, numericClassId)
+      const adminCount = await countAdmins(tx, numericFamilyId)
       if (adminCount <= 1) {
         throw createError('FORBIDDEN', '不能取消最后一个管理员', 403)
       }
     }
 
-    const updated = await tx.classMember.update({
+    const updated = await tx.familyMember.update({
       where: { id: member.id },
-      data: { role }
+      data: { role },
+      include: memberInclude()
     })
 
-    await writeModerationLog(tx, {
-      classId: numericClassId,
+    await writeAdminLog(tx, {
+      familyId: numericFamilyId,
       adminId: Number(adminUserId),
       targetType: 'member',
       targetId: numericUserId,
       action: role === 'admin' ? 'set_admin' : 'unset_admin',
       reason: reason || null
     })
-    return updated
+    return mapMember(updated, adminUserId)
   })
 }
 
-async function removeMember(adminUserId, classId, targetUserId, payload) {
-  await ensureClassAdmin(adminUserId, classId)
+async function updateMemberIdentity(adminUserId, familyId, targetUserId, payload) {
+  await ensureFamilyAdmin(adminUserId, familyId)
+  const numericFamilyId = Number(familyId)
+  const numericUserId = Number(targetUserId)
+  const member = await prisma.familyMember.findUnique({
+    where: { familyId_userId: { familyId: numericFamilyId, userId: numericUserId } }
+  })
+  if (!member) {
+    throw createError('NOT_FOUND', '成员不存在', 404)
+  }
+
+  const identity = normalizeIdentityPayload(payload)
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.familyMember.update({
+      where: { id: member.id },
+      data: identity,
+      include: memberInclude()
+    })
+    await writeAdminLog(tx, {
+      familyId: numericFamilyId,
+      adminId: Number(adminUserId),
+      targetType: 'member',
+      targetId: numericUserId,
+      action: 'update_member_identity',
+      reason: String(payload.reason || '').trim() || null,
+      metadata: identity
+    })
+    return mapMember(updated, adminUserId)
+  })
+}
+
+async function removeMember(adminUserId, familyId, targetUserId, payload) {
+  await ensureFamilyAdmin(adminUserId, familyId)
   const reason = String((payload && payload.reason) || '').trim()
-  const numericClassId = Number(classId)
+  const numericFamilyId = Number(familyId)
   const numericUserId = Number(targetUserId)
 
   if (numericUserId === Number(adminUserId)) {
     throw createError('FORBIDDEN', '管理员不能移除自己', 403)
   }
 
-  const member = await prisma.classMember.findUnique({
-    where: { classId_userId: { classId: numericClassId, userId: numericUserId } }
+  const member = await prisma.familyMember.findUnique({
+    where: { familyId_userId: { familyId: numericFamilyId, userId: numericUserId } }
   })
   if (!member) {
     throw createError('NOT_FOUND', '成员不存在', 404)
@@ -280,237 +299,82 @@ async function removeMember(adminUserId, classId, targetUserId, payload) {
 
   return prisma.$transaction(async (tx) => {
     if (member.role === 'admin') {
-      const adminCount = await countAdmins(tx, numericClassId)
+      const adminCount = await countAdmins(tx, numericFamilyId)
       if (adminCount <= 1) {
         throw createError('FORBIDDEN', '不能移除最后一个管理员', 403)
       }
     }
 
-    await tx.classMember.delete({ where: { id: member.id } })
-    await writeModerationLog(tx, {
-      classId: numericClassId,
+    await tx.familyMember.delete({ where: { id: member.id } })
+    await invalidateFamilyMemories(numericFamilyId, tx)
+    await writeAdminLog(tx, {
+      familyId: numericFamilyId,
       adminId: Number(adminUserId),
       targetType: 'member',
       targetId: numericUserId,
       action: 'remove_member',
       reason: reason || null
     })
-    return { classId: numericClassId, userId: numericUserId }
+    return { familyId: numericFamilyId, userId: numericUserId }
   })
 }
 
-async function getReportTargetDetail(report) {
-  if (report.targetType === 'diary') {
-    const diary = await prisma.diary.findUnique({
-      where: { id: report.targetId },
-      include: {
-        author: { select: { id: true, nickname: true, avatarUrl: true } },
-        images: { orderBy: { sortOrder: 'asc' } }
-      }
-    })
-    if (!diary) {
-      return null
-    }
-    const target = {
-      id: diary.id,
-      type: 'diary',
-      status: diary.status,
-      content: diary.content,
-      isAnonymous: diary.isAnonymous,
-      images: diary.images,
-      author: reportTargetAuthor(diary.author, diary.isAnonymous)
-    }
-    if (diary.isAnonymous) {
-      target.realAuthor = realAuthor(diary.author)
-    }
-    return target
+async function hideMessage(adminUserId, messageId, payload) {
+  const reason = String((payload && payload.reason) || '').trim()
+  const message = await prisma.familyMessage.findUnique({ where: { id: Number(messageId) } })
+  if (!message) {
+    throw createError('NOT_FOUND', '心声不存在', 404)
   }
-
-  const comment = await prisma.comment.findUnique({
-    where: { id: report.targetId },
-    include: { author: { select: { id: true, nickname: true, avatarUrl: true } } }
-  })
-
-  if (!comment) {
-    return null
-  }
-
-  const target = {
-    id: comment.id,
-    type: 'comment',
-    status: comment.status,
-    content: comment.content,
-    isAnonymous: comment.isAnonymous,
-    diaryId: comment.diaryId,
-    author: reportTargetAuthor(comment.author, comment.isAnonymous)
-  }
-  if (comment.isAnonymous) {
-    target.realAuthor = realAuthor(comment.author)
-  }
-  return target
-}
-
-async function listReports(userId, classId, query) {
-  await ensureClassAdmin(userId, classId)
-  const status = query && query.status ? String(query.status).trim() : ''
-  const reports = await prisma.report.findMany({
-    where: {
-      classId: Number(classId),
-      ...(status ? { status } : {})
-    },
-    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-    include: {
-      reporter: { select: { id: true, nickname: true, avatarUrl: true } },
-      handledBy: { select: { id: true, nickname: true } }
-    }
-  })
-
-  const enriched = []
-  for (const report of reports) {
-    const target = await getReportTargetDetail(report)
-    enriched.push({
-      ...report,
-      reporter: report.reporter,
-      handledBy: report.handledBy,
-      target
-    })
-  }
-  return enriched
-}
-
-async function hideDiary(adminUserId, diaryId, payload) {
-  const reason = String(payload.reason || '').trim()
-  const diary = await prisma.diary.findUnique({ where: { id: Number(diaryId) } })
-  if (!diary) {
-    throw createError('NOT_FOUND', '日记不存在', 404)
-  }
-  await ensureClassAdmin(adminUserId, diary.classId)
+  await ensureFamilyAdmin(adminUserId, message.familyId)
 
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.diary.update({ where: { id: diary.id }, data: { status: 'hidden' } })
-    await writeModerationLog(tx, {
-      classId: diary.classId,
+    const updated = await tx.familyMessage.update({
+      where: { id: message.id },
+      data: { status: 'hidden' }
+    })
+    await invalidateFamilyMemories(message.familyId, tx)
+    await writeAdminLog(tx, {
+      familyId: message.familyId,
       adminId: Number(adminUserId),
-      targetType: 'diary',
-      targetId: diary.id,
-      action: 'hide_diary',
+      targetType: 'message',
+      targetId: message.id,
+      action: 'hide_message',
       reason: reason || null
     })
     return updated
   })
 }
 
-async function hideComment(adminUserId, commentId, payload) {
-  const reason = String(payload.reason || '').trim()
-  const comment = await prisma.comment.findUnique({ where: { id: Number(commentId) } })
-  if (!comment) {
-    throw createError('NOT_FOUND', '评论不存在', 404)
+async function hideReply(adminUserId, replyId, payload) {
+  const reason = String((payload && payload.reason) || '').trim()
+  const reply = await prisma.familyReply.findUnique({ where: { id: Number(replyId) } })
+  if (!reply) {
+    throw createError('NOT_FOUND', '回复不存在', 404)
   }
-  await ensureClassAdmin(adminUserId, comment.classId)
+  await ensureFamilyAdmin(adminUserId, reply.familyId)
 
   return prisma.$transaction(async (tx) => {
-    await decrementDiaryCommentCountIfNeeded(tx, comment)
-    await softHideCommentThread(tx, comment)
-    const updated = await tx.comment.findUnique({ where: { id: comment.id } })
-    await writeModerationLog(tx, {
-      classId: comment.classId,
+    const updated = await tx.familyReply.update({
+      where: { id: reply.id },
+      data: { status: 'hidden' }
+    })
+    const message = await tx.familyMessage.findUnique({ where: { id: reply.messageId } })
+    if (message) {
+      await tx.familyMessage.update({
+        where: { id: reply.messageId },
+        data: { replyCount: Math.max(0, message.replyCount - 1) }
+      })
+    }
+    await invalidateFamilyMemories(reply.familyId, tx)
+    await writeAdminLog(tx, {
+      familyId: reply.familyId,
       adminId: Number(adminUserId),
-      targetType: 'comment',
-      targetId: comment.id,
-      action: 'hide_comment',
+      targetType: 'reply',
+      targetId: reply.id,
+      action: 'hide_reply',
       reason: reason || null
     })
     return updated
-  })
-}
-
-async function handleReport(adminUserId, reportId, payload) {
-  const action = String(payload.action || '').trim()
-  const reason = String(payload.reason || '').trim()
-  const muteAuthor = Boolean(payload.muteAuthor)
-  const report = await prisma.report.findUnique({ where: { id: Number(reportId) } })
-  if (!report) {
-    throw createError('NOT_FOUND', '举报不存在', 404)
-  }
-  await ensureClassAdmin(adminUserId, report.classId)
-  if (report.status !== 'pending') {
-    throw createError('VALIDATION_ERROR', '举报已处理', 400)
-  }
-
-  if (!['reject', 'hide_content', 'hide', 'hide_and_mute'].includes(action)) {
-    throw createError('VALIDATION_ERROR', '处理动作不合法', 400)
-  }
-
-  return prisma.$transaction(async (tx) => {
-    let targetAuthorId = null
-
-    if (report.targetType === 'diary') {
-      const diary = await tx.diary.findUnique({ where: { id: report.targetId } })
-      if (diary) {
-        targetAuthorId = diary.authorId
-        if (action !== 'reject') {
-          await tx.diary.update({ where: { id: diary.id }, data: { status: 'hidden' } })
-        }
-      }
-    }
-
-    if (report.targetType === 'comment') {
-      const comment = await tx.comment.findUnique({ where: { id: report.targetId } })
-      if (comment) {
-        targetAuthorId = comment.authorId
-        if (action !== 'reject') {
-          await decrementDiaryCommentCountIfNeeded(tx, comment)
-          await softHideCommentThread(tx, comment)
-        }
-      }
-    }
-
-    if ((action === 'hide_and_mute' || (action === 'hide_content' && muteAuthor)) && targetAuthorId) {
-      await tx.classMember.updateMany({
-        where: { classId: report.classId, userId: targetAuthorId },
-        data: { isMuted: true }
-      })
-      await writeModerationLog(tx, {
-        classId: report.classId,
-        adminId: Number(adminUserId),
-        targetType: 'member',
-        targetId: targetAuthorId,
-        action: 'mute_member',
-        reason: reason || '举报处理时禁言'
-      })
-    }
-
-    const status = action === 'reject' ? 'rejected' : 'resolved'
-    const updatedReport = await tx.report.update({
-      where: { id: report.id },
-      data: {
-        status,
-        resolution: reason || null,
-        handledById: Number(adminUserId),
-        handledAt: new Date()
-      }
-    })
-
-    await createNotification({
-      receiverId: report.reporterId,
-      triggerUserId: Number(adminUserId),
-      classId: report.classId,
-      type: 'report_handled',
-      title: '你的举报已处理',
-      content: action === 'reject' ? (reason || '管理员驳回了举报') : (reason || '管理员已处理举报')
-    }, tx)
-
-    await writeModerationLog(tx, {
-      classId: report.classId,
-      adminId: Number(adminUserId),
-      targetType: 'report',
-      targetId: report.id,
-      action: action === 'reject' ? 'reject_report' : 'resolve_report',
-      reason: reason || null,
-      metadata: { handleAction: action, muteAuthor }
-    })
-
-    return updatedReport
   })
 }
 
@@ -521,9 +385,8 @@ module.exports = {
   listMembers,
   updateMuteStatus,
   updateMemberRole,
+  updateMemberIdentity,
   removeMember,
-  listReports,
-  handleReport,
-  hideDiary,
-  hideComment
+  hideMessage,
+  hideReply
 }

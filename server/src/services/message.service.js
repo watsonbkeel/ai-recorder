@@ -2,6 +2,8 @@ const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { ensureFamilyMember, ensureFamilyNotMuted } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
+const { familyUserSelect, identitySelect, mapFamilyUser } = require('../utils/familyIdentity')
+const { invalidateFamilyMemories, refreshMemoriesAfterMessage, scheduleMemoryRefresh } = require('./familyMemory.service')
 
 const VALID_VISIBILITIES = new Set(['private', 'family', 'self'])
 const VALID_MESSAGE_TYPES = new Set(['thanks', 'apology', 'grievance', 'request', 'explain', 'stress', 'repair', 'encouragement', 'general'])
@@ -22,33 +24,6 @@ function normalizeJsonArray(value) {
     return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
   }
   return []
-}
-
-function getFamilyNickname(user, familyId) {
-  const member = user.familyMembers && user.familyMembers.find((item) => item.familyId === Number(familyId))
-  return member && member.familyNickname ? member.familyNickname : ''
-}
-
-function mapUser(user, familyId) {
-  return {
-    id: user.id,
-    nickname: getFamilyNickname(user, familyId) || user.nickname || '家人',
-    familyNickname: getFamilyNickname(user, familyId),
-    avatarUrl: user.avatarUrl || ''
-  }
-}
-
-function userSelect(familyId) {
-  return {
-    id: true,
-    nickname: true,
-    avatarUrl: true,
-    familyMembers: {
-      where: { familyId: Number(familyId) },
-      select: { familyId: true, familyNickname: true },
-      take: 1
-    }
-  }
 }
 
 function canViewMessage(message, userId) {
@@ -87,12 +62,12 @@ function mapMessage(message, userId) {
     status: message.status,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
-    sender: mapUser(message.sender, message.familyId),
+    sender: mapFamilyUser(message.sender, message.familyId),
     receivers: (message.receivers || []).map((receiver) => ({
       id: receiver.userId,
       status: receiver.status,
       readAt: receiver.readAt,
-      user: receiver.user ? mapUser(receiver.user, message.familyId) : null
+      user: receiver.user ? mapFamilyUser(receiver.user, message.familyId) : null
     })),
     canDelete: isSender
   }
@@ -119,9 +94,9 @@ async function listMessages(userId, familyId, query) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        sender: { select: userSelect(familyId) },
+        sender: { select: familyUserSelect(familyId) },
         receivers: {
-          include: { user: { select: userSelect(familyId) } }
+          include: { user: { select: familyUserSelect(familyId) } }
         }
       }
     })
@@ -197,8 +172,8 @@ async function createMessage(userId, familyId, payload) {
         }
       },
       include: {
-        sender: { select: userSelect(familyId) },
-        receivers: { include: { user: { select: userSelect(familyId) } } }
+        sender: { select: familyUserSelect(familyId) },
+        receivers: { include: { user: { select: familyUserSelect(familyId) } } }
       }
     })
 
@@ -217,6 +192,8 @@ async function createMessage(userId, familyId, payload) {
     return created
   })
 
+  scheduleMemoryRefresh(() => refreshMemoriesAfterMessage(message.id))
+
   return mapMessage(message, userId)
 }
 
@@ -224,8 +201,26 @@ async function getMessageDetail(userId, messageId) {
   const message = await prisma.familyMessage.findUnique({
     where: { id: Number(messageId) },
     include: {
-      sender: { select: { id: true, nickname: true, avatarUrl: true, familyMembers: true } },
-      receivers: { include: { user: { select: { id: true, nickname: true, avatarUrl: true, familyMembers: true } } } }
+      sender: {
+        select: {
+          id: true,
+          nickname: true,
+          avatarUrl: true,
+          familyMembers: { select: identitySelect() }
+        }
+      },
+      receivers: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              nickname: true,
+              avatarUrl: true,
+              familyMembers: { select: identitySelect() }
+            }
+          }
+        }
+      }
     }
   })
   if (!message || message.status !== 'visible') {
@@ -254,9 +249,12 @@ async function deleteMessage(userId, messageId) {
     throw createError('FORBIDDEN', '只能删除自己的心声', 403)
   }
 
-  await prisma.familyMessage.update({
-    where: { id: message.id },
-    data: { status: 'deleted' }
+  await prisma.$transaction(async (tx) => {
+    await tx.familyMessage.update({
+      where: { id: message.id },
+      data: { status: 'deleted' }
+    })
+    await invalidateFamilyMemories(message.familyId, tx)
   })
 
   return { id: message.id }

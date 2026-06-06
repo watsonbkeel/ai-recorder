@@ -3,7 +3,17 @@
     <view class="title">写给家人</view>
     <view class="sub-title">先保留真实心声，再让 AI 帮你整理表达。</view>
 
-    <input class="input" placeholder="接收人用户ID，多个用逗号分隔" value="{{receiverText}}" bindinput="handleReceiverInput" />
+    <view class="section-title">接收家人</view>
+    <view wx:if="{{membersLoading}}" class="muted">正在加载家庭成员...</view>
+    <view wx:elif="{{!members.length}}" class="muted">这个家庭还没有其他成员。</view>
+    <view wx:for="{{members}}" wx:key="userId" class="member-option {{item.selected ? 'member-option-selected' : ''}}" data-user-id="{{item.userId}}" bindtap="toggleReceiver">
+      <view>
+        <view class="member-name">{{item.displayName}}</view>
+        <view class="muted">{{item.identitySummary}}</view>
+      </view>
+      <view class="tag">{{item.selected ? '已选择' : '选择'}}</view>
+    </view>
+
     <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
       <view class="input">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
     </picker>
@@ -15,6 +25,14 @@
       <button wx:if="{{audioTempPath}}" class="btn-secondary" disabled="{{loading}}" bindtap="playAudio">试听原声</button>
     </view>
     <view wx:if="{{audioTempPath}}" class="muted">已录制语音，发送时会上传。</view>
+
+    <view class="row-between memory-row">
+      <view>
+        <view>使用家庭沟通记忆</view>
+        <view class="muted">参考本家庭内可见摘要、敏感点和有效表达。</view>
+      </view>
+      <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
+    </view>
 
     <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading}}" bindtap="optimize">AI 帮我整理表达</button>
   </view>

@@ -1,9 +1,9 @@
 const { PrismaClient } = require('@prisma/client')
 
-const prisma = global.__classDiaryPrisma || new PrismaClient()
+const prisma = global.__aiRecorderPrisma || new PrismaClient()
 
 if (process.env.NODE_ENV !== 'production') {
-  global.__classDiaryPrisma = prisma
+  global.__aiRecorderPrisma = prisma
 }
 
 module.exports = prisma

@@ -1,103 +1,79 @@
 # AGENTS.md
 
-## Project Mission
+## Product Mission
 
-This project is a WeChat mini program for a family AI voice recorder, tentatively named "暖心留声机".
+本项目是家庭 AI 留声机 / 暖心留声机微信小程序。目标是帮助家庭成员把不容易说出口的话更清楚、温和、真实地传达给家人，推动家庭和谐沟通。
 
-The product helps family members say difficult things more clearly and gently. AI acts as a translator for feelings, needs, and intent. It must not act as a judge, therapist, moral authority, or replacement for direct family responsibility.
+AI 的角色是家庭沟通表达助手：整理表达、提炼情绪和需要、提示更有效的话术。AI 不能做裁判、心理诊断、人格判断、道德审判，也不能替用户编造事实、道歉、承诺或爱意。
 
-## Product Principles
+## Hard Boundaries
 
-- AI is a translator, not a judge. Do not decide who is right or wrong.
-- Improve expression without erasing emotion. Anger, sadness, disappointment, fear, and boundaries may be real and should not be softened into false agreement.
-- Preserve user intent. Do not invent facts, apologies, promises, affection, or responsibilities that the user did not express.
-- Promote family harmony through understanding, not through one-sided tolerance.
-- Respect boundaries. Do not encourage users to accept abuse, coercion, humiliation, or emotional blackmail.
-- Keep the original voice available when permitted. The AI version helps the message land; the original text or audio preserves the truth of the moment.
-- Privacy is a core feature. Family content is private by default and must never be visible outside the family space.
+- 旧项目只能作为代码模板来源。
+- 新项目不得共享旧项目的运行数据、用户身份、上传文件、迁移历史、前端入口、管理流程、API 或 AI 记忆。
+- 默认数据库是 `ai_recorder`。
+- 微信小程序 AppID 是 `wxf73895336690e9a6`。
+- 没有举报功能。家庭管理只保留入家申请、成员管理、停用留言、隐藏留言/回复等基础能力。
+- 密钥只能放在被 git 忽略的本地 `server/.env`，不能提交到仓库。
+- OpenAI 兼容服务配置必须通过环境变量读取，不得硬编码真实 key。
 
 ## Technical Stack
 
 - Frontend: native WeChat mini program, JavaScript, WXML, WXSS.
 - Backend: Node.js, Express, Prisma, MySQL 8.0, JWT, Multer, axios.
-- Infrastructure: Docker Compose for local MySQL.
-- Do not migrate to Taro, UniApp, React, Vue, NestJS, MongoDB, SQLite, PostgreSQL, or a large new framework unless the user explicitly asks for that migration.
+- Infrastructure: Docker Compose local MySQL.
+- Avoid introducing a new frontend/backend framework unless the user explicitly asks.
 
-## Reuse Strategy
+## Core Domain
 
-The existing class diary codebase is the starting point. Reuse the working structure and replace the domain model:
+- `Family`: 家庭空间。
+- `FamilyMember`: 家庭成员和家庭内身份。
+- `FamilyMessage`: 给家人的留言/心声。
+- `FamilyMessageReceiver`: 留言接收人和阅读/回复状态。
+- `FamilyReply`: 家庭回复。
+- `FamilyMemory`: 家庭沟通记忆。
 
-- `Class` becomes `Family`.
-- `ClassMember` becomes `FamilyMember`.
-- `Diary` becomes `Message`.
-- `Comment` becomes `Reply`.
-- Class invite, member approval, JWT auth, notifications, reports, upload handling, soft delete, and permission middleware should be reused where practical.
+Family member identity must support relationship, gender, child order, birth year, family nickname, preferred title, and identity note. Multiple children must be distinguishable by rank and gender when the family sets those fields.
 
-Do not keep class, teacher, student, diary, or classroom wording in user-facing surfaces after the family recorder migration.
+## Family Memory Rules
 
-## MVP Scope
+- `FamilyMemory` supports `family`, `member`, and `pair` scopes.
+- Family memory is only available inside the current family.
+- It must never cross families, projects, databases, users, uploads, migrations, frontend entries, admin flows, APIs, or AI memories from the old project.
+- AI may use memory only when the user leaves `useFamilyMemory` enabled.
+- If `useFamilyMemory: false`, backend AI code must not query or inject `FamilyMemory`.
+- Memory may summarize communication preferences, sensitive topics, avoid phrases, and effective phrases.
+- Memory must not summarize personality labels, mental health diagnoses, moral judgments, or fixed character conclusions.
+- Deleting or hiding messages/replies must mark related family memories stale or trigger recomputation.
+- Memory refresh failure must be logged and must not block message or reply creation.
 
-The first usable version must include:
+## AI Context Rules
 
-- Account registration and login.
-- Create a family space.
-- Invite or approve family members.
-- Family member role or relationship labels such as father, mother, son, daughter, grandparent, partner, sibling, and other.
-- Send a message to one or more family members.
-- Text original message.
-- Voice original message, upload, duration storage, and playback.
-- AI optimized expression.
-- AI emotion tags, core need, communication advice, and risk level.
-- Receiver-side AI interpretation.
-- AI assisted reply.
-- Family timeline for sent, received, and family-visible messages.
-- Basic privacy controls for original text and original audio.
+- AI context is built only by the backend.
+- Frontend must not supply arbitrary history, family memory, or message context for the model.
+- For existing content, backend must verify the current user is an approved member of the current family and can view that message/reply.
+- AI context may include identities, optimized text, visible recent summaries, avoid phrases, effective phrases, sensitive topics, and sender/receiver relationship metadata.
+- Sender-hidden original text and original audio must not enter AI context.
+- AI prompts may use family identity for称呼、语气、边界表达, but must avoid gender, age, rank, or role stereotypes.
 
-Defer weekly reports, family temperature scores, anniversary reminders, counseling resource integrations, multiple-family advanced management, and analytics dashboards unless requested later.
+## Product Principles
 
-## AI Safety Rules
+- Preserve the user's real intent and real emotion.
+- Make expression easier to understand without erasing boundaries.
+- Promote harmony through listening, repair, respect, and clarity, not through one-sided tolerance.
+- Do not encourage users to endure abuse, coercion, humiliation, threats, or emotional blackmail.
+- High-risk content must prioritize safety guidance over warm rewriting.
 
-AI output must:
+## Development Rules
 
-- Preserve the user's real intent.
-- Make expression clearer, more respectful, and less likely to escalate conflict.
-- Identify emotions and needs without diagnosing people.
-- Suggest responses that start with listening, acknowledgement, and boundaries.
-- Return structured JSON for backend use.
+- Keep the app runnable end to end.
+- Prefer existing project patterns and simple Express/Prisma service boundaries.
+- Keep permission checks close to the service operations that read/write data.
+- Keep user-facing copy in family / 留声 / 留言 / 暖心表达 language.
+- Do not reintroduce old class, diary, comment, like, or report runtime routes/pages/services.
+- Do not commit `.env`, secrets, runtime uploads, logs, pid files, `node_modules`, WeChat private project config, `.DS_Store`, or `._*` metadata.
 
-AI output must not:
+## GitHub
 
-- Fabricate events or emotional motives.
-- Force apologies.
-- Tell someone to endure violence or humiliation for family harmony.
-- Produce threats, insults, manipulation, or guilt-tripping.
-- Frame obedience, control, or silence as healthy communication.
-- Treat high-risk safety issues as ordinary wording problems.
-
-High-risk content includes self-harm, suicide intent, domestic violence, credible threats, severe abuse, stalking, coercive control, and danger to minors. In high-risk cases, prioritize safety messaging and seeking real-world help; do not perform ordinary warm rewriting.
-
-## Privacy And Permission Rules
-
-- A user must be authenticated for all family content APIs.
-- A user must be an approved family member to access family content.
-- Original text and original audio visibility are controlled by the sender.
-- Optimized text may be sent while original text or audio remains hidden.
-- Removed members must lose access to future family content and any content they are no longer permitted to view.
-- Soft deletion is preferred for user content so notification and moderation history remain consistent.
-- Do not expose private content through notifications, logs, public upload URLs beyond intended file access, or admin/debug endpoints.
-
-## Development Priorities
-
-1. Keep the app runnable end to end.
-2. Keep permission checks correct.
-3. Keep family data isolated.
-4. Keep AI output structured and safe.
-5. Keep user-facing copy warm, plain, and non-judgmental.
-6. Keep implementation close to the existing project patterns.
-
-## GitHub Rules
-
-- Repository remote: `https://github.com/watsonbkeel/ai-recorder`.
-- Do not commit secrets, `.env`, logs, pid files, runtime uploads, node_modules, WeChat private project config, `.DS_Store`, or `._*` metadata.
-- Commit docs and source together when they describe the same behavior.
-- Use `main` as the default branch.
+- Remote: `https://github.com/watsonbkeel/ai-recorder`
+- Default branch: `main`
+- Commit source and docs together when the docs describe the behavior being changed.

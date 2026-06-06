@@ -3,40 +3,50 @@
   <view wx:elif="{{error}}" class="error">{{error}}</view>
   <block wx:else>
     <view class="card">
-      <view class="title">{{user.nickname || '微信用户'}}</view>
-      <view class="sub-title">全局管理员：{{user.isGlobalAdmin ? '是' : '否'}}</view>
-      <view class="muted">当前班级：{{currentClass ? currentClass.name : '未选择'}}</view>
-      <view wx:if="{{currentClass && currentClass.classNickname}}" class="muted">本班昵称：{{currentClass.classNickname}}</view>
-      <view wx:if="{{currentClass && currentClass.role === 'admin'}}" class="actions">
-        <button class="btn-secondary" bindtap="goAdmin">进入管理页</button>
+      <view class="title">{{user.nickname || '家庭成员'}}</view>
+      <view class="sub-title">当前家庭：{{currentFamily ? currentFamily.name : '未选择'}}</view>
+      <view wx:if="{{currentFamily}}" class="muted">
+        {{currentFamily.identityText || currentFamily.relationshipLabel}} {{currentFamily.familyNickname ? '· ' + currentFamily.familyNickname : ''}}
+      </view>
+      <view wx:if="{{currentFamily && currentFamily.role === 'admin'}}" class="actions">
+        <button class="btn-secondary" bindtap="goAdmin">进入家庭管理</button>
       </view>
     </view>
 
     <view class="card">
       <view class="title">我的昵称</view>
-      <view class="sub-title">全局昵称会作为默认展示名，班级昵称只在当前班级内生效。</view>
+      <view class="sub-title">全局昵称作为默认展示名，家庭昵称只在当前家庭内使用。</view>
       <input class="input" placeholder="全局昵称" value="{{nicknameInput}}" bindinput="handleNicknameInput" />
       <input class="input" placeholder="头像 URL（可选）" value="{{avatarUrlInput}}" bindinput="handleAvatarUrlInput" />
-      <button class="btn-primary" loading="{{savingProfile}}" bindtap="saveProfile">保存全局昵称</button>
+      <button class="btn-primary" loading="{{savingProfile}}" bindtap="saveProfile">保存昵称</button>
     </view>
 
-    <view wx:if="{{currentClass}}" class="card">
-      <view class="title">本班昵称</view>
-      <view class="sub-title">可以在不同班级使用不同昵称，发日记和评论时优先显示本班昵称。</view>
-      <input class="input" placeholder="{{currentClass.name}}里的昵称" value="{{classNicknameInput}}" bindinput="handleClassNicknameInput" />
-      <button class="btn-primary" loading="{{savingClassNickname}}" bindtap="saveClassNickname">保存本班昵称</button>
+    <view wx:if="{{currentFamily}}" class="card">
+      <view class="title">家庭身份</view>
+      <view class="sub-title">身份用于称呼和表达适配，AI 不会据此做性格判断或心理诊断。</view>
+      <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
+        <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
+      </picker>
+      <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
+        <view class="input">性别：{{genderLabels[genderIndex]}}</view>
+      </picker>
+      <input class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
+      <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
+      <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
+      <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
+      <textarea class="textarea" placeholder="身份备注，例如 异地上学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
+      <button class="btn-primary" loading="{{savingIdentity}}" bindtap="saveIdentity">保存家庭身份</button>
     </view>
 
     <view class="card">
-      <view class="title">我的班级</view>
-      <view wx:if="{{!classes.length}}" class="empty">暂无已加入班级。</view>
-      <view wx:for="{{classes}}" wx:key="id" class="divider"></view>
-      <view wx:for="{{classes}}" wx:key="id" class="row-between" style="margin-bottom:16rpx;">
+      <view class="title">我的家庭</view>
+      <view wx:if="{{!families.length}}" class="empty">暂无已加入家庭。</view>
+      <view wx:for="{{families}}" wx:key="id" class="family-row">
         <view>
           <view>{{item.name}}</view>
-          <view class="muted">{{item.role}} {{item.classNickname ? '· 昵称：' + item.classNickname : ''}} {{item.isMuted ? '· 已禁言' : ''}}</view>
+          <view class="muted">{{item.role === 'admin' ? '管理员' : '成员'}} · {{item.identityText || item.relationshipLabel}} {{item.isMuted ? '· 已停用留言' : ''}}</view>
         </view>
-        <button size="mini" class="btn-secondary" data-item="{{item}}" bindtap="switchClass">切换</button>
+        <button size="mini" class="btn-secondary" data-item="{{item}}" bindtap="switchFamily">切换</button>
       </view>
     </view>
 

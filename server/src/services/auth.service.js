@@ -62,7 +62,6 @@ async function registerWithPassword(payload) {
 
   const user = await prisma.user.create({
     data: {
-      openid: `account_${accountName}`,
       accountName,
       passwordHash: await hashPassword(password),
       nickname,

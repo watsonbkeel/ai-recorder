@@ -42,6 +42,7 @@ Page({
     replyAdvice: '',
     replyRiskLevel: 'low',
     replyAttackWarning: '',
+    useFamilyMemory: true,
     loading: true,
     aiLoading: false,
     submitting: false,
@@ -81,6 +82,9 @@ Page({
   handleReplyOptimizedInput(event) {
     this.setData({ replyOptimizedText: event.detail.value })
   },
+  handleMemorySwitch(event) {
+    this.setData({ useFamilyMemory: event.detail.value })
+  },
   async optimizeReply() {
     if (!this.data.replyOriginalText.trim()) {
       wx.showToast({ title: '请先写下回复', icon: 'none' })
@@ -90,7 +94,8 @@ Page({
     try {
       const result = await aiService.optimizeReply({
         originalText: this.data.replyOriginalText,
-        message: this.data.message ? this.data.message.optimizedText : ''
+        messageId: this.data.messageId,
+        useFamilyMemory: this.data.useFamilyMemory
       })
       this.setData({
         replyOptimizedText: result.optimizedText || this.data.replyOriginalText,

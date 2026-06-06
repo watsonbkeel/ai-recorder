@@ -30,6 +30,13 @@
     <view class="card">
       <view class="title">回复家人</view>
       <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
+      <view class="row-between memory-row">
+        <view>
+          <view>使用家庭沟通记忆</view>
+          <view class="muted">参考本家庭内可见摘要、敏感点和有效表达。</view>
+        </view>
+        <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
+      </view>
       <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">AI 帮我整理回复</button>
       <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
       <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>

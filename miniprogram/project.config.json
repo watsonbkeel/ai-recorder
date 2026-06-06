@@ -1,8 +1,8 @@
 {
   "miniprogramRoot": "./",
-  "projectname": "class-diary-miniapp",
-  "description": "班级日记本微信小程序",
-  "appid": "wxf3695294222ee30e",
+  "projectname": "ai-recorder",
+  "description": "暖心留声机家庭AI小程序",
+  "appid": "wxf73895336690e9a6",
   "compileType": "miniprogram",
   "setting": {
     "es6": true,

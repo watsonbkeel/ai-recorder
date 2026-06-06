@@ -16,6 +16,16 @@ async function getFamilyByInvite(req, res) {
   return sendSuccess(res, data, 'ok')
 }
 
+async function listMembers(req, res) {
+  const data = await familyService.listFamilyMembers(req.user.id, req.params.familyId)
+  return sendSuccess(res, data, 'ok')
+}
+
+async function updateMyIdentity(req, res) {
+  const data = await familyService.updateMyIdentity(req.user.id, req.params.familyId, req.body)
+  return sendSuccess(res, data, 'ok')
+}
+
 async function updateFamilyNickname(req, res) {
   const data = await familyService.updateFamilyNickname(req.user.id, req.params.familyId, req.body)
   return sendSuccess(res, data, 'ok')
@@ -35,6 +45,8 @@ module.exports = {
   createFamily,
   getMyFamilies,
   getFamilyByInvite,
+  listMembers,
+  updateMyIdentity,
   updateFamilyNickname,
   updateRelationship,
   createJoinRequest

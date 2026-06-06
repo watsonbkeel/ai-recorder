@@ -1,23 +1,29 @@
 const adminService = require('../../../services/admin')
 const format = require('../../../utils/format')
+const { identitySummary } = require('../../../utils/familyIdentity')
 
 Page({
   data: {
-    classId: null,
+    familyId: null,
     loading: true,
     error: '',
-    items: [],
-    formatDate: format.formatDate
+    items: []
   },
   onLoad(options) {
-    this.setData({ classId: Number(options.classId) })
+    this.setData({ familyId: Number(options.familyId) })
     this.loadData()
   },
   async loadData() {
     this.setData({ loading: true, error: '' })
     try {
-      const items = await adminService.getJoinRequests(this.data.classId)
-      this.setData({ items })
+      const items = await adminService.getJoinRequests(this.data.familyId)
+      this.setData({
+        items: items.map((item) => ({
+          ...item,
+          createdAtText: format.formatDate(item.createdAt),
+          identitySummary: identitySummary(item)
+        }))
+      })
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
     } finally {

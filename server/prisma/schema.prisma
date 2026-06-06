@@ -7,11 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ClassRole {
-  member
-  admin
-}
-
 enum FamilyRole {
   member
   admin
@@ -22,10 +17,19 @@ enum FamilyRelationship {
   mother
   son
   daughter
+  child
+  grandfather
+  grandmother
   grandparent
   partner
   sibling
   other
+}
+
+enum FamilyGender {
+  male
+  female
+  unspecified
 }
 
 enum JoinRequestStatus {
@@ -70,51 +74,24 @@ enum MessageReceiverStatus {
   replied
 }
 
-enum LikeTargetType {
-  diary
-  comment
-}
-
-enum ReportTargetType {
-  diary
-  comment
-  message
-  reply
-}
-
-enum ReportStatus {
-  pending
-  resolved
-  rejected
-}
-
 enum NotificationType {
-  diary_liked
-  comment_liked
-  diary_commented
-  comment_replied
-  message_received
-  message_replied
-  report_handled
+  family_join_requested
   join_request_approved
   join_request_rejected
+  message_received
+  message_replied
 }
 
-enum ModerationTargetType {
+enum FamilyAdminTargetType {
   join_request
-  diary
-  comment
   message
   reply
   member
-  report
 }
 
-enum ModerationAction {
+enum FamilyAdminAction {
   approve_join_request
   reject_join_request
-  hide_diary
-  hide_comment
   hide_message
   hide_reply
   mute_member
@@ -122,39 +99,40 @@ enum ModerationAction {
   remove_member
   set_admin
   unset_admin
-  resolve_report
-  reject_report
+  update_member_identity
+}
+
+enum FamilyMemoryScope {
+  family
+  member
+  pair
+}
+
+enum FamilyMemoryStatus {
+  active
+  stale
 }
 
 model User {
   id                        Int                     @id @default(autoincrement())
-  openid                    String                  @unique @db.VarChar(191)
   accountName               String?                 @unique @db.VarChar(191)
   passwordHash              String?                 @db.VarChar(255)
+  wechatOpenid              String?                 @unique @db.VarChar(191)
   nickname                  String?                 @db.VarChar(191)
   avatarUrl                 String?                 @db.VarChar(500)
   isGlobalAdmin             Boolean                 @default(false)
   createdAt                 DateTime                @default(now())
   updatedAt                 DateTime                @updatedAt
-  createdClasses            Class[]                 @relation("ClassCreatedBy")
   createdFamilies           Family[]                @relation("FamilyCreatedBy")
-  classMembers              ClassMember[]
   familyMembers             FamilyMember[]
-  joinRequests              JoinRequest[]           @relation("JoinRequestUser")
-  handledJoinRequests       JoinRequest[]           @relation("JoinRequestHandledBy")
   familyJoinRequests        FamilyJoinRequest[]     @relation("FamilyJoinRequestUser")
   handledFamilyJoinRequests FamilyJoinRequest[]     @relation("FamilyJoinRequestHandledBy")
-  diaries                   Diary[]                 @relation("DiaryAuthor")
-  comments                  Comment[]               @relation("CommentAuthor")
   familyMessages            FamilyMessage[]         @relation("FamilyMessageSender")
   familyReplies             FamilyReply[]           @relation("FamilyReplySender")
   receivedFamilyMessages    FamilyMessageReceiver[]
-  likes                     Like[]
-  reports                   Report[]                @relation("ReportReporter")
-  handledReports            Report[]                @relation("ReportHandledBy")
   notificationsReceived     Notification[]          @relation("NotificationReceiver")
   notificationsTriggered    Notification[]          @relation("NotificationActor")
-  moderationLogs            ModerationLog[]         @relation("ModerationAdmin")
+  familyAdminLogs           FamilyAdminLog[]        @relation("FamilyAdminLogAdmin")
 }
 
 model Family {
@@ -171,6 +149,8 @@ model Family {
   messages      FamilyMessage[]
   replies       FamilyReply[]
   notifications Notification[]
+  adminLogs     FamilyAdminLog[]
+  memories      FamilyMemory[]
 
   @@index([createdById])
 }
@@ -181,32 +161,47 @@ model FamilyMember {
   userId         Int
   role           FamilyRole         @default(member)
   relationship   FamilyRelationship @default(other)
+  gender         FamilyGender       @default(unspecified)
+  childOrder     Int?
+  birthYear      Int?
   familyNickname String?            @db.VarChar(191)
+  preferredTitle String?            @db.VarChar(191)
+  identityNote   String?            @db.VarChar(500)
   isMuted        Boolean            @default(false)
   joinedAt       DateTime           @default(now())
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
-  family         Family             @relation(fields: [familyId], references: [id])
-  user           User               @relation(fields: [userId], references: [id])
+  family         Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memories       FamilyMemory[]     @relation("FamilyMemoryMember")
+  relatedMemories FamilyMemory[]    @relation("FamilyMemoryRelated")
 
   @@unique([familyId, userId])
   @@index([userId])
   @@index([familyId, role])
+  @@index([familyId, relationship, childOrder])
 }
 
 model FamilyJoinRequest {
-  id          Int               @id @default(autoincrement())
-  familyId    Int
-  userId      Int
-  status      JoinRequestStatus @default(pending)
-  message     String?           @db.Text
-  handledById Int?
-  handledAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  family      Family            @relation(fields: [familyId], references: [id])
-  user        User              @relation("FamilyJoinRequestUser", fields: [userId], references: [id])
-  handledBy   User?             @relation("FamilyJoinRequestHandledBy", fields: [handledById], references: [id])
+  id             Int               @id @default(autoincrement())
+  familyId       Int
+  userId         Int
+  status         JoinRequestStatus @default(pending)
+  message        String?           @db.Text
+  relationship   FamilyRelationship @default(other)
+  gender         FamilyGender      @default(unspecified)
+  childOrder     Int?
+  birthYear      Int?
+  familyNickname String?           @db.VarChar(191)
+  preferredTitle String?           @db.VarChar(191)
+  identityNote   String?           @db.VarChar(500)
+  handledById    Int?
+  handledAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  family         Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user           User              @relation("FamilyJoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  handledBy      User?             @relation("FamilyJoinRequestHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
 
   @@index([familyId, status])
   @@index([userId, status])
@@ -234,11 +229,12 @@ model FamilyMessage {
   replyCount             Int                     @default(0)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
-  family                 Family                  @relation(fields: [familyId], references: [id])
-  sender                 User                    @relation("FamilyMessageSender", fields: [senderId], references: [id])
+  family                 Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  sender                 User                    @relation("FamilyMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   receivers              FamilyMessageReceiver[]
   replies                FamilyReply[]
   notifications          Notification[]
+  sourceMemories          FamilyMemory[]           @relation("FamilyMemorySourceMessage")
 
   @@index([familyId, status, createdAt])
   @@index([senderId, status])
@@ -254,7 +250,7 @@ model FamilyMessageReceiver {
   repliedAt DateTime?
   createdAt DateTime              @default(now())
   message   FamilyMessage         @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User                  @relation(fields: [userId], references: [id])
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([userId, status])
@@ -274,208 +270,87 @@ model FamilyReply {
   status        ContentStatus  @default(visible)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  family        Family         @relation(fields: [familyId], references: [id])
-  message       FamilyMessage  @relation(fields: [messageId], references: [id])
-  sender        User           @relation("FamilyReplySender", fields: [senderId], references: [id])
+  family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  message       FamilyMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sender        User           @relation("FamilyReplySender", fields: [senderId], references: [id], onDelete: Cascade)
   notifications Notification[]
+  sourceMemories FamilyMemory[] @relation("FamilyMemorySourceReply")
 
   @@index([messageId, status, createdAt])
   @@index([familyId, status])
   @@index([senderId, status])
 }
 
-model Class {
-  id             Int             @id @default(autoincrement())
-  name           String          @db.VarChar(191)
-  description    String?         @db.Text
-  inviteCode     String          @unique @db.VarChar(20)
-  createdById    Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  createdBy      User            @relation("ClassCreatedBy", fields: [createdById], references: [id])
-  members        ClassMember[]
-  joinRequests   JoinRequest[]
-  diaries        Diary[]
-  comments       Comment[]
-  likes          Like[]
-  reports        Report[]
-  notifications  Notification[]
-  moderationLogs ModerationLog[]
-}
-
-model ClassMember {
-  id            Int       @id @default(autoincrement())
-  classId       Int
-  userId        Int
-  role          ClassRole @default(member)
-  classNickname String?   @db.VarChar(191)
-  isMuted       Boolean   @default(false)
-  joinedAt      DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  class         Class     @relation(fields: [classId], references: [id])
-  user          User      @relation(fields: [userId], references: [id])
-
-  @@unique([classId, userId])
-  @@index([userId])
-  @@index([classId, role])
-}
-
-model JoinRequest {
-  id          Int               @id @default(autoincrement())
-  classId     Int
-  userId      Int
-  status      JoinRequestStatus @default(pending)
-  message     String?           @db.Text
-  handledById Int?
-  handledAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  class       Class             @relation(fields: [classId], references: [id])
-  user        User              @relation("JoinRequestUser", fields: [userId], references: [id])
-  handledBy   User?             @relation("JoinRequestHandledBy", fields: [handledById], references: [id])
-
-  @@index([classId, status])
-  @@index([userId, status])
-  @@index([classId, userId])
-}
-
-model Diary {
-  id            Int            @id @default(autoincrement())
-  classId       Int
-  authorId      Int
-  content       String         @db.Text
-  isAnonymous   Boolean        @default(false)
-  status        ContentStatus  @default(visible)
-  likeCount     Int            @default(0)
-  commentCount  Int            @default(0)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  class         Class          @relation(fields: [classId], references: [id])
-  author        User           @relation("DiaryAuthor", fields: [authorId], references: [id])
-  images        DiaryImage[]
-  comments      Comment[]
-  notifications Notification[]
-
-  @@index([classId, status, createdAt])
-  @@index([authorId, status])
-}
-
-model DiaryImage {
-  id        Int      @id @default(autoincrement())
-  diaryId   Int
-  url       String   @db.VarChar(500)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  diary     Diary    @relation(fields: [diaryId], references: [id], onDelete: Cascade)
-
-  @@index([diaryId, sortOrder])
-}
-
-model Comment {
-  id            Int            @id @default(autoincrement())
-  classId       Int
-  diaryId       Int
-  authorId      Int
-  parentId      Int?
-  content       String         @db.Text
-  isAnonymous   Boolean        @default(false)
-  status        ContentStatus  @default(visible)
-  likeCount     Int            @default(0)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  class         Class          @relation(fields: [classId], references: [id])
-  diary         Diary          @relation(fields: [diaryId], references: [id])
-  author        User           @relation("CommentAuthor", fields: [authorId], references: [id])
-  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id])
-  replies       Comment[]      @relation("CommentReplies")
-  notifications Notification[]
-
-  @@index([diaryId, status, createdAt])
-  @@index([classId, status])
-  @@index([parentId])
-  @@index([authorId, status])
-}
-
-model Like {
-  id         Int            @id @default(autoincrement())
-  classId    Int
-  userId     Int
-  targetType LikeTargetType
-  targetId   Int
-  createdAt  DateTime       @default(now())
-  class      Class          @relation(fields: [classId], references: [id])
-  user       User           @relation(fields: [userId], references: [id])
-
-  @@unique([userId, targetType, targetId])
-  @@index([classId, targetType, targetId])
-}
-
-model Report {
-  id          Int              @id @default(autoincrement())
-  classId     Int
-  reporterId  Int
-  targetType  ReportTargetType
-  targetId    Int
-  reason      String           @db.VarChar(191)
-  description String?          @db.Text
-  status      ReportStatus     @default(pending)
-  resolution  String?          @db.Text
-  handledById Int?
-  handledAt   DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  class       Class            @relation(fields: [classId], references: [id])
-  reporter    User             @relation("ReportReporter", fields: [reporterId], references: [id])
-  handledBy   User?            @relation("ReportHandledBy", fields: [handledById], references: [id])
-
-  @@index([classId, status, createdAt])
-  @@index([reporterId])
-  @@index([targetType, targetId])
-}
-
 model Notification {
   id        Int              @id @default(autoincrement())
   userId    Int
   actorId   Int?
-  classId   Int?
   familyId  Int?
   type      NotificationType
   title     String           @db.VarChar(191)
   content   String           @db.Text
   isRead    Boolean          @default(false)
-  diaryId   Int?
-  commentId Int?
   messageId Int?
   replyId   Int?
   createdAt DateTime         @default(now())
-  user      User             @relation("NotificationReceiver", fields: [userId], references: [id])
-  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id])
-  class     Class?           @relation(fields: [classId], references: [id])
-  family    Family?          @relation(fields: [familyId], references: [id])
-  diary     Diary?           @relation(fields: [diaryId], references: [id])
-  comment   Comment?         @relation(fields: [commentId], references: [id])
-  message   FamilyMessage?   @relation(fields: [messageId], references: [id])
-  reply     FamilyReply?     @relation(fields: [replyId], references: [id])
+  user      User             @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  family    Family?          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  message   FamilyMessage?   @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  reply     FamilyReply?     @relation(fields: [replyId], references: [id], onDelete: SetNull)
 
   @@index([userId, isRead, createdAt])
-  @@index([classId])
   @@index([familyId])
+  @@index([messageId])
 }
 
-model ModerationLog {
-  id         Int                  @id @default(autoincrement())
-  classId    Int
+model FamilyAdminLog {
+  id         Int                   @id @default(autoincrement())
+  familyId   Int
   adminId    Int
-  targetType ModerationTargetType
+  targetType FamilyAdminTargetType
   targetId   Int
-  action     ModerationAction
-  reason     String?              @db.Text
+  action     FamilyAdminAction
+  reason     String?               @db.Text
   metadata   Json?
-  createdAt  DateTime             @default(now())
-  class      Class                @relation(fields: [classId], references: [id])
-  admin      User                 @relation("ModerationAdmin", fields: [adminId], references: [id])
+  createdAt  DateTime              @default(now())
+  family     Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  admin      User                  @relation("FamilyAdminLogAdmin", fields: [adminId], references: [id], onDelete: Cascade)
 
-  @@index([classId, createdAt])
+  @@index([familyId, createdAt])
   @@index([targetType, targetId])
+}
+
+model FamilyMemory {
+  id                  Int                @id @default(autoincrement())
+  familyId            Int
+  scope               FamilyMemoryScope
+  scopeKey            String             @db.VarChar(191)
+  memberId            Int?
+  relatedMemberId     Int?
+  summary             String             @db.Text
+  avoidPhrases        Json?
+  effectivePhrases    Json?
+  sensitiveTopics     Json?
+  status              FamilyMemoryStatus @default(active)
+  version             Int                @default(1)
+  sourceMessageCount  Int                @default(0)
+  sourceReplyCount    Int                @default(0)
+  sourceMessageId     Int?
+  sourceReplyId       Int?
+  lastRefreshedAt     DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  family              Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member              FamilyMember?      @relation("FamilyMemoryMember", fields: [memberId], references: [id], onDelete: Cascade)
+  relatedMember       FamilyMember?      @relation("FamilyMemoryRelated", fields: [relatedMemberId], references: [id], onDelete: Cascade)
+  sourceMessage       FamilyMessage?     @relation("FamilyMemorySourceMessage", fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  sourceReply         FamilyReply?       @relation("FamilyMemorySourceReply", fields: [sourceReplyId], references: [id], onDelete: SetNull)
+
+  @@unique([familyId, scopeKey])
+  @@index([familyId, scope, status])
+  @@index([memberId])
+  @@index([relatedMemberId])
+  @@index([sourceMessageId])
+  @@index([sourceReplyId])
 }

@@ -2,30 +2,49 @@
 
 ## Provider
 
-Use an OpenAI-compatible chat/completions or responses provider.
-
-Environment variables:
+Use an OpenAI-compatible provider configured only through local environment variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
 - `OPENAI_TIMEOUT_MS`
 
-The model name must be configurable and must not be hard-coded in business logic.
+Do not commit real keys or provider secrets. `server/.env` is ignored by git.
 
-## AI Tasks
+## Backend-Built Context
+
+All AI routes must build context on the backend:
+
+- `optimize-message`: requires `familyId`; may use selected receiver identities and current user's visible family history.
+- `analyze-message`: requires `messageId`; backend verifies message visibility before loading context.
+- `optimize-reply`: requires `messageId`; backend verifies message visibility before loading context.
+
+Frontend must not provide arbitrary history, prior message text, family memory, or summaries as model context.
+
+## Family Memory
+
+`FamilyMemory` supports `family`, `member`, and `pair` scopes.
+
+Rules:
+
+- Memory is scoped to one `familyId`.
+- Memory is never shared across families or projects.
+- Memory never reuses old class-log data.
+- Memory may summarize communication preferences, sensitive topics, avoid phrases, and effective phrases.
+- Memory must not diagnose, label personality, judge character, or create fixed conclusions about a family member.
+- `useFamilyMemory: false` means the backend must not query or inject `FamilyMemory`.
+- Message/reply deletion or hiding marks memories stale or triggers recomputation.
+
+## Privacy Rules
+
+- Hidden original text must not enter AI context.
+- Hidden original audio or transcript must not enter AI context.
+- AI context may include optimized text, AI summaries, visible replies, identity metadata, and active family memory that the current user may access.
+- Identity metadata may be used for称呼、语气、边界表达, not stereotypes.
+
+## Output Fields
 
 ### Optimize Message
-
-Endpoint:
-
-```http
-POST /api/ai/optimize-message
-```
-
-Purpose: convert a sender's original family message into a clearer, warmer, less escalating version without changing intent.
-
-Required JSON fields:
 
 ```json
 {
@@ -40,16 +59,6 @@ Required JSON fields:
 
 ### Analyze Message
 
-Endpoint:
-
-```http
-POST /api/ai/analyze-message
-```
-
-Purpose: help the receiver understand possible emotion, need, and response direction. It must not judge either side.
-
-Required JSON fields:
-
 ```json
 {
   "possibleEmotions": ["string"],
@@ -61,16 +70,6 @@ Required JSON fields:
 ```
 
 ### Optimize Reply
-
-Endpoint:
-
-```http
-POST /api/ai/optimize-reply
-```
-
-Purpose: improve a receiver's reply so it is sincere, respectful, non-preachy, non-sarcastic, and less likely to cause harm.
-
-Required JSON fields:
 
 ```json
 {
@@ -84,38 +83,23 @@ Required JSON fields:
 
 ## Prompt Rules
 
-All prompts must instruct the model to:
+Prompts must instruct the model to:
 
-- Preserve the user's real meaning.
-- Avoid adding facts not present in the input.
-- Avoid forced apology or forced forgiveness.
+- Preserve real intent and stated facts.
+- Avoid forced apology, forced forgiveness, or invented affection.
 - Avoid judging who is right.
-- Express boundaries respectfully when boundaries are present.
-- Use plain Chinese suitable for family communication.
+- Make boundaries clearer and less escalating.
+- Use warm, plain Chinese suitable for family communication.
+- Avoid gender, age, rank, and role stereotypes.
 - Return valid JSON only.
 
-## Risk Handling
+## High-Risk Handling
 
-High-risk categories:
-
-- Self-harm or suicide intent.
-- Domestic violence or credible threats.
-- Abuse toward minors or elders.
-- Coercive control, stalking, or severe intimidation.
-- Severe humiliation or emotional blackmail.
+High-risk content includes self-harm, credible threats, domestic violence, abuse toward minors or elders, coercive control, stalking, severe humiliation, and emotional blackmail.
 
 For high-risk content:
 
-- Do not produce ordinary warm rewriting as the primary result.
 - Return `riskLevel: "high"`.
-- Encourage immediate real-world support from trusted people or emergency services when appropriate.
-- Keep wording calm and direct.
-- Do not promise confidentiality, diagnosis, or professional treatment.
-
-## Failure Handling
-
-If the model call fails:
-
-- Return a stable backend error code such as `AI_PROVIDER_FAILED`.
-- Do not send a half-parsed AI result.
-- The mini program should let the user retry or send original content according to privacy settings.
+- Prioritize safety guidance over ordinary warm rewriting.
+- Encourage real-world support where appropriate.
+- Do not promise confidentiality, diagnose, or provide professional treatment.

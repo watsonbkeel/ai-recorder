@@ -1,1 +1,8 @@
-/* Uses global styles. */
+.memory-row {
+  gap: 20rpx;
+  margin: 24rpx 0;
+  padding: 20rpx;
+  border: 2rpx solid #dbe3ec;
+  border-radius: 14rpx;
+  background: #f8fafc;
+}

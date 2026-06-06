@@ -1,44 +1,34 @@
 # IMPLEMENTATION_PLAN
 
-## Current State
+## Boundary
 
-The current codebase comes from a "class diary" mini program. It already has a native WeChat mini program, Node.js Express backend, Prisma + MySQL database, Docker Compose MySQL, upload handling, JWT auth, notifications, reports, soft delete, and admin management.
+The old project is only a code template. The new project must have independent configuration, database, AppID, API, frontend entry, admin flow, uploads, migrations, user identity, and AI memory.
 
-The new target is "暖心留声机", a family AI voice recorder. Keep the working architecture and migrate the domain model and user experience.
+## Completed Target
 
-## Phase 1: Documents And GitHub
+- Independent MySQL database: `ai_recorder`.
+- Independent initial Prisma migration.
+- AppID: `wxf73895336690e9a6`.
+- Family domain models and routes.
+- Family identity fields on member and join request.
+- Message/reply workflow.
+- AI optimization/analyze/reply endpoints.
+- Family communication memory with `family`, `member`, and `pair` scopes.
+- `useFamilyMemory` switch on AI calls.
+- No report feature.
 
-1. Add `AGENTS.md`, `docs/PRODUCT_REQUIREMENTS.md`, and `docs/AI_CONSTRAINTS.md`.
-2. Update existing docs from class diary semantics to family recorder semantics.
-3. Initialize Git and connect remote `https://github.com/watsonbkeel/ai-recorder`.
-4. Ensure secrets, logs, uploads, private WeChat config, and OS metadata are ignored.
+## Implementation Priorities
 
-## Phase 2: Backend Migration
+1. Keep backend permission checks correct.
+2. Keep memory inside the current family only.
+3. Keep hidden original text/audio out of AI context.
+4. Keep identity useful for称呼 and表达适配, not stereotypes.
+5. Keep secrets out of git.
 
-1. Rename domain concepts from `Class`, `ClassMember`, `Diary`, and `Comment` to `Family`, `FamilyMember`, `Message`, and `Reply`.
-2. Add message receiver list, visibility, message type, original voice URL, audio duration, AI fields, original-content permissions, and risk level.
-3. Add audio upload support.
-4. Add OpenAI-compatible AI service and routes for message optimization, message analysis, and reply optimization.
-5. Preserve auth, join approval, notifications, reports, moderation, and soft delete.
+## Validation
 
-## Phase 3: Mini Program Migration
-
-1. Replace class, diary, and comment pages with family, message, and reply pages.
-2. Add receiver selection, message type selection, text input, recorder controls, AI optimization, and original-content permission controls.
-3. Make message detail show AI optimized text first, original content folded, and voice playback only when permitted.
-4. Add AI assisted reply flow.
-
-## Phase 4: Regression And Safety
-
-1. Verify family member isolation.
-2. Verify original text and original audio permissions.
-3. Verify high-risk AI handling.
-4. Verify notifications, reports, soft delete, and admin operations.
-
-## Priorities
-
-- End-to-end runnable behavior first.
-- Correct permissions and family data isolation first.
-- AI safety and privacy first.
-- Voice recording, upload, and playback are MVP requirements.
-- Do not add weekly reports, temperature scores, anniversaries, public sharing, or analytics dashboards unless requested later.
+- `npx prisma validate --schema prisma/schema.prisma`
+- `npx prisma generate --schema prisma/schema.prisma`
+- `node -e "require('./src/app'); console.log('app loaded')"`
+- Check old class/report/diary runtime entries are absent.
+- Check no PAT or AI API key is tracked.

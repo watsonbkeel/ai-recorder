@@ -24,6 +24,18 @@
       <view class="title">创建家庭</view>
       <input class="input" placeholder="家庭名称，例如：我们家" value="{{createName}}" bindinput="handleNameInput" />
       <textarea class="textarea" placeholder="一句家庭介绍，可不填" value="{{createDescription}}" bindinput="handleDescriptionInput"></textarea>
+      <view class="sub-title">设置你在这个家庭里的身份</view>
+      <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
+        <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
+      </picker>
+      <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
+        <view class="input">性别：{{genderLabels[genderIndex]}}</view>
+      </picker>
+      <input class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
+      <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
+      <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
+      <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
+      <textarea class="textarea" placeholder="身份备注，例如 异地上大学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
       <button class="btn-primary" loading="{{creating}}" disabled="{{creating}}" bindtap="createFamily">创建并进入</button>
     </view>
 

@@ -1,10 +1,10 @@
 <view class="page">
   <view class="card">
-    <view class="title">班级日记本</view>
-    <view class="sub-title">先注册账号，再加入或创建班级。换手机后用同一账号密码登录即可找回班级。</view>
+    <view class="title">暖心留声机</view>
+    <view class="sub-title">先注册账号，再加入或创建家庭。换手机后用同一账号密码登录即可找回家庭空间。</view>
     <view class="help-list">
       <view class="help-item"><view class="help-index">1</view><view class="help-text">首次使用请注册账号名和密码，之后直接登录。</view></view>
-      <view class="help-item"><view class="help-index">2</view><view class="help-text">进入班级后就能发日记、评论、点赞和查看通知。</view></view>
+      <view class="help-item"><view class="help-index">2</view><view class="help-text">进入家庭后就能给家人留言、听原声、回复和查看通知。</view></view>
     </view>
     <view class="tag">{{mode === 'login' ? '账号登录' : '注册新账号'}}</view>
     <input class="input" placeholder="账号名（3-32位字母/数字）" value="{{accountName}}" bindinput="handleAccountInput" />

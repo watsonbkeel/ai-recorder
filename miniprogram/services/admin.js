@@ -1,47 +1,43 @@
 const request = require('../utils/request')
 
-function getDashboard(classId) {
-  return request({ url: `/admin/classes/${classId}/dashboard` })
+function getDashboard(familyId) {
+  return request({ url: `/admin/families/${familyId}/dashboard` })
 }
 
-function getJoinRequests(classId) {
-  return request({ url: `/admin/classes/${classId}/join-requests` })
+function getJoinRequests(familyId) {
+  return request({ url: `/admin/families/${familyId}/join-requests` })
 }
 
 function handleJoinRequest(requestId, data) {
   return request({ url: `/admin/join-requests/${requestId}/handle`, method: 'POST', data })
 }
 
-function getMembers(classId) {
-  return request({ url: `/admin/classes/${classId}/members` })
+function getMembers(familyId) {
+  return request({ url: `/admin/families/${familyId}/members` })
 }
 
-function updateMute(classId, userId, data) {
-  return request({ url: `/admin/classes/${classId}/members/${userId}/mute`, method: 'POST', data })
+function updateMute(familyId, userId, data) {
+  return request({ url: `/admin/families/${familyId}/members/${userId}/mute`, method: 'POST', data })
 }
 
-function updateRole(classId, userId, data) {
-  return request({ url: `/admin/classes/${classId}/members/${userId}/role`, method: 'POST', data })
+function updateRole(familyId, userId, data) {
+  return request({ url: `/admin/families/${familyId}/members/${userId}/role`, method: 'POST', data })
 }
 
-function removeMember(classId, userId, data) {
-  return request({ url: `/admin/classes/${classId}/members/${userId}`, method: 'DELETE', data })
+function updateMemberIdentity(familyId, userId, data) {
+  return request({ url: `/admin/families/${familyId}/members/${userId}/identity`, method: 'PATCH', data })
 }
 
-function getReports(classId) {
-  return request({ url: `/admin/classes/${classId}/reports` })
+function removeMember(familyId, userId, data) {
+  return request({ url: `/admin/families/${familyId}/members/${userId}`, method: 'DELETE', data })
 }
 
-function handleReport(reportId, data) {
-  return request({ url: `/admin/reports/${reportId}/handle`, method: 'POST', data })
+function hideMessage(messageId, data) {
+  return request({ url: `/admin/messages/${messageId}/hide`, method: 'POST', data })
 }
 
-function hideDiary(diaryId, data) {
-  return request({ url: `/admin/diaries/${diaryId}/hide`, method: 'POST', data })
-}
-
-function hideComment(commentId, data) {
-  return request({ url: `/admin/comments/${commentId}/hide`, method: 'POST', data })
+function hideReply(replyId, data) {
+  return request({ url: `/admin/replies/${replyId}/hide`, method: 'POST', data })
 }
 
 module.exports = {
@@ -51,9 +47,8 @@ module.exports = {
   getMembers,
   updateMute,
   updateRole,
+  updateMemberIdentity,
   removeMember,
-  getReports,
-  handleReport,
-  hideDiary,
-  hideComment
+  hideMessage,
+  hideReply
 }

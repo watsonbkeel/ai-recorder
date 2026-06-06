@@ -1,19 +1,40 @@
 const authService = require('../../services/auth')
-const classService = require('../../services/class')
+const familyService = require('../../services/family')
 const auth = require('../../utils/auth')
+const identity = require('../../utils/familyIdentity')
+
+function identityFormFromFamily(family) {
+  return {
+    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, family && family.relationship),
+    genderIndex: identity.optionIndex(identity.GENDER_OPTIONS, family && family.gender),
+    childOrder: family && family.childOrder ? String(family.childOrder) : '',
+    birthYear: family && family.birthYear ? String(family.birthYear) : '',
+    familyNickname: family && family.familyNickname ? family.familyNickname : '',
+    preferredTitle: family && family.preferredTitle ? family.preferredTitle : '',
+    identityNote: family && family.identityNote ? family.identityNote : ''
+  }
+}
 
 Page({
   data: {
     loading: true,
     error: '',
     user: null,
-    classes: [],
-    currentClass: null,
+    families: [],
+    currentFamily: null,
     nicknameInput: '',
     avatarUrlInput: '',
-    classNicknameInput: '',
+    relationshipLabels: identity.RELATIONSHIP_LABELS,
+    genderLabels: identity.GENDER_LABELS,
+    relationshipIndex: 0,
+    genderIndex: 0,
+    childOrder: '',
+    birthYear: '',
+    familyNickname: '',
+    preferredTitle: '',
+    identityNote: '',
     savingProfile: false,
-    savingClassNickname: false
+    savingIdentity: false
   },
   onShow() {
     this.loadData()
@@ -21,24 +42,26 @@ Page({
   async loadData() {
     this.setData({ loading: true, error: '' })
     try {
-      const [user, classes] = await Promise.all([authService.getMe(), classService.getMyClasses()])
-      const storedClass = auth.getCurrentClass()
-      const currentClass = storedClass
-        ? (classes.find((item) => item.id === storedClass.id) || storedClass)
-        : null
-      if (currentClass) {
-        auth.setCurrentClass(currentClass)
-        getApp().setCurrentClass(currentClass)
+      const [user, families] = await Promise.all([authService.getMe(), familyService.getMyFamilies()])
+      const storedFamily = auth.getCurrentFamily()
+      const currentFamily = storedFamily
+        ? (families.find((item) => item.id === storedFamily.id) || families[0] || null)
+        : (families[0] || null)
+
+      if (currentFamily) {
+        auth.setCurrentFamily(currentFamily)
+        getApp().setCurrentFamily(currentFamily)
       }
       auth.setUser(user)
       getApp().setUser(user, auth.getToken())
+
       this.setData({
         user,
-        classes,
-        currentClass,
+        families,
+        currentFamily,
         nicknameInput: user.nickname || '',
         avatarUrlInput: user.avatarUrl || '',
-        classNicknameInput: currentClass ? (currentClass.classNickname || '') : ''
+        ...identityFormFromFamily(currentFamily)
       })
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
@@ -46,12 +69,15 @@ Page({
       this.setData({ loading: false })
     }
   },
-  switchClass(event) {
-    const currentClass = event.currentTarget.dataset.item
-    auth.setCurrentClass(currentClass)
-    getApp().setCurrentClass(currentClass)
-    this.setData({ currentClass, classNicknameInput: currentClass.classNickname || '' })
-    wx.showToast({ title: '已切换班级', icon: 'success' })
+  switchFamily(event) {
+    const currentFamily = event.currentTarget.dataset.item
+    auth.setCurrentFamily(currentFamily)
+    getApp().setCurrentFamily(currentFamily)
+    this.setData({
+      currentFamily,
+      ...identityFormFromFamily(currentFamily)
+    })
+    wx.showToast({ title: '已切换家庭', icon: 'success' })
   },
   handleNicknameInput(event) {
     this.setData({ nicknameInput: event.detail.value })
@@ -59,8 +85,26 @@ Page({
   handleAvatarUrlInput(event) {
     this.setData({ avatarUrlInput: event.detail.value })
   },
-  handleClassNicknameInput(event) {
-    this.setData({ classNicknameInput: event.detail.value })
+  handleRelationshipChange(event) {
+    this.setData({ relationshipIndex: Number(event.detail.value) })
+  },
+  handleGenderChange(event) {
+    this.setData({ genderIndex: Number(event.detail.value) })
+  },
+  handleChildOrderInput(event) {
+    this.setData({ childOrder: event.detail.value })
+  },
+  handleBirthYearInput(event) {
+    this.setData({ birthYear: event.detail.value })
+  },
+  handleFamilyNicknameInput(event) {
+    this.setData({ familyNickname: event.detail.value })
+  },
+  handlePreferredTitleInput(event) {
+    this.setData({ preferredTitle: event.detail.value })
+  },
+  handleIdentityNoteInput(event) {
+    this.setData({ identityNote: event.detail.value })
   },
   async saveProfile() {
     const nickname = this.data.nicknameInput.trim()
@@ -85,29 +129,32 @@ Page({
       this.setData({ savingProfile: false })
     }
   },
-  async saveClassNickname() {
-    if (!this.data.currentClass) {
-      wx.showToast({ title: '请先选择班级', icon: 'none' })
-      return
-    }
-    const classNickname = this.data.classNicknameInput.trim()
-    if (!classNickname) {
-      wx.showToast({ title: '请输入班级昵称', icon: 'none' })
+  async saveIdentity() {
+    if (!this.data.currentFamily) {
+      wx.showToast({ title: '请先选择家庭', icon: 'none' })
       return
     }
 
-    this.setData({ savingClassNickname: true, error: '' })
+    this.setData({ savingIdentity: true, error: '' })
     try {
-      const updatedClass = await classService.updateClassNickname(this.data.currentClass.id, { classNickname })
-      const classes = this.data.classes.map((item) => (item.id === updatedClass.id ? updatedClass : item))
-      auth.setCurrentClass(updatedClass)
-      getApp().setCurrentClass(updatedClass)
-      this.setData({ classes, currentClass: updatedClass })
-      wx.showToast({ title: '班级昵称已保存', icon: 'success' })
+      const updatedFamily = await familyService.updateIdentity(this.data.currentFamily.id, identity.buildIdentityPayload({
+        relationship: identity.optionValue(identity.RELATIONSHIP_OPTIONS, this.data.relationshipIndex),
+        gender: identity.optionValue(identity.GENDER_OPTIONS, this.data.genderIndex),
+        childOrder: this.data.childOrder,
+        birthYear: this.data.birthYear,
+        familyNickname: this.data.familyNickname,
+        preferredTitle: this.data.preferredTitle,
+        identityNote: this.data.identityNote
+      }))
+      const families = this.data.families.map((item) => (item.id === updatedFamily.id ? updatedFamily : item))
+      auth.setCurrentFamily(updatedFamily)
+      getApp().setCurrentFamily(updatedFamily)
+      this.setData({ families, currentFamily: updatedFamily })
+      wx.showToast({ title: '家庭身份已保存', icon: 'success' })
     } catch (error) {
       this.setData({ error: error.message || '保存失败' })
     } finally {
-      this.setData({ savingClassNickname: false })
+      this.setData({ savingIdentity: false })
     }
   },
   logout() {
@@ -115,8 +162,8 @@ Page({
     wx.reLaunch({ url: '/pages/login/login' })
   },
   goAdmin() {
-    if (this.data.currentClass && this.data.currentClass.role === 'admin') {
-      wx.navigateTo({ url: `/pages/admin/dashboard/dashboard?classId=${this.data.currentClass.id}` })
+    if (this.data.currentFamily && this.data.currentFamily.role === 'admin') {
+      wx.navigateTo({ url: `/pages/admin/dashboard/dashboard?familyId=${this.data.currentFamily.id}` })
     }
   }
 })

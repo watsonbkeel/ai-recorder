@@ -3,14 +3,16 @@ const auth = require('../../../utils/auth')
 
 Page({
   data: {
-    classId: null,
-    currentClass: null,
+    familyId: null,
+    currentFamily: null,
     loading: true,
     error: '',
     stats: null
   },
   onLoad(options) {
-    this.setData({ classId: Number(options.classId), currentClass: auth.getCurrentClass() })
+    const currentFamily = auth.getCurrentFamily()
+    const familyId = Number(options.familyId || (currentFamily && currentFamily.id))
+    this.setData({ familyId, currentFamily })
   },
   onShow() {
     this.loadData()
@@ -18,8 +20,8 @@ Page({
   async loadData() {
     this.setData({ loading: true, error: '' })
     try {
-      const stats = await adminService.getDashboard(this.data.classId)
-      this.setData({ stats })
+      const stats = await adminService.getDashboard(this.data.familyId)
+      this.setData({ stats, currentFamily: auth.getCurrentFamily() })
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
     } finally {
@@ -27,12 +29,9 @@ Page({
     }
   },
   goJoinRequests() {
-    wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?classId=${this.data.classId}` })
+    wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${this.data.familyId}` })
   },
   goMembers() {
-    wx.navigateTo({ url: `/pages/admin/members/members?classId=${this.data.classId}` })
-  },
-  goReports() {
-    wx.navigateTo({ url: `/pages/admin/reports/reports?classId=${this.data.classId}` })
+    wx.navigateTo({ url: `/pages/admin/members/members?familyId=${this.data.familyId}` })
   }
 })

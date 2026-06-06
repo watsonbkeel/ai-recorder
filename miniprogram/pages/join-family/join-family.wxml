@@ -3,6 +3,18 @@
     <view class="title">加入家庭</view>
     <input class="input" placeholder="输入家人给你的邀请码" value="{{inviteCode}}" bindinput="handleInviteInput" />
     <textarea class="textarea" placeholder="给管理员留一句话，可不填" value="{{message}}" bindinput="handleMessageInput"></textarea>
+    <view class="sub-title">说明你在这个家庭里的身份，方便管理员确认。</view>
+    <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
+      <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
+    </picker>
+    <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
+      <view class="input">性别：{{genderLabels[genderIndex]}}</view>
+    </picker>
+    <input class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
+    <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
+    <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
+    <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
+    <textarea class="textarea" placeholder="身份备注，例如 异地上学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
     <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="submit">提交申请</button>
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
