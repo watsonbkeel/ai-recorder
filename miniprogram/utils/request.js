@@ -5,6 +5,13 @@ function showError(message) {
   wx.showToast({ title: message || '请求失败', icon: 'none' })
 }
 
+function buildRequestError(message, code, statusCode) {
+  const error = new Error(message || '请求失败')
+  error.code = code || 'REQUEST_FAILED'
+  error.statusCode = statusCode || 0
+  return error
+}
+
 function request(options) {
   const token = auth.getToken()
   return new Promise((resolve, reject) => {
@@ -22,16 +29,17 @@ function request(options) {
         if (res.statusCode === 401 || (data.error && data.error.code === 'UNAUTHORIZED')) {
           auth.clearSession()
           auth.redirectToLogin()
-          reject(new Error('UNAUTHORIZED'))
+          reject(buildRequestError('UNAUTHORIZED', 'UNAUTHORIZED', res.statusCode))
           return
         }
 
         if (!data.success) {
           const message = data.error ? data.error.message : '请求失败'
+          const code = data.error ? data.error.code : 'REQUEST_FAILED'
           if (!options.silent) {
             showError(message)
           }
-          reject(new Error(message))
+          reject(buildRequestError(message, code, res.statusCode))
           return
         }
 
@@ -41,7 +49,7 @@ function request(options) {
         if (!options.silent) {
           showError('网络异常，请稍后再试')
         }
-        reject(error)
+        reject(buildRequestError(error.errMsg || '网络异常，请稍后再试', 'NETWORK_ERROR', 0))
       }
     })
   })

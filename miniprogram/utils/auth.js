@@ -27,6 +27,10 @@ function setCurrentFamily(currentFamily) {
   wx.setStorageSync(CURRENT_FAMILY_KEY, currentFamily)
 }
 
+function clearCurrentFamily() {
+  wx.removeStorageSync(CURRENT_FAMILY_KEY)
+}
+
 function clearSession() {
   wx.removeStorageSync(TOKEN_KEY)
   wx.removeStorageSync(USER_KEY)
@@ -51,6 +55,7 @@ module.exports = {
   setSession,
   setUser,
   setCurrentFamily,
+  clearCurrentFamily,
   clearSession,
   redirectToLogin
 }

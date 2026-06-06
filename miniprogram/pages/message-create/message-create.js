@@ -2,6 +2,7 @@ const messageService = require('../../services/message')
 const uploadService = require('../../services/upload')
 const aiService = require('../../services/ai')
 const familyService = require('../../services/family')
+const auth = require('../../utils/auth')
 const { identitySummary } = require('../../utils/familyIdentity')
 
 const recorder = wx.getRecorderManager ? wx.getRecorderManager() : null
@@ -21,6 +22,7 @@ const AI_STATUS_STEPS = [
   '正在整理成更容易被家人听见的表达...',
   '快好了，正在保留你的本意和边界...'
 ]
+const FAMILY_CONTEXT_ERROR_CODES = new Set(['NOT_FAMILY_MEMBER'])
 
 Page({
   data: {
@@ -53,6 +55,10 @@ Page({
   },
   onLoad(options) {
     this.setData({ familyId: Number(options.familyId) })
+    if (!Number(options.familyId)) {
+      this.exitInvalidFamily('请先选择家庭')
+      return
+    }
     this.loadMembers()
     if (recorder) {
       recorder.onStop((res) => {
@@ -88,6 +94,14 @@ Page({
       this.setData({ aiStatusText: '' })
     }
   },
+  exitInvalidFamily(message) {
+    auth.clearCurrentFamily()
+    getApp().setCurrentFamily(null)
+    wx.showToast({ title: message || '家庭状态已更新，请重新选择', icon: 'none' })
+    setTimeout(() => {
+      wx.reLaunch({ url: '/pages/family-select/family-select' })
+    }, 500)
+  },
   async loadMembers() {
     if (!this.data.familyId) {
       return
@@ -105,6 +119,10 @@ Page({
           }))
       })
     } catch (error) {
+      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
+        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+        return
+      }
       this.setData({ error: error.message || '加载家庭成员失败' })
     } finally {
       this.setData({ membersLoading: false })
@@ -212,6 +230,10 @@ Page({
         attackWarning: result.attackWarning || ''
       })
     } catch (error) {
+      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
+        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+        return
+      }
       this.setData({ error: error.message || 'AI 整理失败' })
     } finally {
       this.clearAiStatus()
@@ -254,6 +276,10 @@ Page({
       wx.showToast({ title: '已发送', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 500)
     } catch (error) {
+      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
+        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+        return
+      }
       this.setData({ error: error.message || '发送失败' })
     } finally {
       this.setData({ loading: false })

@@ -26,6 +26,7 @@
 2. User sets family identity: relationship, gender, child order, birth year, family nickname, preferred title, and identity note.
 3. Creator becomes family admin.
 4. Join requests require admin approval.
+5. If the locally selected family is no longer accessible, the mini program clears that family selection and returns the user to family selection.
 
 ## Message Flow
 
@@ -60,6 +61,7 @@
 - Edit global nickname/avatar.
 - Switch current family.
 - Returning to the family timeline after switching family reloads the timeline for the newly selected family.
+- If the current family becomes unavailable, the app returns to family selection instead of continuing to show stale family data.
 - Edit current family identity.
 - Enter family admin page when the current user is admin.
 

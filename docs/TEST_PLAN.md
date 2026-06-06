@@ -45,6 +45,7 @@ curl http://127.0.0.1:3000/health
 - Admin can approve the request and see applicant identity.
 - Approved member can enter the family timeline.
 - Switching current family from profile and returning to the timeline reloads messages for the newly selected family, not the previous family.
+- If the selected family is no longer accessible, timeline and message creation clear the stale family selection and return to family selection.
 
 ## Identity Checks
 

@@ -20,6 +20,7 @@ const VISIBILITY_TEXT = {
   family: '全家可见',
   self: '仅自己'
 }
+const FAMILY_CONTEXT_ERROR_CODES = new Set(['NOT_FAMILY_MEMBER'])
 
 function prepareMessage(item) {
   return {
@@ -52,8 +53,20 @@ Page({
     const currentFamily = auth.getCurrentFamily()
     const familyId = Number(currentFamily && currentFamily.id) || this.data.familyId
     this.setData({ currentFamily, familyId })
+    if (!familyId) {
+      this.exitInvalidFamily('请先选择家庭')
+      return
+    }
     this.refresh()
     this.loadUnreadCount()
+  },
+  exitInvalidFamily(message) {
+    auth.clearCurrentFamily()
+    getApp().setCurrentFamily(null)
+    wx.showToast({ title: message || '家庭状态已更新，请重新选择', icon: 'none' })
+    setTimeout(() => {
+      wx.reLaunch({ url: '/pages/family-select/family-select' })
+    }, 500)
   },
   async loadUnreadCount() {
     try {
@@ -71,6 +84,10 @@ Page({
         hasMore: result.pagination.page < result.pagination.totalPages
       })
     } catch (error) {
+      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
+        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+        return
+      }
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
@@ -101,6 +118,10 @@ Page({
     this.loadMore()
   },
   goCreate() {
+    if (!this.data.familyId) {
+      this.exitInvalidFamily('请先选择家庭')
+      return
+    }
     wx.navigateTo({ url: `/pages/message-create/message-create?familyId=${this.data.familyId}` })
   },
   goDetail(event) {
