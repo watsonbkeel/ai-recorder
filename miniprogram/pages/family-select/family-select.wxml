@@ -31,7 +31,7 @@
       <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
         <view class="input">性别：{{genderLabels[genderIndex]}}</view>
       </picker>
-      <input class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
+      <input wx:if="{{showChildOrder}}" class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
       <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
       <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
       <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />

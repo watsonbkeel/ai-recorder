@@ -4,10 +4,13 @@ const auth = require('../../utils/auth')
 const identity = require('../../utils/familyIdentity')
 
 function identityFormFromFamily(family) {
+  const relationship = family && family.relationship
+  const showChildOrder = identity.isChildRelationship(relationship)
   return {
-    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, family && family.relationship),
+    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, relationship),
+    showChildOrder,
     genderIndex: identity.optionIndex(identity.GENDER_OPTIONS, family && family.gender),
-    childOrder: family && family.childOrder ? String(family.childOrder) : '',
+    childOrder: showChildOrder && family && family.childOrder ? String(family.childOrder) : '',
     birthYear: family && family.birthYear ? String(family.birthYear) : '',
     familyNickname: family && family.familyNickname ? family.familyNickname : '',
     preferredTitle: family && family.preferredTitle ? family.preferredTitle : '',
@@ -27,6 +30,7 @@ Page({
     relationshipLabels: identity.RELATIONSHIP_LABELS,
     genderLabels: identity.GENDER_LABELS,
     relationshipIndex: 0,
+    showChildOrder: false,
     genderIndex: 0,
     childOrder: '',
     birthYear: '',
@@ -89,7 +93,14 @@ Page({
     this.setData({ avatarUrlInput: event.detail.value })
   },
   handleRelationshipChange(event) {
-    this.setData({ relationshipIndex: Number(event.detail.value) })
+    const relationshipIndex = Number(event.detail.value)
+    const relationship = identity.optionValue(identity.RELATIONSHIP_OPTIONS, relationshipIndex)
+    const showChildOrder = identity.isChildRelationship(relationship)
+    this.setData({
+      relationshipIndex,
+      showChildOrder,
+      childOrder: showChildOrder ? this.data.childOrder : ''
+    })
   },
   handleGenderChange(event) {
     this.setData({ genderIndex: Number(event.detail.value) })
@@ -158,7 +169,11 @@ Page({
       const families = this.data.families.map((item) => (item.id === updatedFamily.id ? updatedFamily : item))
       auth.setCurrentFamily(updatedFamily)
       getApp().setCurrentFamily(updatedFamily)
-      this.setData({ families, currentFamily: updatedFamily })
+      this.setData({
+        families,
+        currentFamily: updatedFamily,
+        ...identityFormFromFamily(updatedFamily)
+      })
       wx.showToast({ title: '家庭身份已保存', icon: 'success' })
     } catch (error) {
       this.setData({ error: error.message || '保存失败' })

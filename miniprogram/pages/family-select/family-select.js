@@ -14,6 +14,7 @@ Page({
     relationshipLabels: identity.RELATIONSHIP_LABELS,
     genderLabels: identity.GENDER_LABELS,
     relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, 'other'),
+    showChildOrder: false,
     genderIndex: identity.optionIndex(identity.GENDER_OPTIONS, 'unspecified'),
     childOrder: '',
     birthYear: '',
@@ -54,7 +55,14 @@ Page({
     this.setData({ createDescription: event.detail.value })
   },
   handleRelationshipChange(event) {
-    this.setData({ relationshipIndex: Number(event.detail.value) })
+    const relationshipIndex = Number(event.detail.value)
+    const relationship = identity.optionValue(identity.RELATIONSHIP_OPTIONS, relationshipIndex)
+    const showChildOrder = identity.isChildRelationship(relationship)
+    this.setData({
+      relationshipIndex,
+      showChildOrder,
+      childOrder: showChildOrder ? this.data.childOrder : ''
+    })
   },
   handleGenderChange(event) {
     this.setData({ genderIndex: Number(event.detail.value) })

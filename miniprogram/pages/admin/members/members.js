@@ -3,10 +3,13 @@ const identity = require('../../../utils/familyIdentity')
 const { handleFamilyAccessError } = require('../../../utils/familyAccess')
 
 function identityFormFromMember(member) {
+  const relationship = member && member.relationship
+  const showChildOrder = identity.isChildRelationship(relationship)
   return {
-    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, member && member.relationship),
+    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, relationship),
+    showChildOrder,
     genderIndex: identity.optionIndex(identity.GENDER_OPTIONS, member && member.gender),
-    childOrder: member && member.childOrder ? String(member.childOrder) : '',
+    childOrder: showChildOrder && member && member.childOrder ? String(member.childOrder) : '',
     birthYear: member && member.birthYear ? String(member.birthYear) : '',
     familyNickname: member && member.familyNickname ? member.familyNickname : '',
     preferredTitle: member && member.preferredTitle ? member.preferredTitle : '',
@@ -24,6 +27,7 @@ Page({
     relationshipLabels: identity.RELATIONSHIP_LABELS,
     genderLabels: identity.GENDER_LABELS,
     relationshipIndex: 0,
+    showChildOrder: false,
     genderIndex: 0,
     childOrder: '',
     birthYear: '',
@@ -71,7 +75,14 @@ Page({
     })
   },
   handleRelationshipChange(event) {
-    this.setData({ relationshipIndex: Number(event.detail.value) })
+    const relationshipIndex = Number(event.detail.value)
+    const relationship = identity.optionValue(identity.RELATIONSHIP_OPTIONS, relationshipIndex)
+    const showChildOrder = identity.isChildRelationship(relationship)
+    this.setData({
+      relationshipIndex,
+      showChildOrder,
+      childOrder: showChildOrder ? this.data.childOrder : ''
+    })
   },
   handleGenderChange(event) {
     this.setData({ genderIndex: Number(event.detail.value) })
