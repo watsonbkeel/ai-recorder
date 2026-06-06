@@ -10,10 +10,27 @@
 
 ## Auth
 
+- `POST /api/auth/wechat-login`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `PATCH /api/auth/me`
+
+Wechat login request:
+
+```json
+{
+  "code": "wx.login code",
+  "nickname": "家人",
+  "avatarUrl": "https://example.com/avatar.png"
+}
+```
+
+Rules:
+
+- Backend exchanges `code` through WeChat `jscode2session`.
+- `WECHAT_APPID` and `WECHAT_SECRET` must come from ignored local `server/.env`.
+- Account/password auth remains available for local debugging and fallback.
 
 ## Family
 

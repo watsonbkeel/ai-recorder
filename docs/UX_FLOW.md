@@ -16,8 +16,9 @@
 
 ## Login
 
-1. User registers or logs in with account name and password.
-2. After login, user enters family selection.
+1. User signs in with WeChat login. First WeChat login creates the user account automatically.
+2. Account name/password login remains available for local debugging and fallback.
+3. After login, user enters family selection.
 
 ## Family Setup
 

@@ -54,6 +54,39 @@ Page({
       this.setData({ loading: false })
     }
   },
+  async handleWechatLogin() {
+    if (!wx.login) {
+      wx.showToast({ title: '当前环境不支持微信登录', icon: 'none' })
+      return
+    }
+
+    this.setData({ loading: true, error: '' })
+    try {
+      const loginResult = await new Promise((resolve, reject) => {
+        wx.login({
+          success: resolve,
+          fail: reject
+        })
+      })
+      if (!loginResult.code) {
+        throw new Error('微信登录 code 获取失败')
+      }
+      const data = await authService.wechatLogin({
+        code: loginResult.code,
+        nickname: this.data.nickname.trim(),
+        avatarUrl: this.data.avatarUrl.trim()
+      })
+
+      auth.setSession(data.token, data.user)
+      getApp().setUser(data.user, data.token)
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      wx.reLaunch({ url: '/pages/family-select/family-select' })
+    } catch (error) {
+      this.setData({ error: error.message || '微信登录失败，可使用账号密码登录' })
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
   handleAccountInput(event) {
     this.setData({ accountName: event.detail.value })
   },

@@ -29,12 +29,14 @@ curl http://127.0.0.1:3000/health
 
 - `DATABASE_URL` uses `ai_recorder`.
 - `WECHAT_APPID` is `wxf73895336690e9a6`.
+- `WECHAT_SECRET` is configured only in ignored local `server/.env` before testing real WeChat login.
 - AI provider values are read from ignored `server/.env`.
 - No real GitHub PAT, AI key, or provider secret is tracked.
 
 ## Mini Program Checks
 
 - Login page appears by default.
+- User can sign in with WeChat login when `WECHAT_SECRET` is configured.
 - New user can register with account name, password, and nickname.
 - Existing user can log in.
 - User enters family selection after login.

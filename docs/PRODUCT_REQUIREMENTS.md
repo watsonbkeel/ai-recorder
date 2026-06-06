@@ -19,7 +19,7 @@ One-line description:
 
 ## MVP Features
 
-- Account registration and login.
+- WeChat login/register, with account/password login retained for local debugging and fallback.
 - Family space creation and invite-code join flow.
 - Admin approval for join requests.
 - Family identity fields: relationship, gender, child order, birth year, family nickname, preferred title, identity note.

@@ -1,8 +1,10 @@
 const crypto = require('crypto')
 const { promisify } = require('util')
+const axios = require('axios')
 const prisma = require('../utils/prisma')
 const { signToken } = require('../utils/jwt')
 const { createError } = require('../utils/errors')
+const { WECHAT_APPID, WECHAT_SECRET } = require('../config/env')
 
 const scryptAsync = promisify(crypto.scrypt)
 
@@ -39,8 +41,63 @@ function buildAuthResult(user) {
   }
 }
 
-async function wechatLogin() {
-  throw createError('WECHAT_LOGIN_DISABLED', '当前版本请使用账号名和密码登录', 400)
+async function fetchWechatSession(code) {
+  if (!WECHAT_APPID || !WECHAT_SECRET || WECHAT_SECRET === 'your_wechat_secret') {
+    throw createError('WECHAT_NOT_CONFIGURED', '微信登录未配置 WECHAT_APPID 或 WECHAT_SECRET', 503)
+  }
+
+  const response = await axios.get('https://api.weixin.qq.com/sns/jscode2session', {
+    timeout: 10000,
+    params: {
+      appid: WECHAT_APPID,
+      secret: WECHAT_SECRET,
+      js_code: code,
+      grant_type: 'authorization_code'
+    }
+  }).catch((error) => {
+    const status = error.response ? error.response.status : 502
+    throw createError('WECHAT_PROVIDER_FAILED', `微信登录服务调用失败: ${status}`, 502)
+  })
+
+  const data = response.data || {}
+  if (data.errcode) {
+    throw createError('WECHAT_PROVIDER_FAILED', data.errmsg || `微信登录失败: ${data.errcode}`, 502)
+  }
+  if (!data.openid) {
+    throw createError('WECHAT_PROVIDER_FAILED', '微信登录未返回 openid', 502)
+  }
+  return data
+}
+
+async function wechatLogin(payload) {
+  const code = String(payload.code || '').trim()
+  const nickname = String(payload.nickname || '').trim()
+  const avatarUrl = String(payload.avatarUrl || '').trim()
+
+  if (!code) {
+    throw createError('VALIDATION_ERROR', '微信登录 code 不能为空', 400)
+  }
+
+  const session = await fetchWechatSession(code)
+  const existingUser = await prisma.user.findUnique({ where: { wechatOpenid: session.openid } })
+  const updateData = {
+    ...(nickname ? { nickname } : {}),
+    ...(avatarUrl ? { avatarUrl } : {})
+  }
+  const user = existingUser
+    ? (Object.keys(updateData).length
+        ? await prisma.user.update({ where: { id: existingUser.id }, data: updateData })
+        : existingUser)
+    : await prisma.user.create({
+        data: {
+          wechatOpenid: session.openid,
+          nickname: nickname || '家人',
+          avatarUrl,
+          isGlobalAdmin: false
+        }
+      })
+
+  return buildAuthResult(user)
 }
 
 async function registerWithPassword(payload) {
