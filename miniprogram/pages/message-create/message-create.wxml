@@ -27,9 +27,9 @@
     <textarea class="textarea" placeholder="写下原话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput"></textarea>
 
     <view class="actions">
-      <button class="btn-secondary" disabled="{{loading || recording}}" bindtap="startRecord">开始录音</button>
+      <button class="btn-secondary" disabled="{{loading || aiLoading || recording}}" bindtap="startRecord">开始录音</button>
       <button class="btn-secondary" disabled="{{loading || !recording}}" bindtap="stopRecord">停止录音</button>
-      <button wx:if="{{audioTempPath}}" class="btn-secondary" disabled="{{loading}}" bindtap="playAudio">试听原声</button>
+      <button wx:if="{{audioTempPath}}" class="btn-secondary" disabled="{{loading || aiLoading || recording}}" bindtap="playAudio">试听原声</button>
     </view>
     <view wx:if="{{audioTempPath}}" class="muted">已录制语音，发送时会上传。当前版本不会自动转写语音，AI 整理需要你先写下文字原话或大意。</view>
 
@@ -41,7 +41,7 @@
       <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
     </view>
 
-    <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading}}" bindtap="optimize">AI 帮我整理文字表达</button>
+    <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{loading || aiLoading || recording}}" bindtap="optimize">AI 帮我整理文字表达</button>
     <view wx:if="{{aiStatusText}}" class="ai-status">{{aiStatusText}}</view>
   </view>
 
@@ -62,7 +62,7 @@
       <view>允许对方播放原始语音</view>
       <switch checked="{{allowOriginalAudioPlay}}" bindchange="handleAudioPermission"></switch>
     </view>
-    <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="submit">{{visibilityIndex === 2 ? '保存心声' : '发送心声'}}</button>
+    <button class="btn-primary" loading="{{loading}}" disabled="{{loading || aiLoading || recording}}" bindtap="submit">{{visibilityIndex === 2 ? '保存心声' : '发送心声'}}</button>
   </view>
 
   <view wx:if="{{error}}" class="error">{{error}}</view>

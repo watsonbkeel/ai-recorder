@@ -45,6 +45,9 @@ Page({
     this.setData({ identityNote: event.detail.value })
   },
   async submit() {
+    if (this.data.loading) {
+      return
+    }
     const inviteCode = this.data.inviteCode.trim()
     if (!inviteCode) {
       wx.showToast({ title: '请输入邀请码', icon: 'none' })

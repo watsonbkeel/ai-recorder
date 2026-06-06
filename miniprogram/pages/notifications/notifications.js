@@ -36,6 +36,9 @@ function prepareNotification(item) {
 Page({
   data: {
     loading: true,
+    markingAllRead: false,
+    markingReadId: null,
+    openingId: null,
     error: '',
     items: []
   },
@@ -54,55 +57,64 @@ Page({
     }
   },
   async markRead(event) {
+    const id = event.currentTarget.dataset.id
+    if (!id || this.data.markingReadId || this.data.openingId) {
+      return
+    }
+    this.setData({ markingReadId: id, error: '' })
     try {
-      await notificationService.markRead(event.currentTarget.dataset.id)
+      await notificationService.markRead(id)
       this.loadData()
     } catch (error) {
       this.setData({ error: error.message || '标记失败' })
+    } finally {
+      this.setData({ markingReadId: null })
     }
   },
   async openNotification(event) {
     const item = event.currentTarget.dataset.item
-    if (!item) {
+    if (!item || this.data.openingId || this.data.markingAllRead) {
       return
     }
+    this.setData({ openingId: item.id, error: '' })
 
-    if (!item.isRead) {
-      try {
+    try {
+      if (!item.isRead) {
         await notificationService.markRead(item.id)
-      } catch (error) {
-        this.setData({ error: error.message || '标记失败' })
+      }
+
+      if (item.messageId) {
+        wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}` })
         return
       }
-    }
 
-    if (item.messageId) {
-      wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}` })
-      return
-    }
+      if (item.type === 'family_join_requested' && item.familyId) {
+        wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${item.familyId}` })
+        return
+      }
 
-    if (item.type === 'family_join_requested' && item.familyId) {
-      wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${item.familyId}` })
-      return
-    }
+      if (item.type === 'join_request_approved' && item.familyId) {
+        await this.enterApprovedFamily(item.familyId)
+        return
+      }
 
-    if (item.type === 'join_request_approved' && item.familyId) {
-      await this.enterApprovedFamily(item.familyId)
-      return
-    }
+      if (item.type === 'join_request_rejected') {
+        wx.showModal({
+          title: item.title || '申请结果',
+          content: item.content || '管理员暂未通过你的入家申请。',
+          showCancel: false
+        })
+        this.loadData()
+        return
+      }
 
-    if (item.type === 'join_request_rejected') {
-      wx.showModal({
-        title: item.title || '申请结果',
-        content: item.content || '管理员暂未通过你的入家申请。',
-        showCancel: false
-      })
+      wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
       this.loadData()
-      return
+    } catch (error) {
+      this.setData({ error: error.message || '打开通知失败' })
+    } finally {
+      this.setData({ openingId: null })
     }
-
-    wx.showToast({ title: '这条通知暂无可打开内容', icon: 'none' })
-    this.loadData()
   },
   async enterApprovedFamily(familyId) {
     this.setData({ loading: true, error: '' })
@@ -125,12 +137,18 @@ Page({
     }
   },
   async markAllRead() {
+    if (this.data.markingAllRead || this.data.loading) {
+      return
+    }
+    this.setData({ markingAllRead: true, error: '' })
     try {
       await notificationService.markAllRead()
       wx.showToast({ title: '已全部标记', icon: 'success' })
       this.loadData()
     } catch (error) {
       this.setData({ error: error.message || '标记失败' })
+    } finally {
+      this.setData({ markingAllRead: false })
     }
   }
 })

@@ -6,6 +6,7 @@ Page({
   data: {
     loading: true,
     creating: false,
+    selectingFamilyId: null,
     error: '',
     families: [],
     createName: '',
@@ -21,6 +22,7 @@ Page({
     identityNote: ''
   },
   onShow() {
+    this.setData({ selectingFamilyId: null })
     this.loadFamilies()
   },
   async loadFamilies() {
@@ -63,6 +65,10 @@ Page({
   },
   selectFamily(event) {
     const currentFamily = event.currentTarget.dataset.item
+    if (!currentFamily || this.data.selectingFamilyId) {
+      return
+    }
+    this.setData({ selectingFamilyId: currentFamily.id })
     auth.setCurrentFamily(currentFamily)
     getApp().setCurrentFamily(currentFamily)
     wx.navigateTo({ url: `/pages/message-list/message-list?familyId=${currentFamily.id}` })
@@ -71,6 +77,9 @@ Page({
     wx.navigateTo({ url: '/pages/join-family/join-family' })
   },
   async createFamily() {
+    if (this.data.creating) {
+      return
+    }
     const name = this.data.createName.trim()
     if (!name) {
       wx.showToast({ title: '请输入家庭名称', icon: 'none' })

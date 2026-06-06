@@ -75,6 +75,13 @@ Page({
   },
   onUnload() {
     this.clearAiStatus(false)
+    if (this.data.recording && recorder) {
+      recorder.stop()
+    }
+    if (audio) {
+      audio.stop()
+      audio.destroy()
+    }
   },
   startAiStatus() {
     this.clearAiStatus(false)
@@ -175,22 +182,30 @@ Page({
     this.setData({ useFamilyMemory: event.detail.value })
   },
   startRecord() {
+    if (this.data.recording || this.data.loading || this.data.aiLoading) {
+      return
+    }
     if (!recorder) {
       wx.showToast({ title: '当前环境不支持录音', icon: 'none' })
       return
     }
-    this.setData({ recording: true, error: '' })
-    recorder.start({ duration: 120000, format: 'mp3' })
+    this.setData({ recording: true, audioTempPath: '', audioDurationSec: 0, error: '' })
+    try {
+      recorder.start({ duration: 120000, format: 'mp3' })
+    } catch (error) {
+      this.setData({ recording: false, error: '录音启动失败，请重试' })
+    }
   },
   stopRecord() {
-    if (recorder) {
+    if (recorder && this.data.recording) {
       recorder.stop()
     }
   },
   playAudio() {
-    if (!audio || !this.data.audioTempPath) {
+    if (!audio || !this.data.audioTempPath || this.data.recording) {
       return
     }
+    audio.stop()
     audio.src = this.data.audioTempPath
     audio.play()
   },
@@ -205,6 +220,9 @@ Page({
     return this.data.selectedReceiverIds
   },
   async optimize() {
+    if (this.data.aiLoading || this.data.loading || this.data.recording) {
+      return
+    }
     if (!this.data.originalText.trim()) {
       wx.showToast({ title: '请先写下文字原话或语音大意', icon: 'none' })
       return
@@ -241,6 +259,9 @@ Page({
     }
   },
   async submit() {
+    if (this.data.loading || this.data.aiLoading || this.data.recording) {
+      return
+    }
     const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
     const receiverIds = this.effectiveReceiverIds()
     const originalText = this.data.originalText.trim()
