@@ -125,6 +125,28 @@ function uploadedFilePathFromUrl(url) {
   return filePath
 }
 
+function listFiles(dir) {
+  if (!fs.existsSync(dir)) {
+    return []
+  }
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name)
+    return entry.isDirectory() ? listFiles(fullPath) : [fullPath]
+  })
+}
+
+function removeEmptyUploadDirsFrom(filePath) {
+  let current = path.dirname(filePath)
+  while (current !== UPLOAD_DIR_ABS && current.startsWith(`${UPLOAD_DIR_ABS}${path.sep}`)) {
+    try {
+      fs.rmdirSync(current)
+    } catch (error) {
+      break
+    }
+    current = path.dirname(current)
+  }
+}
+
 function lastAiPayload(message) {
   const call = aiCalls[aiCalls.length - 1]
   assert(call, `${message}: expected AI call`)
@@ -260,6 +282,7 @@ async function main() {
     uploadedAudioFile = uploadedFilePathFromUrl(uploadedAudio.url)
     assert(fs.existsSync(uploadedAudioFile), 'uploaded audio file should exist on disk for message creation')
 
+    const audioFilesBeforeOversize = new Set(listFiles(path.join(UPLOAD_DIR_ABS, 'audio')))
     const tooLargeAudioError = await uploadFixtureExpectError(
       smokeBaseUrl,
       adminAuth.token,
@@ -271,6 +294,12 @@ async function main() {
     assertEqual(tooLargeAudioError.code, 'UPLOAD_ERROR', 'oversized audio should return upload error code')
     assert(tooLargeAudioError.message.includes('20MB'), 'oversized audio should mention 20MB limit')
     assert(!tooLargeAudioError.message.includes('图片'), 'oversized audio error should not use image-only wording')
+    listFiles(path.join(UPLOAD_DIR_ABS, 'audio'))
+      .filter((file) => !audioFilesBeforeOversize.has(file) && file !== uploadedAudioFile)
+      .forEach((file) => {
+        fs.rmSync(file, { force: true })
+        removeEmptyUploadDirsFrom(file)
+      })
 
     const message = await messageService.createMessage(adminId, familyId, {
       receiverIds: [memberId],
@@ -502,6 +531,7 @@ async function main() {
     }
     if (uploadedAudioFile) {
       fs.rmSync(uploadedAudioFile, { force: true })
+      removeEmptyUploadDirsFrom(uploadedAudioFile)
     }
     if (smokeServer) {
       await new Promise((resolve) => smokeServer.close(resolve))
