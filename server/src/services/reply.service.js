@@ -138,6 +138,9 @@ async function deleteReply(userId, replyId) {
   if (!reply) {
     throw createError('NOT_FOUND', '回复不存在', 404)
   }
+  if (reply.status !== 'visible') {
+    throw createError('CONTENT_NOT_VISIBLE', '回复不可见', 404)
+  }
   await ensureFamilyMember(userId, reply.familyId)
   if (reply.senderId !== Number(userId)) {
     throw createError('FORBIDDEN', '只能删除自己的回复', 403)

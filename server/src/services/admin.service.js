@@ -325,6 +325,9 @@ async function hideMessage(adminUserId, messageId, payload) {
   if (!message) {
     throw createError('NOT_FOUND', '心声不存在', 404)
   }
+  if (message.status !== 'visible') {
+    throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
+  }
   await ensureFamilyAdmin(adminUserId, message.familyId)
 
   return prisma.$transaction(async (tx) => {
@@ -350,6 +353,9 @@ async function hideReply(adminUserId, replyId, payload) {
   const reply = await prisma.familyReply.findUnique({ where: { id: Number(replyId) } })
   if (!reply) {
     throw createError('NOT_FOUND', '回复不存在', 404)
+  }
+  if (reply.status !== 'visible') {
+    throw createError('CONTENT_NOT_VISIBLE', '回复不可见', 404)
   }
   await ensureFamilyAdmin(adminUserId, reply.familyId)
 
