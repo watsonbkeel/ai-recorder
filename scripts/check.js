@@ -123,16 +123,24 @@ function checkTrackedLocalArtifacts() {
 
   for (const file of gitTrackedFiles()) {
     const basename = path.basename(file)
+    const isEnvLike = (
+      basename === '.env' ||
+      basename.startsWith('.env.')
+    )
     const isEnvFile = (
-      file === '.env' ||
-      file === 'server/.env' ||
-      /\.env\.local$/.test(file) ||
-      /\.env\..*\.local$/.test(file)
+      isEnvLike &&
+      basename !== '.env.example'
     )
     const isUpload = file.startsWith('server/uploads/') && file !== 'server/uploads/.gitkeep'
     const isRuntimeArtifact = (
       file.startsWith('uploads/') ||
+      file.startsWith('node_modules/') ||
+      file.startsWith('server/node_modules/') ||
+      file.startsWith('miniprogram/miniprogram_npm/') ||
       file.includes('/node_modules/') ||
+      file.startsWith('.omo/') ||
+      file === 'chat-history.md' ||
+      file === 'class-diary-history.md' ||
       file === 'miniprogram/project.private.config.json' ||
       file === 'miniprogram/utils/config.local.js' ||
       basename === '.DS_Store' ||

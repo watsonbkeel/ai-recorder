@@ -1,14 +1,19 @@
 # Environment files
 .env
 .env.local
+.env.*
+!.env.example
 .env.*.local
 server/.env
 server/.env.local
+server/.env.*
+!server/.env.example
 server/.env.*.local
 
 # Dependencies
 node_modules/
 server/node_modules/
+miniprogram/miniprogram_npm/
 
 # Local agent/runtime state
 .omo/
