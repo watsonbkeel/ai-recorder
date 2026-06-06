@@ -80,6 +80,7 @@ wx.removeStorageSync('AI_RECORDER_LOCAL_CONFIG')
 
 ## Mac Acceptance Checks
 
+- `npm run smoke:core` passes after MySQL is running and Prisma migrations are applied.
 - `npm run check` passes from the repository root.
 - WeChat login works after a real `WECHAT_SECRET` is configured.
 - Account/password login and registration still work as the local fallback.

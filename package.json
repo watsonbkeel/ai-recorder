@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "smoke:core": "node scripts/smoke-core.js"
   }
 }
