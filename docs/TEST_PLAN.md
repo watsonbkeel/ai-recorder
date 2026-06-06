@@ -74,7 +74,7 @@ curl http://127.0.0.1:3000/health
 - Oversized voice/image uploads return a clear upload-size error instead of image-only copy.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
 - AI message optimization refuses audio-only input unless the user also writes original text or a voice summary.
-- AI can generate optimized text, emotion tags, core need, advice, and risk level.
+- AI can generate optimized text, emotion tags, core need, expression tips, and backend risk level.
 - AI waiting states show staged status copy instead of leaving the user staring at a blank loading state.
 - While AI is optimizing a message or reply, the original input remains editable.
 - User can disable family memory before AI optimization.

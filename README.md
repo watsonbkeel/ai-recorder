@@ -5,7 +5,7 @@
 ## 关键边界
 
 - 默认数据库：`ai_recorder`
-- 小程序 AppID：`wxf`
+- 小程序 AppID：`wxf73895336690e9a6`
 - 旧项目只作为代码模板，不共享运行数据、用户身份、上传文件、迁移历史、前端入口、管理流程、API 或 AI 记忆。
 - 没有举报功能。
 - 密钥只放本地 `server/.env`，不能提交。
@@ -80,6 +80,7 @@ npm run smoke:core
 - `docs/API_SPEC.md`: API 规格。
 - `docs/AI_CONSTRAINTS.md`: AI 和家庭记忆约束。
 - `docs/DATABASE_SCHEMA.md`: 数据库模型。
+- `docs/FRONTEND_DESIGN.md`: 基于 loading 图的前端视觉规范。
 - `docs/MAC_HANDOFF.md`: Mac/微信开发者工具真实联调交接清单。
 - `docs/PERMISSION_MODEL.md`: 权限和隐私规则。
 - `docs/UX_FLOW.md`: 小程序流程。
