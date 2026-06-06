@@ -1,5 +1,6 @@
 const adminService = require('../../../services/admin')
 const identity = require('../../../utils/familyIdentity')
+const { handleFamilyAccessError } = require('../../../utils/familyAccess')
 
 function identityFormFromMember(member) {
   return {
@@ -48,6 +49,9 @@ Page({
         }))
       })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
@@ -106,6 +110,9 @@ Page({
       this.setData({ editingMember: null })
       this.loadData()
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '保存失败' })
     } finally {
       this.setData({ savingIdentity: false })
@@ -121,6 +128,9 @@ Page({
       await adminService.updateMute(this.data.familyId, item.userId, { isMuted: !item.isMuted })
       this.loadData()
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '操作失败' })
     } finally {
       this.setData({ handlingMemberId: null, handlingAction: '' })
@@ -137,6 +147,9 @@ Page({
       await adminService.updateRole(this.data.familyId, item.userId, { role })
       this.loadData()
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '操作失败' })
     } finally {
       this.setData({ handlingMemberId: null, handlingAction: '' })
@@ -160,6 +173,9 @@ Page({
           await adminService.removeMember(this.data.familyId, item.userId, { reason: '管理员移除成员' })
           this.loadData()
         } catch (error) {
+          if (handleFamilyAccessError(error, this.data.familyId)) {
+            return
+          }
           this.setData({ error: error.message || '移除失败' })
         } finally {
           this.setData({ handlingMemberId: null, handlingAction: '' })

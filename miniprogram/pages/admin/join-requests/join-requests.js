@@ -1,6 +1,7 @@
 const adminService = require('../../../services/admin')
 const format = require('../../../utils/format')
 const { identitySummary } = require('../../../utils/familyIdentity')
+const { handleFamilyAccessError } = require('../../../utils/familyAccess')
 
 Page({
   data: {
@@ -27,6 +28,9 @@ Page({
         }))
       })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
@@ -47,6 +51,9 @@ Page({
       wx.showToast({ title: '处理成功', icon: 'success' })
       this.loadData()
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '处理失败' })
     } finally {
       this.setData({ handlingRequestId: null, handlingAction: '' })

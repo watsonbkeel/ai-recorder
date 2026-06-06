@@ -1,5 +1,6 @@
 const adminService = require('../../../services/admin')
 const auth = require('../../../utils/auth')
+const { handleFamilyAccessError } = require('../../../utils/familyAccess')
 
 Page({
   data: {
@@ -23,6 +24,9 @@ Page({
       const stats = await adminService.getDashboard(this.data.familyId)
       this.setData({ stats, currentFamily: auth.getCurrentFamily() })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
