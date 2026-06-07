@@ -1,7 +1,7 @@
 <view class="page">
   <view class="card hero-card">
     <view class="title">写给家人</view>
-    <view class="sub-title">可以直接打字，也可以录下原声；发送时会自动整理成家人更容易听见的表达。</view>
+    <view class="sub-title">写下你想说的话，发送时会自动整理成家人更容易听见的表达。</view>
 
     <picker mode="selector" range="{{visibilityLabels}}" value="{{visibilityIndex}}" bindchange="handleVisibilityChange">
       <view class="input">留言范围：{{visibilityLabels[visibilityIndex]}}</view>
@@ -33,24 +33,16 @@
       <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
         <view class="composer-type">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
       </picker>
-      <textarea class="composer-textarea {{inputMode === 'voice' ? 'readonly' : ''}}" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput" disabled="{{inputMode === 'voice' || transcribing}}"></textarea>
+      
+      <textarea class="composer-textarea" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput" disabled="{{loading || aiLoading}}"></textarea>
+      
       <view class="chat-composer">
-        <button class="mode-toggle" disabled="{{loading || aiLoading || transcribing}}" bindtap="toggleInputMode">{{inputMode === 'voice' ? '字' : '声'}}</button>
-        <view wx:if="{{inputMode === 'voice'}}" class="hold-voice {{recording ? 'hold-voice-active' : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}" bindtouchstart="handleVoiceTouchStart" bindtouchend="handleVoiceTouchEnd" bindtouchcancel="handleVoiceTouchCancel">
-          {{recording ? '松手保存这段留声' : (transcribing ? '正在处理留声' : '按住说话')}}
-        </view>
-        <view wx:else class="composer-spacer"></view>
-        <button class="composer-save" loading="{{loading || aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="submit">{{aiLoading ? '整理中' : '保存'}}</button>
+        <view class="composer-spacer"></view>
+        <button class="composer-save" loading="{{aiLoading}}" disabled="{{loading || aiLoading}}" bindtap="optimize">{{aiLoading ? '整理中' : '生成预览'}}</button>
       </view>
-      <view class="composer-hint">{{inputMode === 'voice' ? '按住说话，松手后会自动上传原声并转成文字。' : '文字会先由 AI 整理成更容易被家人听见的暖心表达。'}}</view>
-    </view>
 
-    <view class="voice-actions" wx:if="{{audioTempPath}}">
-      <button class="btn-secondary" loading="{{playingAudio}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="playAudio">{{playingAudio ? '试听中' : '试听原声'}}</button>
+      <view class="composer-hint">文字会先由 AI 整理成更容易被家人听见的暖心表达。</view>
     </view>
-    <view wx:if="{{recording}}" class="voice-chip">正在留声</view>
-    <view wx:if="{{transcribeStatus}}" class="voice-note">{{transcribeStatus}}</view>
-    <view wx:elif="{{audioTempPath && !recording}}" class="voice-note">已录制语音，原声会随留言一起保留。</view>
 
     <view class="row-between memory-row">
       <view>
@@ -63,10 +55,11 @@
     <view wx:if="{{aiStatusText}}" class="ai-status">{{aiStatusText}}</view>
   </view>
 
-  <view wx:if="{{originalText || optimizedText || audioTempPath}}" class="card">
+  <view wx:if="{{optimizedText}}" class="card">
     <view class="title">发送前表达</view>
     <view class="sub-title">发送时默认会自动整理原文；你也可以提前改成自己认可的整理版。</view>
     <textarea class="textarea" placeholder="可选：提前修改整理后的暖心表达" value="{{optimizedText}}" bindinput="handleOptimizedInput"></textarea>
+    
     <view wx:if="{{emotionTags.length}}">
       <text wx:for="{{emotionTags}}" wx:key="*this" class="tag">{{item}}</text>
     </view>
@@ -81,10 +74,7 @@
       <view>允许对方看原始文字</view>
       <switch checked="{{allowOriginalTextView}}" bindchange="handleTextPermission"></switch>
     </view>
-    <view wx:if="{{visibilityIndex !== 2 && audioTempPath}}" class="row-between" style="margin-top:16rpx;">
-      <view>允许对方播放原始语音</view>
-      <switch checked="{{allowOriginalAudioPlay}}" bindchange="handleAudioPermission"></switch>
-    </view>
+    <button class="btn-submit" loading="{{loading}}" disabled="{{loading || aiLoading}}" bindtap="submit">确认发送给家人</button>
   </view>
 
   <view wx:if="{{error}}" class="error">{{error}}</view>
