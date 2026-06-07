@@ -78,12 +78,13 @@ function shouldRetryWithoutResponseFormat(error) {
   return /response_format|json_object|unsupported|not support|invalid/i.test(data)
 }
 
-async function requestChatCompletion(systemPrompt, userPayload, useJsonResponseFormat) {
+async function requestChatCompletion(systemPrompt, userPayload, useJsonResponseFormat, useStream = false) {
   assertConfigured()
   const baseUrl = OPENAI_BASE_URL.replace(/\/$/, '')
   const response = await axios.post(`${baseUrl}/chat/completions`, {
     model: OPENAI_MODEL,
     temperature: 0.2,
+    ...(useStream ? { stream: true } : {}),
     ...(useJsonResponseFormat ? { response_format: { type: 'json_object' } } : {}),
     messages: [
       { role: 'system', content: systemPrompt },
@@ -99,26 +100,142 @@ async function requestChatCompletion(systemPrompt, userPayload, useJsonResponseF
   return response
 }
 
+function parseSseContent(data) {
+  if (typeof data !== 'string' || !/^data:/m.test(data)) {
+    return ''
+  }
+  const chunks = []
+  data.split('\n').forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('data:')) {
+      return
+    }
+    const payload = trimmed.slice(5).trim()
+    if (!payload || payload === '[DONE]') {
+      return
+    }
+    try {
+      const parsed = JSON.parse(payload)
+      const choice = Array.isArray(parsed.choices) ? parsed.choices[0] : null
+      const message = choice ? (choice.delta || choice.message) : null
+      const content = message ? message.content : ''
+      if (typeof content === 'string') {
+        chunks.push(content)
+      } else if (Array.isArray(content)) {
+        chunks.push(content.map(extractContentPart).filter(Boolean).join(''))
+      }
+    } catch (error) {
+      // Ignore malformed SSE keepalive chunks.
+    }
+  })
+  return chunks.join('')
+}
+
+function parseProviderData(data) {
+  if (typeof data !== 'string') {
+    return data
+  }
+  const trimmed = data.trim()
+  if (!trimmed) {
+    return data
+  }
+  try {
+    return JSON.parse(trimmed)
+  } catch (error) {
+    return {
+      choices: [{
+        message: { content: trimmed }
+      }]
+    }
+  }
+}
+
+function extractContentPart(part) {
+  if (!part) {
+    return ''
+  }
+  if (typeof part === 'string') {
+    return part
+  }
+  if (typeof part.text === 'string') {
+    return part.text
+  }
+  if (part.text && typeof part.text.value === 'string') {
+    return part.text.value
+  }
+  if (typeof part.content === 'string') {
+    return part.content
+  }
+  return ''
+}
+
+function extractChatContent(data) {
+  const sseContent = parseSseContent(data)
+  if (sseContent) {
+    return sseContent
+  }
+  if (typeof data === 'string' && /^data:/m.test(data)) {
+    return ''
+  }
+
+  const parsed = parseProviderData(data)
+  if (typeof parsed === 'string') {
+    return parsed
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return ''
+  }
+  if (typeof parsed.output_text === 'string') {
+    return parsed.output_text
+  }
+  if (typeof parsed.text === 'string') {
+    return parsed.text
+  }
+
+  const choice = Array.isArray(parsed.choices) ? parsed.choices[0] : null
+  const message = choice && choice.message ? choice.message : null
+  if (!message) {
+    return ''
+  }
+  if (typeof message.content === 'string') {
+    return message.content
+  }
+  if (Array.isArray(message.content)) {
+    return message.content.map(extractContentPart).filter(Boolean).join('\n')
+  }
+  return extractContentPart(message.content)
+}
+
 async function callOpenAI(systemPrompt, userPayload) {
   let response
   try {
-    response = await requestChatCompletion(systemPrompt, userPayload, true)
+    response = await requestChatCompletion(systemPrompt, userPayload, true, true)
   } catch (error) {
     if (!shouldRetryWithoutResponseFormat(error)) {
       const status = error.response ? error.response.status : 502
       throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
     }
     try {
-      response = await requestChatCompletion(systemPrompt, userPayload, false)
+      response = await requestChatCompletion(systemPrompt, userPayload, false, true)
     } catch (retryError) {
       const status = retryError.response ? retryError.response.status : 502
       throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
     }
   }
 
-  const content = response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message
-    ? response.data.choices[0].message.content
-    : ''
+  let content = extractChatContent(response.data)
+  if (!content) {
+    try {
+      response = await requestChatCompletion(systemPrompt, userPayload, true)
+    } catch (error) {
+      if (!shouldRetryWithoutResponseFormat(error)) {
+        const status = error.response ? error.response.status : 502
+        throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
+      }
+      response = await requestChatCompletion(systemPrompt, userPayload, false)
+    }
+    content = extractChatContent(response.data)
+  }
   return extractJson(content)
 }
 

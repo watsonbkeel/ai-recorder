@@ -23,6 +23,7 @@ const AI_STATUS_STEPS = [
   '正在整理成更容易被家人听见的表达...',
   '快好了，正在保留你的本意和边界...'
 ]
+const MIN_RECORD_DURATION_MS = 800
 
 function mergeTranscribedText(currentText, transcribedText) {
   const current = String(currentText || '').trim()
@@ -53,6 +54,7 @@ Page({
     messageTypeLabels: MESSAGE_TYPE_LABELS,
     originalText: '',
     optimizedText: '',
+    inputMode: 'text',
     emotionTags: [],
     coreNeed: '',
     aiAdvice: '',
@@ -84,16 +86,15 @@ Page({
     this.loadMembers()
     if (recorder) {
       this.handleRecorderStop = (res) => {
-        this.setData({
-          audioTempPath: res.tempFilePath,
-          audioDurationSec: Math.round((res.duration || 0) / 1000),
-          recording: false,
-          uploadedAudioUrl: ''
-        })
-        this.uploadAndTranscribeAudio(res.tempFilePath)
+        this.handleRecordStop(res)
       }
       this.handleRecorderError = () => {
-        this.setData({ recording: false, error: '录音失败，请重试' })
+        this.voicePressActive = false
+        this.setData({
+          recording: false,
+          transcribeStatus: '录音没有保存成功，请重新按住说话。',
+          error: '录音失败，请重试'
+        })
       }
       recorder.onStop(this.handleRecorderStop)
       recorder.onError(this.handleRecorderError)
@@ -251,6 +252,19 @@ Page({
   handleMemorySwitch(event) {
     this.setData({ useFamilyMemory: event.detail.value })
   },
+  toggleInputMode() {
+    if (this.data.loading || this.data.aiLoading || this.data.transcribing) {
+      return
+    }
+    if (this.data.recording) {
+      this.stopRecord()
+      return
+    }
+    this.setData({
+      inputMode: this.data.inputMode === 'voice' ? 'text' : 'voice',
+      error: ''
+    })
+  },
   async requestOpenRecordSetting() {
     const shouldOpenSetting = await new Promise((resolve) => {
       wx.showModal({
@@ -323,14 +337,21 @@ Page({
     if (!hasPermission) {
       return
     }
+    if (!this.voicePressActive) {
+      return
+    }
+    this.recordStartedAt = Date.now()
     this.setData({
       recording: true, audioTempPath: '', audioDurationSec: 0, allowOriginalAudioPlay: false,
       uploadedAudioUrl: '',
-      transcribeStatus: '',
+      transcribeStatus: '正在录音，松手保存这段留声。',
       error: ''
     })
     try {
       recorder.start({ duration: 120000, format: 'mp3' })
+      if (!this.voicePressActive) {
+        recorder.stop()
+      }
     } catch (error) {
       this.setData({ recording: false, error: '录音启动失败，请重试' })
     }
@@ -340,12 +361,64 @@ Page({
       recorder.stop()
     }
   },
-  toggleRecord() {
-    if (this.data.recording) {
-      this.stopRecord()
-    } else {
-      this.startRecord()
+  handleVoiceTouchStart() {
+    if (this.data.inputMode !== 'voice' || this.data.transcribing) {
+      return
     }
+    this.voicePressActive = true
+    this.startRecord()
+  },
+  handleVoiceTouchEnd() {
+    if (this.data.inputMode !== 'voice') {
+      return
+    }
+    this.voicePressActive = false
+    if (this.data.recording) {
+      this.setData({ transcribeStatus: '正在保存这段留声...' })
+      this.stopRecord()
+    }
+  },
+  handleVoiceTouchCancel() {
+    this.voicePressActive = false
+    if (this.data.recording) {
+      this.setData({ transcribeStatus: '录音已结束，正在保存...' })
+      this.stopRecord()
+    }
+  },
+  handleRecordStop(res) {
+    this.voicePressActive = false
+    const durationMs = Number(res.duration || 0) || Math.max(0, Date.now() - (this.recordStartedAt || Date.now()))
+    this.recordStartedAt = 0
+    if (!res.tempFilePath) {
+      this.setData({
+        recording: false,
+        transcribeStatus: '没有保存到有效录音，请重新按住说话。',
+        error: '录音保存失败，请重试'
+      })
+      return
+    }
+    if (durationMs < MIN_RECORD_DURATION_MS) {
+      this.setData({
+        audioTempPath: '',
+        uploadedAudioUrl: '',
+        audioDurationSec: 0,
+        recording: false,
+        transcribeStatus: '这段留声太短了，请按住多说一会儿。',
+        error: '录音时间太短'
+      })
+      return
+    }
+    const canShareAudio = VISIBILITIES[this.data.visibilityIndex] !== 'self'
+    this.setData({
+      audioTempPath: res.tempFilePath,
+      audioDurationSec: Math.max(1, Math.round(durationMs / 1000)),
+      recording: false,
+      uploadedAudioUrl: '',
+      allowOriginalAudioPlay: canShareAudio,
+      transcribeStatus: '原声已保存，正在上传并转成文字...',
+      error: ''
+    })
+    this.uploadAndTranscribeAudio(res.tempFilePath)
   },
   async uploadAndTranscribeAudio(filePath) {
     if (!filePath) {
@@ -353,15 +426,32 @@ Page({
     }
     this.setData({
       transcribing: true,
-      transcribeStatus: '正在上传录音并转成文字...',
+      transcribeStatus: '正在上传这段留声...',
       error: ''
     })
+    let uploaded
     try {
-      const uploaded = await uploadService.uploadAudio(filePath)
+      uploaded = await uploadService.uploadAudio(filePath)
+    } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({
-        uploadedAudioUrl: uploaded.url,
-        transcribeStatus: '正在识别录音里的文字...'
+        transcribeStatus: '原声已保留在本机，上传暂时失败。保存时会再试一次，也可以稍后重新录。',
+        error: error.message || '录音上传失败，请检查网络后重试'
       })
+      return
+    } finally {
+      if (!uploaded) {
+        this.setData({ transcribing: false })
+      }
+    }
+
+    this.setData({
+      uploadedAudioUrl: uploaded.url,
+      transcribeStatus: '正在把留声转成文字...'
+    })
+    try {
       const result = await aiService.transcribeAudio({
         familyId: this.data.familyId,
         audioUrl: uploaded.url
@@ -375,7 +465,7 @@ Page({
         return
       }
       this.setData({
-        transcribeStatus: '语音已保留，转文字暂时失败。可以先手动输入文字后发送。',
+        transcribeStatus: '原声已保存，转文字暂时失败。可以切回文字，手动补充后继续保存。',
         error: error.message || '语音转文字失败，请先手动输入文字'
       })
     } finally {
@@ -466,10 +556,11 @@ Page({
       await this.optimize()
       return Boolean(this.data.optimizedText.trim())
     } catch (error) {
+      const reason = error && error.message ? `失败原因：${error.message}` : 'AI 暂时没有整理成功。'
       const shouldSendRaw = await new Promise((resolve) => {
         wx.showModal({
           title: 'AI 整理暂时失败',
-          content: '录音和原文已保留。你可以稍后重试，或先按当前文字发送。',
+          content: `${reason}\n\n录音和原文已保留。你可以稍后重试，或先按当前文字保存。`,
           confirmText: '按原文发送',
           cancelText: '先不发送',
           confirmColor: '#df7d62',

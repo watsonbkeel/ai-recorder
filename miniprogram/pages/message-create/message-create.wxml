@@ -29,14 +29,23 @@
       </view>
     </block>
 
-    <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
-      <view class="input">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
-    </picker>
-    <textarea class="textarea" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput"></textarea>
+    <view class="composer-card">
+      <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
+        <view class="composer-type">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
+      </picker>
+      <view class="chat-composer">
+        <button class="mode-toggle" disabled="{{loading || aiLoading || transcribing}}" bindtap="toggleInputMode">{{inputMode === 'voice' ? '字' : '声'}}</button>
+        <textarea wx:if="{{inputMode === 'text'}}" class="composer-textarea" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput"></textarea>
+        <view wx:else class="hold-voice {{recording ? 'hold-voice-active' : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}" catchtouchstart="handleVoiceTouchStart" catchtouchend="handleVoiceTouchEnd" catchtouchcancel="handleVoiceTouchCancel">
+          {{recording ? '松手保存这段留声' : (transcribing ? '正在处理留声' : '按住说话')}}
+        </view>
+        <button class="composer-save" loading="{{loading || aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="submit">{{aiLoading ? '整理中' : '保存'}}</button>
+      </view>
+      <view class="composer-hint">{{inputMode === 'voice' ? '按住说话，松手后会自动上传原声并转成文字。' : '文字会先由 AI 整理成更容易被家人听见的暖心表达。'}}</view>
+    </view>
 
-    <view class="voice-actions">
-      <button class="record-button {{recording ? 'record-button-active' : ''}}" disabled="{{loading || aiLoading || playingAudio || transcribing}}" bindtap="toggleRecord">{{recording ? '停止录音' : '开始录音'}}</button>
-      <button wx:if="{{audioTempPath}}" class="btn-secondary" loading="{{playingAudio}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="playAudio">{{playingAudio ? '试听中' : '试听原声'}}</button>
+    <view class="voice-actions" wx:if="{{audioTempPath}}">
+      <button class="btn-secondary" loading="{{playingAudio}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="playAudio">{{playingAudio ? '试听中' : '试听原声'}}</button>
     </view>
     <view wx:if="{{recording}}" class="voice-chip">正在留声</view>
     <view wx:if="{{transcribeStatus}}" class="voice-note">{{transcribeStatus}}</view>
@@ -75,7 +84,6 @@
       <view>允许对方播放原始语音</view>
       <switch checked="{{allowOriginalAudioPlay}}" bindchange="handleAudioPermission"></switch>
     </view>
-    <button class="btn-primary" loading="{{loading || aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="submit">{{aiLoading ? '正在整理表达' : (visibilityIndex === 2 ? '保存心声' : '发送心声')}}</button>
   </view>
 
   <view wx:if="{{error}}" class="error">{{error}}</view>

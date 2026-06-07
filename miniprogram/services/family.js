@@ -1,4 +1,5 @@
 const request = require('../utils/request')
+const familySlots = require('../utils/familySlots')
 
 function createFamily(data) {
   return request({ url: '/families', method: 'POST', data })
@@ -18,7 +19,29 @@ function getFamilyMembers(familyId) {
 }
 
 function getFamilyLayout(familyId) {
-  return request({ url: `/families/${familyId}/layout` })
+  return request({ url: `/families/${familyId}/layout`, silent: true }).catch(async (error) => {
+    if (error.code !== 'NOT_FOUND') {
+      throw error
+    }
+    const members = await getFamilyMembers(familyId)
+    return {
+      id: Number(familyId),
+      members,
+      slots: familySlots.DEFAULT_FAMILY_SLOTS.map((slot) => ({
+        ...slot,
+        displayLabel: familySlots.slotLabel(slot.key),
+        occupied: false,
+        member: null
+      })).map((slot) => {
+        const member = (members || []).find((item) => item.slotKey === slot.key)
+        return {
+          ...slot,
+          occupied: Boolean(member),
+          member: member || null
+        }
+      })
+    }
+  })
 }
 
 function updateIdentity(familyId, data) {

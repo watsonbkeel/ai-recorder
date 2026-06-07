@@ -8,6 +8,14 @@ function normalizeUrl(value) {
   return String(value || '').trim().replace(/\/$/, '')
 }
 
+function normalizeApiBaseUrl(value) {
+  const url = normalizeUrl(value)
+  if (!url) {
+    return ''
+  }
+  return /\/api$/.test(url) ? url : `${url}/api`
+}
+
 function loadLocalConfigFromStorage() {
   try {
     if (typeof wx === 'undefined' || !wx.getStorageSync) {
@@ -16,7 +24,7 @@ function loadLocalConfigFromStorage() {
     const localConfig = wx.getStorageSync(LOCAL_CONFIG_KEY) || {}
     return {
       ...(localConfig.PUBLIC_BASE_URL ? { PUBLIC_BASE_URL: normalizeUrl(localConfig.PUBLIC_BASE_URL) } : {}),
-      ...(localConfig.API_BASE_URL ? { API_BASE_URL: normalizeUrl(localConfig.API_BASE_URL) } : {})
+      ...(localConfig.API_BASE_URL ? { API_BASE_URL: normalizeApiBaseUrl(localConfig.API_BASE_URL) } : {})
     }
   } catch (error) {
     return {}
@@ -32,7 +40,7 @@ function getPublicBaseUrl() {
 }
 
 function getApiBaseUrl() {
-  return getRuntimeConfig().API_BASE_URL
+  return normalizeApiBaseUrl(getRuntimeConfig().API_BASE_URL)
 }
 
 function getApiRootUrl() {
