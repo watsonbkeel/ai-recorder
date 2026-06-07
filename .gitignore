@@ -33,7 +33,9 @@ logs/
 *.pid.lock
 
 # Local visual drafts
-img/
+img/*
+!img/
+!img/loading-1.jpg
 
 # WeChat DevTools private/local files
 miniprogram/project.private.config.json

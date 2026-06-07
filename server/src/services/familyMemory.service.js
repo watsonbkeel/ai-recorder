@@ -46,26 +46,42 @@ function pairScopeKey(memberAId, memberBId) {
   return `pair:${ids[0]}:${ids[1]}`
 }
 
-function isParticipant(message, userId) {
-  return message.senderId === Number(userId) || (message.receivers || []).some((receiver) => receiver.userId === Number(userId))
-}
-
-function messageVisibleToPair(message, userAId, userBId) {
-  if (message.senderId === Number(userAId) || message.senderId === Number(userBId)) {
-    return message.visibility === 'family' || isParticipant(message, message.senderId === Number(userAId) ? userBId : userAId)
+function messageTargetsMember(message, member) {
+  if (!message || !member) {
+    return false
   }
   return (
-    (message.senderId === Number(userAId) && isParticipant(message, userBId)) ||
-    (message.senderId === Number(userBId) && isParticipant(message, userAId))
+    (message.receivers || []).some((receiver) => Number(receiver.userId) === Number(member.userId)) ||
+    Boolean(member.slotKey && (message.slotReceivers || []).some((receiver) => receiver.slotKey === member.slotKey))
   )
 }
 
-function replyVisibleToPair(message, reply, userAId, userBId) {
-  if (![Number(userAId), Number(userBId)].includes(reply.senderId)) {
+function messageVisibleToPair(message, memberA, memberB) {
+  if (!memberA || !memberB) {
     return false
   }
-  const otherUserId = reply.senderId === Number(userAId) ? Number(userBId) : Number(userAId)
-  return message.senderId === otherUserId || (message.receivers || []).some((receiver) => receiver.userId === otherUserId)
+  const userAId = Number(memberA.userId)
+  const userBId = Number(memberB.userId)
+  if (message.senderId === userAId || message.senderId === userBId) {
+    return message.visibility === 'family' || messageTargetsMember(message, message.senderId === userAId ? memberB : memberA)
+  }
+  return false
+}
+
+function replyVisibleToPair(message, reply, memberA, memberB) {
+  if (!memberA || !memberB) {
+    return false
+  }
+  const userAId = Number(memberA.userId)
+  const userBId = Number(memberB.userId)
+  if (![userAId, userBId].includes(reply.senderId)) {
+    return false
+  }
+  if (message.visibility === 'family') {
+    return true
+  }
+  const otherMember = reply.senderId === userAId ? memberB : memberA
+  return message.senderId === Number(otherMember.userId) || messageTargetsMember(message, otherMember)
 }
 
 function extractMessageEvent(message) {
@@ -207,6 +223,7 @@ async function loadRecentMessages(familyId) {
     take: 40,
     include: {
       receivers: { select: { userId: true } },
+      slotReceivers: { select: { slotKey: true } },
       replies: {
         where: { status: 'visible' },
         orderBy: { createdAt: 'asc' },
@@ -243,14 +260,14 @@ function collectMemberEvents(messages, userId) {
   return events
 }
 
-function collectPairEvents(messages, userAId, userBId) {
+function collectPairEvents(messages, memberA, memberB) {
   const events = []
   messages.forEach((message) => {
-    if (messageVisibleToPair(message, userAId, userBId)) {
+    if (messageVisibleToPair(message, memberA, memberB)) {
       events.push(extractMessageEvent(message))
     }
     ;(message.replies || [])
-      .filter((reply) => replyVisibleToPair(message, reply, userAId, userBId))
+      .filter((reply) => replyVisibleToPair(message, reply, memberA, memberB))
       .forEach((reply) => events.push(extractReplyEvent(message, reply)))
   })
   return events
@@ -259,6 +276,39 @@ function collectPairEvents(messages, userAId, userBId) {
 async function getFamilyMemberByUser(familyId, userId) {
   return prisma.familyMember.findUnique({
     where: { familyId_userId: { familyId: Number(familyId), userId: Number(userId) } }
+  })
+}
+
+async function loadMemoryParticipants(familyId, excludedUserId, receiverUserIds, visibility, receiverSlotKeys = []) {
+  const numericFamilyId = Number(familyId)
+  const numericExcludedUserId = Number(excludedUserId)
+
+  if (visibility === 'family') {
+    return prisma.familyMember.findMany({
+      where: {
+        familyId: numericFamilyId,
+        userId: { not: numericExcludedUserId }
+      }
+    })
+  }
+
+  const userIds = uniqueLimit(receiverUserIds || [], 30)
+    .map(Number)
+    .filter((userId) => userId && userId !== numericExcludedUserId)
+  const slotKeys = uniqueLimit(receiverSlotKeys || [], 20)
+  if (!userIds.length && !slotKeys.length) {
+    return []
+  }
+
+  return prisma.familyMember.findMany({
+    where: {
+      familyId: numericFamilyId,
+      userId: { not: numericExcludedUserId },
+      OR: [
+        ...(userIds.length ? [{ userId: { in: userIds } }] : []),
+        ...(slotKeys.length ? [{ slotKey: { in: slotKeys } }] : [])
+      ]
+    }
   })
 }
 
@@ -291,7 +341,7 @@ async function refreshPairMemory(familyId, memberA, memberB, messages) {
     return null
   }
   const [firstMember, secondMember] = [memberA, memberB].sort((a, b) => a.id - b.id)
-  const payload = buildMemoryPayload(collectPairEvents(messages, firstMember.userId, secondMember.userId), '这两位家人之间')
+  const payload = buildMemoryPayload(collectPairEvents(messages, firstMember, secondMember), '这两位家人之间')
   return upsertMemory(prisma, {
     familyId: Number(familyId),
     scope: 'pair',
@@ -305,7 +355,10 @@ async function refreshPairMemory(familyId, memberA, memberB, messages) {
 async function refreshMemoriesAfterMessage(messageId) {
   const message = await prisma.familyMessage.findUnique({
     where: { id: Number(messageId) },
-    include: { receivers: { select: { userId: true } } }
+    include: {
+      receivers: { select: { userId: true } },
+      slotReceivers: { select: { slotKey: true } }
+    }
   })
   if (!message || message.status !== 'visible') {
     return
@@ -313,12 +366,13 @@ async function refreshMemoriesAfterMessage(messageId) {
 
   const messages = await loadRecentMessages(message.familyId)
   const sender = await getFamilyMemberByUser(message.familyId, message.senderId)
-  const receiverMembers = await prisma.familyMember.findMany({
-    where: {
-      familyId: message.familyId,
-      userId: { in: message.receivers.map((receiver) => receiver.userId) }
-    }
-  })
+  const receiverMembers = await loadMemoryParticipants(
+    message.familyId,
+    message.senderId,
+    message.receivers.map((receiver) => receiver.userId),
+    message.visibility,
+    message.slotReceivers.map((receiver) => receiver.slotKey)
+  )
 
   const tasks = []
 
@@ -342,7 +396,10 @@ async function refreshMemoriesAfterReply(replyId) {
     where: { id: Number(replyId) },
     include: {
       message: {
-        include: { receivers: { select: { userId: true } } }
+        include: {
+          receivers: { select: { userId: true } },
+          slotReceivers: { select: { slotKey: true } }
+        }
       }
     }
   })
@@ -352,15 +409,19 @@ async function refreshMemoriesAfterReply(replyId) {
 
   const messages = await loadRecentMessages(reply.familyId)
   const sender = await getFamilyMemberByUser(reply.familyId, reply.senderId)
-  const participantUserIds = uniqueLimit([
+  const directParticipantUserIds = uniqueLimit([
     reply.message.senderId,
     ...reply.message.receivers.map((receiver) => receiver.userId)
   ], 30)
     .map(Number)
     .filter((userId) => userId !== reply.senderId)
-  const participantMembers = await prisma.familyMember.findMany({
-    where: { familyId: reply.familyId, userId: { in: participantUserIds } }
-  })
+  const participantMembers = await loadMemoryParticipants(
+    reply.familyId,
+    reply.senderId,
+    directParticipantUserIds,
+    reply.message.visibility,
+    reply.message.slotReceivers.map((receiver) => receiver.slotKey)
+  )
 
   const tasks = []
   if (reply.message.visibility === 'family') {

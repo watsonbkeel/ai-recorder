@@ -3,6 +3,7 @@ const { createError } = require('../utils/errors')
 const { ensureFamilyMember, ensureFamilyNotMuted } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
 const { familyUserSelect, mapFamilyUser } = require('../utils/familyIdentity')
+const { canViewMessage } = require('../utils/messageAccess')
 const { invalidateFamilyMemories, refreshMemoriesAfterReply, scheduleMemoryRefresh } = require('./familyMemory.service')
 
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high'])
@@ -12,14 +13,6 @@ function normalizeJsonArray(value) {
     return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
   }
   return []
-}
-
-function canViewMessage(message, userId) {
-  const numericUserId = Number(userId)
-  if (message.senderId === numericUserId || message.visibility === 'family') {
-    return true
-  }
-  return (message.receivers || []).some((receiver) => receiver.userId === numericUserId)
 }
 
 function mapReply(reply, userId, viewerMember) {
@@ -47,16 +40,58 @@ function mapReply(reply, userId, viewerMember) {
 async function getVisibleMessageForReply(userId, messageId) {
   const message = await prisma.familyMessage.findUnique({
     where: { id: Number(messageId) },
-    include: { receivers: true }
+    include: { receivers: true, slotReceivers: true }
   })
   if (!message || message.status !== 'visible') {
     throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
   }
   const viewerMember = await ensureFamilyMember(userId, message.familyId)
-  if (!canViewMessage(message, userId)) {
+  if (!canViewMessage(message, userId, viewerMember)) {
     throw createError('FORBIDDEN', '无权回复这条心声', 403)
   }
   return { message, viewerMember }
+}
+
+async function resolveReplyNotificationUserIds(message, replierId, tx) {
+  const client = tx || prisma
+  const numericReplierId = Number(replierId)
+  let candidateIds = []
+
+  if (message.visibility === 'family') {
+    const members = await client.familyMember.findMany({
+      where: { familyId: message.familyId },
+      select: { userId: true }
+    })
+    candidateIds = members.map((member) => member.userId)
+  } else {
+    candidateIds = [
+      message.senderId,
+      ...(message.receivers || []).map((receiver) => receiver.userId)
+    ]
+    if (message.slotReceivers && message.slotReceivers.length) {
+      const slotKeys = message.slotReceivers.map((receiver) => receiver.slotKey)
+      const slotMembers = await client.familyMember.findMany({
+        where: {
+          familyId: message.familyId,
+          slotKey: { in: slotKeys }
+        },
+        select: { userId: true }
+      })
+      candidateIds.push(...slotMembers.map((member) => member.userId))
+    }
+  }
+
+  const uniqueIds = Array.from(new Set(candidateIds.map(Number)))
+    .filter((id) => Number.isInteger(id) && id > 0 && id !== numericReplierId)
+  if (!uniqueIds.length) {
+    return []
+  }
+
+  const currentMembers = await client.familyMember.findMany({
+    where: { familyId: message.familyId, userId: { in: uniqueIds } },
+    select: { userId: true }
+  })
+  return currentMembers.map((member) => member.userId)
 }
 
 async function listReplies(userId, messageId) {
@@ -77,6 +112,9 @@ async function createReply(userId, messageId, payload) {
   const optimizedText = String(payload.optimizedText || originalText || '').trim()
   const riskLevel = VALID_RISK_LEVELS.has(payload.riskLevel) ? payload.riskLevel : 'low'
 
+  if (message.visibility === 'self') {
+    throw createError('VALIDATION_ERROR', '仅自己留言不需要回复', 400)
+  }
   if (!originalText) {
     throw createError('VALIDATION_ERROR', '回复内容不能为空', 400)
   }
@@ -109,9 +147,14 @@ async function createReply(userId, messageId, payload) {
       where: { messageId: message.id, userId: Number(userId) },
       data: { status: 'replied', repliedAt: new Date() }
     })
+    if (viewerMember.slotKey) {
+      await tx.familyMessageSlotReceiver.updateMany({
+        where: { messageId: message.id, slotKey: viewerMember.slotKey },
+        data: { status: 'replied', repliedAt: new Date() }
+      })
+    }
 
-    const notifyUserIds = new Set([message.senderId, ...message.receivers.map((receiver) => receiver.userId)])
-    notifyUserIds.delete(Number(userId))
+    const notifyUserIds = await resolveReplyNotificationUserIds(message, userId, tx)
     for (const receiverId of notifyUserIds) {
       await createNotification({
         receiverId,

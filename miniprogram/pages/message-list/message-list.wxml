@@ -22,6 +22,7 @@
     <view class="row-between">
       <view>
         <view class="card-title-small">{{item.sender.nickname}}</view>
+        <view class="identity-line">家庭身份：{{item.senderIdentitySummary}}</view>
         <view class="muted">{{item.messageTypeText}} · {{item.visibilityText}}</view>
       </view>
       <view class="muted">{{item.createdAtText}}</view>

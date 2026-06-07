@@ -3,6 +3,7 @@ const replyService = require('../../services/reply')
 const aiService = require('../../services/ai')
 const adminService = require('../../services/admin')
 const format = require('../../utils/format')
+const { identitySummary } = require('../../utils/familyIdentity')
 const { handleFamilyAccessError } = require('../../utils/familyAccess')
 
 const VISIBILITY_TEXT = {
@@ -28,14 +29,16 @@ function prepareMessage(message) {
   return {
     ...message,
     visibilityText: VISIBILITY_TEXT[message.visibility] || '指定家人',
-    createdAtText: format.formatDate(message.createdAt)
+    createdAtText: format.formatDate(message.createdAt),
+    senderIdentitySummary: identitySummary(message.sender)
   }
 }
 
 function prepareReply(reply) {
   return {
     ...reply,
-    createdAtText: format.formatDate(reply.createdAt)
+    createdAtText: format.formatDate(reply.createdAt),
+    senderIdentitySummary: identitySummary(reply.sender)
   }
 }
 
@@ -288,7 +291,14 @@ Page({
         riskLevel: this.data.replyRiskLevel,
         attackWarning: this.data.replyAttackWarning
       })
-      this.setData({ replyOriginalText: '', replyOptimizedText: '' })
+      this.setData({
+        replyOriginalText: '',
+        replyOptimizedText: '',
+        replyEmotionTags: [],
+        replyAdvice: '',
+        replyRiskLevel: 'low',
+        replyAttackWarning: ''
+      })
       wx.showToast({ title: '已回复', icon: 'success' })
       this.loadData()
     } catch (error) {

@@ -1,7 +1,10 @@
 const messageService = require('../../services/message')
 const notificationService = require('../../services/notification')
+const familyService = require('../../services/family')
 const auth = require('../../utils/auth')
 const format = require('../../utils/format')
+const { identitySummary } = require('../../utils/familyIdentity')
+const { handleFamilyAccessError } = require('../../utils/familyAccess')
 
 const TYPE_TEXT = {
   thanks: '感谢',
@@ -20,14 +23,13 @@ const VISIBILITY_TEXT = {
   family: '全家可见',
   self: '仅自己'
 }
-const FAMILY_CONTEXT_ERROR_CODES = new Set(['NOT_FAMILY_MEMBER'])
-
 function prepareMessage(item) {
   return {
     ...item,
     messageTypeText: TYPE_TEXT[item.messageType] || '心声',
     visibilityText: VISIBILITY_TEXT[item.visibility] || '指定家人',
-    createdAtText: format.formatDate(item.createdAt)
+    createdAtText: format.formatDate(item.createdAt),
+    senderIdentitySummary: identitySummary(item.sender)
   }
 }
 
@@ -49,16 +51,50 @@ Page({
     const familyId = Number(options.familyId || (currentFamily && currentFamily.id))
     this.setData({ familyId, currentFamily })
   },
-  onShow() {
-    const currentFamily = auth.getCurrentFamily()
-    const familyId = Number(currentFamily && currentFamily.id) || this.data.familyId
-    this.setData({ currentFamily, familyId })
-    if (!familyId) {
-      this.exitInvalidFamily('请先选择家庭')
-      return
+  async onShow() {
+    try {
+      const currentFamily = await this.syncCurrentFamily()
+      if (!currentFamily) {
+        this.exitInvalidFamily('请先选择家庭')
+        return
+      }
+      this.refresh()
+      this.loadUnreadCount()
+    } catch (error) {
+      this.setData({ loading: false, error: error.message || '家庭状态同步失败' })
     }
-    this.refresh()
-    this.loadUnreadCount()
+  },
+  async syncCurrentFamily() {
+    const requestedFamilyId = Number(this.data.familyId) || null
+    const storedFamily = auth.getCurrentFamily()
+
+    if (!requestedFamilyId && storedFamily) {
+      const familyId = Number(storedFamily.id)
+      this.setData({ familyId, currentFamily: storedFamily })
+      return storedFamily
+    }
+
+    if (!requestedFamilyId) {
+      return null
+    }
+
+    if (storedFamily && Number(storedFamily.id) === requestedFamilyId) {
+      this.setData({ currentFamily: storedFamily })
+      return storedFamily
+    }
+
+    const families = await familyService.getMyFamilies()
+    const currentFamily = families.find((family) => Number(family.id) === requestedFamilyId) || null
+    if (!currentFamily) {
+      auth.clearCurrentFamily()
+      getApp().setCurrentFamily(null)
+      return null
+    }
+
+    auth.setCurrentFamily(currentFamily)
+    getApp().setCurrentFamily(currentFamily)
+    this.setData({ currentFamily })
+    return currentFamily
   },
   exitInvalidFamily(message) {
     auth.clearCurrentFamily()
@@ -77,6 +113,10 @@ Page({
     }
   },
   async refresh() {
+    if (!this.data.familyId) {
+      this.exitInvalidFamily('请先选择家庭')
+      return
+    }
     this.setData({ page: 1, hasMore: true, messages: [], loading: true, error: '', empty: false })
     try {
       const result = await messageService.getMessages(this.data.familyId, { page: 1, pageSize: 10 })
@@ -86,8 +126,7 @@ Page({
         hasMore: result.pagination.page < result.pagination.totalPages
       })
     } catch (error) {
-      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
-        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+      if (handleFamilyAccessError(error, this.data.familyId)) {
         return
       }
       this.setData({ error: error.message || '加载失败' })
@@ -110,6 +149,9 @@ Page({
         hasMore: result.pagination.page < result.pagination.totalPages
       })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
       this.setData({ error: error.message || '加载更多失败' })
     } finally {
       this.setData({ loadingMore: false })

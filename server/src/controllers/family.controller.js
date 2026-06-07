@@ -12,12 +12,17 @@ async function getMyFamilies(req, res) {
 }
 
 async function getFamilyByInvite(req, res) {
-  const data = await familyService.getFamilyByInviteCode(req.params.inviteCode)
+  const data = await familyService.getFamilyByInviteCode(req.params.inviteCode, req.user.id)
   return sendSuccess(res, data, 'ok')
 }
 
 async function listMembers(req, res) {
   const data = await familyService.listFamilyMembers(req.user.id, req.params.familyId)
+  return sendSuccess(res, data, 'ok')
+}
+
+async function getLayout(req, res) {
+  const data = await familyService.getFamilyLayout(req.user.id, req.params.familyId)
   return sendSuccess(res, data, 'ok')
 }
 
@@ -46,6 +51,7 @@ module.exports = {
   getMyFamilies,
   getFamilyByInvite,
   listMembers,
+  getLayout,
   updateMyIdentity,
   updateFamilyNickname,
   updateRelationship,

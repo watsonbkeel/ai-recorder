@@ -35,6 +35,6 @@ The old template's class, diary, comment, like, and report routes/pages/services
 ## Configuration
 
 - Default database: `ai_recorder`.
-- AppID: `wxf73895336690e9a6`.
+- AppID: private local configuration only. Tracked `miniprogram/project.config.json` uses `touristappid`; the full value must not be committed, documented, logged, or pasted.
 - Upload root: configured by `UPLOAD_DIR`, defaulting to `./uploads/ai-recorder`.
 - Secrets stay in ignored local `.env` files.

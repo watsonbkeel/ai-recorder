@@ -23,7 +23,7 @@
 ## Family Setup
 
 1. User creates a family or joins by invite code.
-2. User sets family identity: relationship, gender, child order, birth year, family nickname, preferred title, and identity note.
+2. User taps a family position: father, mother, or a child slot. Parent positions imply identity; child slots ask son/daughter. User then fills family nickname and optional birth year, preferred title, and identity note.
 3. Creator becomes family admin.
 4. Join requests require admin approval.
 5. If the locally selected family is no longer accessible, the mini program clears that family selection and returns the user to family selection.
@@ -33,17 +33,15 @@
 1. Enter family timeline.
 2. Tap write message.
 3. Select message scope:
-   - 指定家人: choose one or more receivers from family members.
+   - 指定家人: choose one or more family positions. A position can be selected even when that family member has not registered yet.
    - 全家可见: all approved family members can see the message; backend computes receivers and notifications.
-   - 仅自己: save for self, do not notify family members, and do not show original-content permission switches.
-4. Enter original text, a short text summary of the voice message, record voice, or combine them.
+   - 仅自己: save for self, do not notify family members, do not show original-content permission switches, and do not show reply controls later.
+4. Enter original text directly or tap the recording control. First-time voice recording asks for microphone permission and explains that it is only for recording the original family voice message.
 5. Choose whether AI may use family communication memory. Default: on.
-6. Tap AI optimize. Current MVP does not auto-transcribe voice; AI optimization requires text original content or a manually written voice summary.
-7. While AI is working, the page shows staged status copy such as understanding the original expression, identifying emotions and needs, and preserving intent and boundaries. The user may continue editing the original input while waiting.
-8. Review optimized expression, emotion tags, what the user wants to say clearly, and expression tips.
-9. If the message only has voice and no text summary, manually fill the expression family members should read first.
-10. For messages shared with family members, choose whether receivers may view original text or play original audio.
-11. Send or save message.
+6. Recording uses one button: tap to start, tap again to stop. After stopping, the app uploads audio, attempts transcription, fills the original text, and keeps the audio for optional playback.
+7. Send or save message. Before create, the app defaults to AI expression整理; while AI is working, the page shows staged status copy such as understanding the original expression, identifying emotions and needs, and preserving intent and boundaries.
+8. If transcription or AI fails, show a clear error and let the user edit text or choose whether to continue with current text.
+9. For messages shared with family members, choose whether receivers may view original text or play original audio.
 
 ## Detail And Reply
 
@@ -55,10 +53,11 @@
 6. Receiver may turn family memory on/off before AI optimizes the reply.
 7. While AI is optimizing the reply, the page shows staged status copy and the reply textarea remains editable.
 8. Reply is saved with original text and optimized text. The original reply is visible only to its sender.
+9. Self-only messages show a self-note state instead of the reply composer; backend reply and AI reply endpoints also reject them.
 
 ## Profile
 
-- Edit global nickname/avatar.
+- Edit global nickname/avatar. Avatar is chosen from phone image picker and uploaded; users do not type image URLs.
 - Switch current family.
 - Returning to the family timeline after switching family reloads the timeline for the newly selected family.
 - If the current family becomes unavailable, the app returns to family selection instead of continuing to show stale family data.
@@ -69,13 +68,14 @@
 
 - Dashboard shows pending join requests, member count, message count, reply count, and muted member count.
 - Admin reviews join requests with applicant identity.
-- Admin manages members, family identity, roles, mute state, and removal.
+- Admin manages members, family position identity, roles, mute state, and removal.
 - Admin may hide messages/replies from the message detail page.
 - No report page or report handling exists.
 
 ## Notifications
 
 - Message and reply notifications open the related message detail.
+- Message and reply notifications for another joined family switch current family before opening detail.
 - Join request notifications open the family join request review page when the receiver is an admin.
 - Join approval notifications refresh the user's family list, switch to the approved family, and open that family timeline.
 - Join rejection notifications show the application result message.
@@ -85,3 +85,4 @@
 - User-facing copy uses family / 留声 / 留言 / 暖心表达 language.
 - Avoid public-social mechanics such as ranking and popularity.
 - Original expression is handled as private, sensitive family content.
+- Mini program pages are not intended for search indexing; family content stays inside authenticated family spaces.

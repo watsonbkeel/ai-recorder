@@ -9,6 +9,7 @@ const {
   mapMember,
   sortFamilyMembers
 } = require('../utils/familyIdentity')
+const { DEFAULT_FAMILY_SLOTS, normalizeSlotKey, slotLabel } = require('../utils/familySlots')
 const { createNotification } = require('./notification.service')
 
 async function createUniqueInviteCode(tx) {
@@ -38,6 +39,31 @@ function mapFamily(family, member) {
   }
 }
 
+function buildFamilyLayoutSlots(members, currentUserId) {
+  const memberBySlot = new Map()
+  members.forEach((member) => {
+    const slotKey = normalizeSlotKey(member.slotKey)
+    if (slotKey) {
+      memberBySlot.set(slotKey, member)
+    }
+  })
+  return DEFAULT_FAMILY_SLOTS.map((slot) => mapSlot(slot, memberBySlot.get(slot.key), currentUserId))
+}
+
+function mapSlot(slot, member, currentUserId) {
+  return {
+    key: slot.key,
+    label: slot.label,
+    group: slot.group,
+    relationship: slot.relationship,
+    gender: slot.gender,
+    childOrder: slot.childOrder,
+    displayLabel: slotLabel(slot.key, member ? member.relationship : slot.relationship),
+    occupied: Boolean(member),
+    member: member ? mapMember(member, currentUserId) : null
+  }
+}
+
 function memberInclude() {
   return {
     user: {
@@ -48,6 +74,65 @@ function memberInclude() {
         isGlobalAdmin: true
       }
     }
+  }
+}
+
+async function ensureFamilySlotAvailable(client, familyId, slotKey, exceptUserId) {
+  const normalizedSlotKey = normalizeSlotKey(slotKey)
+  if (!normalizedSlotKey) {
+    return null
+  }
+  const occupied = await client.familyMember.findFirst({
+    where: {
+      familyId: Number(familyId),
+      slotKey: normalizedSlotKey,
+      ...(exceptUserId ? { userId: { not: Number(exceptUserId) } } : {})
+    },
+    include: memberInclude()
+  })
+  if (occupied) {
+    throw createError('SLOT_OCCUPIED', `${slotLabel(normalizedSlotKey, occupied.relationship)}已经有家人认领`, 400)
+  }
+  return normalizedSlotKey
+}
+
+async function attachSlotMessagesToMember(client, familyId, member, actorUserId) {
+  const slotKey = normalizeSlotKey(member && member.slotKey)
+  if (!slotKey) {
+    return
+  }
+  const messages = await client.familyMessage.findMany({
+    where: {
+      familyId: Number(familyId),
+      status: 'visible',
+      visibility: 'private',
+      senderId: { not: Number(member.userId) },
+      slotReceivers: { some: { familyId: Number(familyId), slotKey } },
+    },
+    select: { id: true, senderId: true, optimizedText: true }
+  })
+
+  for (const message of messages) {
+    const existingNotification = await client.notification.findFirst({
+      where: {
+        userId: Number(member.userId),
+        messageId: message.id,
+        type: 'message_received'
+      },
+      select: { id: true }
+    })
+    if (existingNotification) {
+      continue
+    }
+    await createNotification({
+      receiverId: Number(member.userId),
+      triggerUserId: actorUserId || message.senderId,
+      familyId: Number(familyId),
+      type: 'message_received',
+      title: '你收到了一条家人提前留给你的心声',
+      content: message.optimizedText.slice(0, 120),
+      messageId: message.id
+    }, client)
   }
 }
 
@@ -100,7 +185,7 @@ async function listMyFamilies(userId) {
   return memberships.map((membership) => mapFamily(membership.family, membership))
 }
 
-async function getFamilyByInviteCode(inviteCode) {
+async function getFamilyByInviteCode(inviteCode, currentUserId) {
   const code = String(inviteCode || '').trim().toUpperCase()
   if (!code) {
     throw createError('VALIDATION_ERROR', '邀请码不能为空', 400)
@@ -108,13 +193,22 @@ async function getFamilyByInviteCode(inviteCode) {
 
   const family = await prisma.family.findUnique({
     where: { inviteCode: code },
-    include: { _count: { select: { members: true, messages: true } } }
+    include: {
+      _count: { select: { members: true, messages: true } },
+      members: {
+        orderBy: [{ joinedAt: 'asc' }],
+        include: memberInclude()
+      }
+    }
   })
   if (!family) {
     throw createError('NOT_FOUND', '未找到家庭', 404)
   }
 
-  return mapFamily(family, null)
+  return {
+    ...mapFamily(family, null),
+    slots: buildFamilyLayoutSlots(family.members, currentUserId)
+  }
 }
 
 async function listFamilyMembers(userId, familyId) {
@@ -125,6 +219,20 @@ async function listFamilyMembers(userId, familyId) {
     include: memberInclude()
   })
   return sortFamilyMembers(members).map((member) => mapMember(member, userId))
+}
+
+async function getFamilyLayout(userId, familyId) {
+  await ensureFamilyMember(userId, familyId)
+  const members = await prisma.familyMember.findMany({
+    where: { familyId: Number(familyId) },
+    orderBy: [{ joinedAt: 'asc' }],
+    include: memberInclude()
+  })
+  return {
+    familyId: Number(familyId),
+    slots: buildFamilyLayoutSlots(members, userId),
+    members: sortFamilyMembers(members).map((member) => mapMember(member, userId))
+  }
 }
 
 async function updateMyIdentity(userId, familyId, payload) {
@@ -139,9 +247,14 @@ async function updateMyIdentity(userId, familyId, payload) {
   }
 
   const identity = normalizeIdentityUpdatePayload(payload, member)
-  const updated = await prisma.familyMember.update({
-    where: { id: member.id },
-    data: identity
+  const updated = await prisma.$transaction(async (tx) => {
+    await ensureFamilySlotAvailable(tx, familyId, identity.slotKey, userId)
+    const saved = await tx.familyMember.update({
+      where: { id: member.id },
+      data: identity
+    })
+    await attachSlotMessagesToMember(tx, familyId, saved, userId)
+    return saved
   })
   return mapFamily(member.family, updated)
 }
@@ -183,6 +296,7 @@ async function createJoinRequest(userId, familyId, payload) {
   }
 
   return prisma.$transaction(async (tx) => {
+    await ensureFamilySlotAvailable(tx, numericFamilyId, identity.slotKey, userId)
     const joinRequest = await tx.familyJoinRequest.create({
       data: {
         familyId: numericFamilyId,
@@ -218,8 +332,11 @@ module.exports = {
   listMyFamilies,
   getFamilyByInviteCode,
   listFamilyMembers,
+  getFamilyLayout,
   updateMyIdentity,
   updateFamilyNickname,
   updateRelationship,
-  createJoinRequest
+  createJoinRequest,
+  ensureFamilySlotAvailable,
+  attachSlotMessagesToMember
 }

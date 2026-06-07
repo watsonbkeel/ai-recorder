@@ -22,12 +22,14 @@ One-line description:
 - WeChat login/register, with account/password login retained for local debugging and fallback.
 - Family space creation and invite-code join flow.
 - Admin approval for join requests.
-- Family identity fields: relationship, gender, child order, birth year, family nickname, preferred title, identity note.
-- Send text and/or voice messages to selected family members, the whole family, or self only.
+- Family identity uses tappable family positions: father, mother, and default child slots. Father/mother imply role and gender; child slots ask son/daughter and keep order through the chosen slot.
+- Send text and/or voice messages to selected family positions, selected registered members, the whole family, or self only.
+- Private messages may target an unregistered family position so the sender can leave a message before that family member joins.
+- Self-only messages are for整理自己的想法: they do not notify family members and do not accept replies.
 - Store original text/audio and AI optimized text separately.
-- Current MVP records and uploads voice, but does not auto-transcribe voice; AI message optimization requires text original content or a manually written voice summary.
+- Current MVP records and uploads voice, automatically attempts transcription, and still keeps the original audio for optional receiver playback.
 - Sender-controlled permission for original text and original audio.
-- AI optimized expression for messages and replies.
+- AI optimized expression for messages and replies. Message sending defaults to AI optimization before create; if AI fails, the user sees a clear fallback.
 - AI message analysis based on backend-verified visible context.
 - Staged AI waiting feedback for message optimization, message analysis, and reply optimization.
 - Family communication memory with `family`, `member`, and `pair` scopes.
@@ -62,6 +64,7 @@ One-line description:
 - `private` messages are visible only to the sender and selected receivers.
 - `family` messages are visible to approved members of the same family.
 - `self` messages are visible only to the sender and do not notify family members.
+- `self` messages do not show reply controls and backend reply endpoints reject them.
 - Original text and original audio are hidden unless the sender enables access.
 - AI context must not include hidden original text/audio.
 - Family memory is used only inside the current family and only when enabled by the user.
@@ -72,6 +75,5 @@ One-line description:
 - Emotion trend visualization.
 - Anniversary and care reminders.
 - Professional counseling resource integration.
-- Automatic voice transcription.
 - Multiple family advanced management.
 - Public sharing.

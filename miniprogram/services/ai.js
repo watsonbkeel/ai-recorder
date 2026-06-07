@@ -12,8 +12,13 @@ function optimizeReply(data) {
   return request({ url: '/ai/optimize-reply', method: 'POST', data })
 }
 
+function transcribeAudio(data) {
+  return request({ url: '/ai/transcribe-audio', method: 'POST', data })
+}
+
 module.exports = {
   optimizeMessage,
   analyzeMessage,
-  optimizeReply
+  optimizeReply,
+  transcribeAudio
 }

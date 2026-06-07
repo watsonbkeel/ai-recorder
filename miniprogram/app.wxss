@@ -359,6 +359,17 @@ button[size="mini"] {
   margin-top: 22rpx;
 }
 
+.record-button {
+  min-width: 220rpx;
+  background: linear-gradient(135deg, var(--brand), #ef9a79);
+  color: #fffaf3;
+  box-shadow: 0 12rpx 24rpx rgba(223, 125, 98, 0.26);
+}
+
+.record-button-active {
+  background: linear-gradient(135deg, #b95845, #df7d62);
+}
+
 .voice-note {
   margin-top: 18rpx;
   padding: 20rpx 22rpx;
@@ -366,6 +377,26 @@ button[size="mini"] {
   background: rgba(255, 216, 201, 0.52);
   color: var(--brand-deep);
   line-height: 40rpx;
+}
+
+.risk-panel {
+  margin-top: 18rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid rgba(199, 95, 82, 0.26);
+  border-radius: 22rpx;
+  background: rgba(255, 224, 215, 0.62);
+  color: var(--text-main);
+  line-height: 42rpx;
+}
+
+.risk-title {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.risk-text {
+  margin-top: 8rpx;
+  color: var(--text-main);
 }
 
 .actions {
@@ -428,4 +459,111 @@ button[size="mini"] {
   height: 2rpx;
   background: var(--line-soft);
   margin: 24rpx 0;
+}
+
+.family-layout {
+  margin-top: 18rpx;
+}
+
+.slot-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.slot-row-parents .family-slot {
+  flex: 1;
+}
+
+.slot-row-children .family-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.family-slot {
+  min-height: 178rpx;
+  padding: 20rpx 12rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(234, 218, 200, 0.92);
+  border-radius: 24rpx;
+  background: rgba(255, 252, 246, 0.88);
+  text-align: center;
+  box-shadow: var(--shadow-tiny);
+}
+
+.family-slot-selected {
+  border-color: rgba(223, 125, 98, 0.62);
+  background: rgba(255, 216, 201, 0.48);
+}
+
+.family-slot-disabled {
+  opacity: 0.62;
+}
+
+.receiver-slot {
+  min-height: 190rpx;
+}
+
+.slot-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 auto 12rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bg-mint), var(--bg-mint-soft));
+  color: var(--text-main);
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 72rpx;
+}
+
+.family-slot-selected .slot-avatar {
+  background: linear-gradient(135deg, var(--brand), #ef9a79);
+  color: #fffaf3;
+}
+
+.slot-title {
+  color: var(--text-main);
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+
+.slot-status {
+  margin-top: 8rpx;
+  color: var(--text-muted);
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.profile-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  margin-top: 22rpx;
+}
+
+.profile-avatar {
+  width: 116rpx;
+  height: 116rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bg-mint-soft);
+  border: 4rpx solid rgba(255, 248, 236, 0.96);
+  box-shadow: var(--shadow-tiny);
+}
+
+.profile-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-avatar-text {
+  width: 100%;
+  height: 100%;
+  color: var(--mint-deep);
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 116rpx;
+  text-align: center;
 }

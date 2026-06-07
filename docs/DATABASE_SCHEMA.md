@@ -39,7 +39,7 @@ There is no report model.
 
 - `private`: sender plus selected receivers.
 - `family`: approved members in the same family.
-- `self`: sender only.
+- `self`: sender only, with no receivers and no replies.
 
 ## Family Identity
 
@@ -76,7 +76,7 @@ This supports parents, multiple children, rank among children, gender, and famil
 - `sourceReplyId`
 - timestamps
 
-Active memory may be used only inside the same family and only when the user enables family memory for AI.
+Active memory may be used only inside the same family and only when the user enables family memory for AI. Family-visible message/reply memory is refreshed against current approved family members; private message/reply memory remains scoped to direct participants.
 
 ## Privacy Constraints
 

@@ -8,7 +8,7 @@ The old project is only a code template. The new project must have independent c
 
 - Independent MySQL database: `ai_recorder`.
 - Independent initial Prisma migration.
-- AppID: `wxf73895336690e9a6`.
+- AppID: private local configuration only; tracked mini program config keeps the `touristappid` placeholder.
 - Family domain models and routes.
 - Family identity fields on member and join request.
 - Message/reply workflow.
@@ -31,4 +31,4 @@ The old project is only a code template. The new project must have independent c
 - `npx prisma generate --schema prisma/schema.prisma`
 - `node -e "require('./src/app'); console.log('app loaded')"`
 - Check old class/report/diary runtime entries are absent.
-- Check no PAT or AI API key is tracked.
+- Check no PAT, AI API key, provider secret, full WeChat AppID, or WeChat Secret is tracked.

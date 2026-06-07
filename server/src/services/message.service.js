@@ -1,11 +1,12 @@
-const fs = require('fs')
 const path = require('path')
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
-const { UPLOAD_DIR_ABS } = require('../config/env')
 const { ensureFamilyMember, ensureFamilyNotMuted } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
 const { familyUserSelect, identitySelect, mapFamilyUser } = require('../utils/familyIdentity')
+const { normalizeSlotKeys, slotLabel } = require('../utils/familySlots')
+const { canViewMessage } = require('../utils/messageAccess')
+const { resolveAudioUploadPath, assertUploadedFileExists } = require('../utils/uploadPaths')
 const { invalidateFamilyMemories, refreshMemoriesAfterMessage, scheduleMemoryRefresh } = require('./familyMemory.service')
 
 const VALID_VISIBILITIES = new Set(['private', 'family', 'self'])
@@ -27,17 +28,6 @@ function normalizeJsonArray(value) {
     return value.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
   }
   return []
-}
-
-function canViewMessage(message, userId) {
-  const numericUserId = Number(userId)
-  if (message.senderId === numericUserId) {
-    return true
-  }
-  if (message.visibility === 'family') {
-    return true
-  }
-  return (message.receivers || []).some((receiver) => receiver.userId === numericUserId)
 }
 
 function mapMessage(message, userId, viewerMember) {
@@ -73,32 +63,15 @@ function mapMessage(message, userId, viewerMember) {
       readAt: receiver.readAt,
       user: receiver.user ? mapFamilyUser(receiver.user, message.familyId) : null
     })),
+    receiverSlots: (message.slotReceivers || []).map((receiver) => ({
+      slotKey: receiver.slotKey,
+      label: slotLabel(receiver.slotKey),
+      status: receiver.status,
+      readAt: receiver.readAt
+    })),
     canDelete: isSender,
     canHide: Boolean(isFamilyAdmin)
   }
-}
-
-function resolveAudioUploadPath(originalAudioUrl) {
-  const raw = String(originalAudioUrl || '').trim()
-  if (!raw) {
-    return null
-  }
-  if (!raw.startsWith('/uploads/audio/')) {
-    throw createError('VALIDATION_ERROR', '原始语音必须先通过音频上传接口上传', 400)
-  }
-
-  const relativePath = raw.replace('/uploads/audio/', '')
-  if (!relativePath || relativePath.includes('\0')) {
-    throw createError('VALIDATION_ERROR', '原始语音地址无效', 400)
-  }
-
-  const audioRoot = path.resolve(UPLOAD_DIR_ABS, 'audio')
-  const filePath = path.resolve(audioRoot, relativePath)
-  if (filePath !== audioRoot && !filePath.startsWith(`${audioRoot}${path.sep}`)) {
-    throw createError('VALIDATION_ERROR', '原始语音地址无效', 400)
-  }
-
-  return filePath
 }
 
 function normalizeOriginalAudioUrl(value) {
@@ -107,9 +80,7 @@ function normalizeOriginalAudioUrl(value) {
     return ''
   }
   const filePath = resolveAudioUploadPath(originalAudioUrl)
-  if (!fs.existsSync(filePath)) {
-    throw createError('VALIDATION_ERROR', '原始语音文件不存在，请重新上传', 400)
-  }
+  assertUploadedFileExists(filePath, '原始语音文件不存在，请重新上传')
   return originalAudioUrl
 }
 
@@ -122,7 +93,8 @@ async function listMessages(userId, familyId, query) {
     OR: [
       { senderId: Number(userId) },
       { visibility: 'family' },
-      { receivers: { some: { userId: Number(userId) } } }
+      { receivers: { some: { userId: Number(userId) } } },
+      ...(viewerMember.slotKey ? [{ slotReceivers: { some: { slotKey: viewerMember.slotKey } } }] : [])
     ]
   }
 
@@ -137,7 +109,8 @@ async function listMessages(userId, familyId, query) {
         sender: { select: familyUserSelect(familyId) },
         receivers: {
           include: { user: { select: familyUserSelect(familyId) } }
-        }
+        },
+        slotReceivers: true
       }
     })
   ])
@@ -148,9 +121,9 @@ async function listMessages(userId, familyId, query) {
   }
 }
 
-async function validateReceivers(familyId, senderId, receiverIds, visibility) {
+async function resolveReceivers(familyId, senderId, payload, visibility) {
   if (visibility === 'self') {
-    return []
+    return { receiverIds: [], receiverSlotKeys: [] }
   }
 
   if (visibility === 'family') {
@@ -161,16 +134,23 @@ async function validateReceivers(familyId, senderId, receiverIds, visibility) {
       },
       select: { userId: true }
     })
-    return members.map((member) => member.userId)
+    return { receiverIds: members.map((member) => member.userId), receiverSlotKeys: [] }
   }
 
-  const normalizedIds = Array.from(new Set((receiverIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0 && id !== Number(senderId))))
-  if (visibility === 'private' && normalizedIds.length === 0) {
+  const normalizedIds = Array.from(new Set((payload.receiverIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0 && id !== Number(senderId))))
+  const senderMember = await prisma.familyMember.findUnique({
+    where: { familyId_userId: { familyId: Number(familyId), userId: Number(senderId) } },
+    select: { slotKey: true }
+  })
+  const receiverSlotKeys = normalizeSlotKeys(payload.receiverSlotKeys || payload.slotKeys || [])
+    .filter((slotKey) => slotKey !== (senderMember && senderMember.slotKey))
+
+  if (visibility === 'private' && normalizedIds.length === 0 && receiverSlotKeys.length === 0) {
     throw createError('VALIDATION_ERROR', '请选择接收家人', 400)
   }
 
   if (normalizedIds.length === 0) {
-    return []
+    return { receiverIds: [], receiverSlotKeys }
   }
 
   const members = await prisma.familyMember.findMany({
@@ -180,7 +160,22 @@ async function validateReceivers(familyId, senderId, receiverIds, visibility) {
   if (members.length !== normalizedIds.length) {
     throw createError('VALIDATION_ERROR', '接收人必须是家庭成员', 400)
   }
-  return normalizedIds
+  return { receiverIds: normalizedIds, receiverSlotKeys }
+}
+
+async function resolveSlotReceiverUserIds(client, familyId, slotKeys, senderId) {
+  if (!slotKeys.length) {
+    return []
+  }
+  const members = await client.familyMember.findMany({
+    where: {
+      familyId: Number(familyId),
+      slotKey: { in: slotKeys },
+      userId: { not: Number(senderId) }
+    },
+    select: { userId: true }
+  })
+  return members.map((member) => member.userId)
 }
 
 async function createMessage(userId, familyId, payload) {
@@ -191,7 +186,7 @@ async function createMessage(userId, familyId, payload) {
   const originalText = String(payload.originalText || '').trim()
   const originalAudioUrl = normalizeOriginalAudioUrl(payload.originalAudioUrl)
   const optimizedText = String(payload.optimizedText || originalText || '').trim()
-  const receiverIds = await validateReceivers(familyId, userId, payload.receiverIds, visibility)
+  const { receiverIds, receiverSlotKeys } = await resolveReceivers(familyId, userId, payload, visibility)
 
   if (!originalText && !originalAudioUrl) {
     throw createError('VALIDATION_ERROR', '请先写下心声或录制语音', 400)
@@ -220,15 +215,24 @@ async function createMessage(userId, familyId, payload) {
         allowOriginalAudioPlay: Boolean(payload.allowOriginalAudioPlay),
         receivers: {
           create: receiverIds.map((receiverId) => ({ userId: receiverId }))
+        },
+        slotReceivers: {
+          create: receiverSlotKeys.map((slotKey) => ({
+            familyId: Number(familyId),
+            slotKey
+          }))
         }
       },
       include: {
         sender: { select: familyUserSelect(familyId) },
-        receivers: { include: { user: { select: familyUserSelect(familyId) } } }
+        receivers: { include: { user: { select: familyUserSelect(familyId) } } },
+        slotReceivers: true
       }
     })
 
-    for (const receiverId of receiverIds) {
+    const slotReceiverUserIds = await resolveSlotReceiverUserIds(tx, familyId, receiverSlotKeys, userId)
+    const notifyUserIds = Array.from(new Set([...receiverIds, ...slotReceiverUserIds]))
+    for (const receiverId of notifyUserIds) {
       await createNotification({
         receiverId,
         triggerUserId: Number(userId),
@@ -271,14 +275,15 @@ async function getMessageDetail(userId, messageId) {
             }
           }
         }
-      }
+      },
+      slotReceivers: true
     }
   })
   if (!message || message.status !== 'visible') {
     throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
   }
   const viewerMember = await ensureFamilyMember(userId, message.familyId)
-  if (!canViewMessage(message, userId)) {
+  if (!canViewMessage(message, userId, viewerMember)) {
     throw createError('FORBIDDEN', '无权查看这条心声', 403)
   }
 
@@ -286,6 +291,12 @@ async function getMessageDetail(userId, messageId) {
     where: { messageId: message.id, userId: Number(userId), status: 'unread' },
     data: { status: 'read', readAt: new Date() }
   })
+  if (viewerMember.slotKey) {
+    await prisma.familyMessageSlotReceiver.updateMany({
+      where: { messageId: message.id, slotKey: viewerMember.slotKey, status: 'unread' },
+      data: { status: 'read', readAt: new Date() }
+    })
+  }
 
   return mapMessage(message, userId, viewerMember)
 }
@@ -317,14 +328,14 @@ async function deleteMessage(userId, messageId) {
 async function getOriginalAudioFile(userId, messageId) {
   const message = await prisma.familyMessage.findUnique({
     where: { id: Number(messageId) },
-    include: { receivers: true }
+    include: { receivers: true, slotReceivers: true }
   })
   if (!message || message.status !== 'visible') {
     throw createError('CONTENT_NOT_VISIBLE', '心声不可见', 404)
   }
 
-  await ensureFamilyMember(userId, message.familyId)
-  if (!canViewMessage(message, userId)) {
+  const viewerMember = await ensureFamilyMember(userId, message.familyId)
+  if (!canViewMessage(message, userId, viewerMember)) {
     throw createError('FORBIDDEN', '无权播放这条心声的原始语音', 403)
   }
 
@@ -337,9 +348,7 @@ async function getOriginalAudioFile(userId, messageId) {
   }
 
   const filePath = resolveAudioUploadPath(message.originalAudioUrl)
-  if (!fs.existsSync(filePath)) {
-    throw createError('NOT_FOUND', '原始语音文件不存在', 404)
-  }
+  assertUploadedFileExists(filePath, '原始语音文件不存在')
 
   return {
     filePath,

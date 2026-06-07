@@ -1,0 +1,19 @@
+[Unit]
+Description=AI Recorder Backend API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/AI-voice-recorder/ai-recorder/server
+Environment=NODE_ENV=production
+ExecStart=/usr/local/bin/npm run start
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

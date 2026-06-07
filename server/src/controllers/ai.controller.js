@@ -16,8 +16,14 @@ async function optimizeReply(req, res) {
   return sendSuccess(res, data, 'ok')
 }
 
+async function transcribeAudio(req, res) {
+  const data = await aiService.transcribeAudio(req.user.id, req.body)
+  return sendSuccess(res, data, 'ok')
+}
+
 module.exports = {
   optimizeMessage,
   analyzeMessage,
-  optimizeReply
+  optimizeReply,
+  transcribeAudio
 }

@@ -5,7 +5,7 @@ This checklist is for moving the project to a Mac for WeChat DevTools, real AppI
 ## Project Boundaries
 
 - Product name: 家庭 AI 留声机 / 暖心留声机.
-- AppID: `wxf73895336690e9a6`.
+- AppID: private local configuration only. Do not commit, document, log, or paste the full value; tracked mini program config uses `touristappid`.
 - Default database: `ai_recorder`.
 - No report/举报 feature.
 - The old class diary project is only a code template. Do not share database data, users, uploads, migrations, API routes, frontend entries, admin workflows, or AI memory with it.
@@ -33,7 +33,7 @@ npm run dev
 3. Check the backend:
 
 ```bash
-curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3001/health
 ```
 
 Expected response contains `ok: true`.
@@ -43,28 +43,30 @@ Expected response contains `ok: true`.
 Set these in `server/.env` only:
 
 ```env
-DATABASE_URL="mysql://ai_recorder_user:ai_recorder_password_change_me@127.0.0.1:3306/ai_recorder"
-WECHAT_APPID="wxf73895336690e9a6"
+DATABASE_URL="mysql://ai_recorder_user:ai_recorder_password_change_me@127.0.0.1:13306/ai_recorder"
+WECHAT_APPID="your_private_wechat_appid"
 WECHAT_SECRET="your_real_wechat_secret"
 OPENAI_API_KEY="your_real_ai_provider_key"
 OPENAI_BASE_URL="https://token.bkeel.com/v1"
 OPENAI_MODEL="gpt-5.4-mini"
 UPLOAD_DIR="./uploads/ai-recorder"
-PUBLIC_BASE_URL="http://127.0.0.1:3000"
+PUBLIC_BASE_URL="https://recorder.bkeel.com"
 ```
 
-Do not commit `.env`, WeChat secrets, GitHub tokens, AI provider keys, local uploads, logs, or WeChat private config.
+Keep the ai-recorder MySQL host port on `127.0.0.1:13306`. The old diary service may still own local `3306`, and pointing ai-recorder at that port causes account registration to fail before user creation.
+
+Do not commit `.env`, WeChat secrets, GitHub tokens, AI provider keys, local uploads, logs, or WeChat private config. When troubleshooting, mention only variable names and never print the full AppID or secret values.
 
 ## Mini Program Setup
 
 1. Open `miniprogram/` in WeChat DevTools.
-2. Confirm the project AppID is `wxf73895336690e9a6`.
+2. Configure the real project AppID locally in WeChat DevTools. Do not commit it to `project.config.json`.
 3. For simulator-only local backend testing, run this in the DevTools console:
 
 ```js
 wx.setStorageSync('AI_RECORDER_LOCAL_CONFIG', {
-  PUBLIC_BASE_URL: 'http://127.0.0.1:3000',
-  API_BASE_URL: 'http://127.0.0.1:3000/api'
+  PUBLIC_BASE_URL: 'http://127.0.0.1:3001',
+  API_BASE_URL: 'http://127.0.0.1:3001/api'
 })
 ```
 
@@ -88,13 +90,19 @@ wx.removeStorageSync('AI_RECORDER_LOCAL_CONFIG')
 - User can join by invite code and submit relationship, gender, child order, birth year, family nickname, preferred title, and identity note.
 - Admin can approve join requests and edit member identity.
 - User can create text-only messages without AI.
+- Self-only messages are visible only to the sender and do not show reply controls; backend reply and AI reply optimization reject them.
 - User can record, preview, upload, and send voice messages.
+- First-time voice recording prompts for microphone permission, and denied permission can be restored through the settings prompt.
 - Original audio can be played only through the authenticated message audio endpoint.
 - AI message optimization, message analysis, and reply optimization work with family memory on and off.
+- Private AI message optimization rejects empty or non-family receiver lists on the backend.
 - `useFamilyMemory: false` skips family memory context.
+- Family-visible message/reply memory uses current approved family membership; private memory remains participant-scoped.
 - Deleting or hiding messages/replies makes related family memory stale.
 - Notification links handle deleted/hidden content without exposing unavailable messages.
+- Notification links from another joined family switch into that family before opening message detail or admin review.
 - User-visible pages do not show class diary or report workflow copy.
+- Mini program sitemap keeps private family pages out of search indexing.
 
 ## Final Before Push
 

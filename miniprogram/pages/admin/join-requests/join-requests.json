@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "入家申请"
+  "navigationBarTitleText": "入家申请",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#f6efe2",
+  "backgroundTextStyle": "light"
 }

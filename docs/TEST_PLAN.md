@@ -22,16 +22,18 @@ npm run dev
 3. Check health:
 
 ```bash
-curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3001/health
 ```
 
 ## Configuration Checks
 
 - `DATABASE_URL` uses `ai_recorder`.
-- `WECHAT_APPID` is `wxf73895336690e9a6`.
+- Local ai-recorder MySQL uses `127.0.0.1:13306`, not `3306`, so it stays isolated from the old diary database.
+- `WECHAT_APPID` stays empty in tracked `server/.env.example` and is configured only in ignored local `server/.env` before testing real WeChat login. The full value must not appear in docs, logs, commits, or review output.
 - `WECHAT_SECRET` is configured only in ignored local `server/.env` before testing real WeChat login.
 - AI provider values are read from ignored `server/.env`.
 - Mac local mini program API values use the ignored local storage key `AI_RECORDER_LOCAL_CONFIG`; do not commit local API endpoint edits.
+- `miniprogram/sitemap.json` disallows indexing for all private family pages.
 - No real GitHub PAT, AI key, or provider secret is tracked.
 
 ## Mini Program Checks
@@ -66,10 +68,12 @@ curl http://127.0.0.1:3000/health
 - User can select the `指定家人`, `全家可见`, or `仅自己` message scope.
 - `指定家人` requires at least one selected receiver from family members.
 - `全家可见` creates receiver records and notifications for current family members other than the sender, and remains visible to approved family members.
-- `仅自己` creates no receiver records or message notifications and is visible only to the sender.
+- `仅自己` creates no receiver records or message notifications, is visible only to the sender, shows no reply composer, and rejects reply creation and AI reply optimization.
 - User can enter original text.
 - Text-only messages can be sent without AI; the original text is used as the family-visible expression unless the user writes or generates a separate expression.
 - User can record and upload original voice.
+- Mini program declares microphone permission purpose and asks for record permission before starting voice recording.
+- If record permission is denied, the message creation page explains why it is needed and guides the user to settings.
 - Recorded voice preview blocks duplicate playback and clears its loading state after playback ends or fails.
 - Oversized voice/image uploads return a clear upload-size error instead of image-only copy.
 - Voice-only messages can be sent after the user manually fills the expression family members should read first.
@@ -87,6 +91,7 @@ curl http://127.0.0.1:3000/health
 - Original text/audio permission switches do not appear for `仅自己` messages.
 - Receiver can ask AI to understand the message with family memory on/off.
 - Receiver can use AI assisted reply with family memory on/off.
+- AI assisted reply is unavailable for `仅自己` messages.
 - Message analysis and reply optimization each show their own AI waiting status.
 - Message detail AI, reply, delete, and hide actions block duplicate taps while a request is in progress.
 - Reply original text is visible only to its sender; other permitted readers see the optimized reply.
@@ -98,6 +103,8 @@ curl http://127.0.0.1:3000/health
 
 - Message creation refreshes relevant family/member/pair memories without blocking send on failure.
 - Reply creation refreshes relevant memories without blocking reply on failure.
+- Family-visible message/reply memory refresh uses current approved family members, including members approved after the original family message was created.
+- Private message/reply memory refresh stays limited to direct participants.
 - Message/reply deletion marks relevant memories stale or causes recomputation.
 - Admin hiding a message/reply marks relevant memories stale or causes recomputation.
 - `useFamilyMemory: false` skips `FamilyMemory` query and injection.
@@ -119,6 +126,8 @@ curl http://127.0.0.1:3000/health
 
 - AI requests with existing content require `messageId`.
 - Backend loads context only after permission checks.
+- Private `optimize-message` requires at least one backend-validated receiver from the current family.
+- `optimize-reply` rejects `仅自己` messages before building reply context.
 - Ordinary conflict content returns optimized expression and advice.
 - AI does not invent facts, force apology, force forgiveness, diagnose, or label personality.
 - High-risk content returns high-risk handling, not ordinary warm rewriting.
@@ -131,6 +140,7 @@ curl http://127.0.0.1:3000/health
 - Join request and join decision create notifications.
 - Notification can be marked read.
 - Notification opens related message when `messageId` exists.
+- Message notifications that belong to another joined family switch local current-family context before opening detail.
 - Join request notification opens the family join request review page for admins.
 - Join approval notification switches into the approved family and opens the family timeline.
 - Join rejection notification shows the rejection result message.
@@ -145,5 +155,6 @@ curl http://127.0.0.1:3000/health
 - `npx prisma generate --schema prisma/schema.prisma`
 - `node -e "require('./src/app'); console.log('app loaded')"`
 - App page list only contains family/message/admin pages.
+- Mini program sitemap does not allow search indexing of private family pages.
 - No old runtime class/diary/comment/like/report routes/pages/services.
 - No tracked `server/.env`, uploads, logs, pid files, private WeChat config, OS metadata, or secrets.

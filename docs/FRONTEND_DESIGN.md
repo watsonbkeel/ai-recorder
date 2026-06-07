@@ -2,7 +2,7 @@
 
 ## Design Source
 
-Visual direction extends from the mini program asset `miniprogram/images/loading-1.jpg`. Ignored local drafts may live under root `img/`, but runtime assets belong in `miniprogram/images/`.
+Visual direction extends from the root reference image `img/loading-1.jpg`. Mini program runtime pages use the copied asset `miniprogram/images/loading-1.jpg`. Other local visual drafts may live under root `img/`, but only this reference image should be tracked there unless the product explicitly needs another source asset.
 
 The image shows a warm illustrated family living room: mint sofas, cream furniture, coral gramophone, soft envelopes, sound-wave arcs, and a gentle AI heart motif. The product should feel like a family AI gramophone that helps repair expression, not a cold admin system or public social feed.
 
@@ -48,17 +48,18 @@ Use these tokens before adding page-local colors. Page-local WXSS should not rei
 - Secondary buttons: cream background, soft brown border, used for navigation and optional actions.
 - Cards: warm cream surface, 20-28rpx radius, soft shadow, low-contrast border.
 - Tags: mint, peach, or pale blue, low saturation only.
-- AI panels: mint-to-cream soft panel with copy such as “暖心表达助手” and “参考家庭沟通习惯”.
-- Voice controls: use 留声 / 原声 / 试听 / 声波 language; clear states for recording, previewing, uploading, and AI processing.
+- AI panels: mint-to-cream soft panel with copy such as “表达助手” and “参考家庭沟通习惯”. Normal message sending should default to AI expression整理 instead of requiring a separate primary AI button.
+- Voice controls: use 留声 / 原声 / 试听 / 声波 language; one tap starts recording and the same control stops recording. Show clear states for permission, recording, previewing, uploading, transcription, and AI processing.
+- Family identity controls: use a tappable family-position layout. Top row is father/mother. Child row defaults to 老大/老二/老三, and child slots ask only whether that slot is son or daughter.
 
 ## Page Rules
 
 - Login and family selection pages may use the loading image most directly, with large cream background and warm product title.
-- Join family uses the same image in a compact hero and keeps the identity form readable.
+- Join family uses the same image in a compact hero and shows the tappable family-position layout before submitting an application.
 - Message list uses soft cards, not feed-like comment boxes or backend tables.
-- Message creation foregrounds recording, leaving a message, AI warm expression, and the family memory switch.
+- Message creation foregrounds family-position receiver selection, recording, leaving a message, automatic transcription, default AI warm expression, and the family memory switch.
 - Message detail shows the optimized expression first, then authorized original content, then the expression assistant and reply composer.
-- Profile and family identity pages keep forms clear, but retain warm cards, muted text, and gentle boundaries.
+- Profile and family identity pages keep forms clear, use phone image selection for avatars, and retain warm cards, muted text, and gentle boundaries.
 - Admin pages are for maintaining the family留声空间, not judging people. Use “入家申请”, “成员管理”, “停用留言”, and “隐藏留言/回复” language.
 
 ## Copy Rules
@@ -76,4 +77,4 @@ Do not use copy that implies AI judges who is right, diagnoses someone, scores r
 
 ## Privacy And Configuration
 
-The WeChat AppID is the project boundary `wxf73895336690e9a6` and is tracked in project configuration. Do not commit WeChat Secret, AI provider keys, GitHub tokens, local uploads, logs, or WeChat private config.
+The full WeChat AppID is private local configuration. Tracked project configuration must keep the `touristappid` placeholder. Do not commit the full AppID, WeChat Secret, AI provider keys, GitHub tokens, local uploads, logs, or WeChat private config.

@@ -19,6 +19,16 @@ Page({
     this.loadData()
   },
   async loadData() {
+    if (!this.data.familyId) {
+      const currentFamily = auth.getCurrentFamily()
+      const familyId = Number(currentFamily && currentFamily.id) || null
+      this.setData({ familyId, currentFamily })
+    }
+    if (!this.data.familyId) {
+      this.setData({ loading: false, error: '请先选择家庭' })
+      wx.stopPullDownRefresh()
+      return
+    }
     this.setData({ loading: true, error: '' })
     try {
       const stats = await adminService.getDashboard(this.data.familyId)
@@ -30,7 +40,11 @@ Page({
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
+      wx.stopPullDownRefresh()
     }
+  },
+  onPullDownRefresh() {
+    this.loadData()
   },
   goJoinRequests() {
     wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${this.data.familyId}` })

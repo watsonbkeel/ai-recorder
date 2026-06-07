@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "管理首页"
+  "navigationBarTitleText": "管理首页",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#f6efe2",
+  "backgroundTextStyle": "light"
 }

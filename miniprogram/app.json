@@ -25,6 +25,11 @@
     "downloadFile": 120000,
     "connectSocket": 60000
   },
+  "permission": {
+    "scope.record": {
+      "desc": "用于录制给家人的原始语音留言"
+    }
+  },
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

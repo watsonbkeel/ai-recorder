@@ -2,7 +2,7 @@
   "miniprogramRoot": "./",
   "projectname": "ai-recorder",
   "description": "暖心留声机家庭AI小程序",
-  "appid": "wxf73895336690e9a6",
+  "appid": "touristappid",
   "compileType": "miniprogram",
   "setting": {
     "es6": true,

@@ -9,11 +9,16 @@ function getMyFamilies() {
 }
 
 function getFamilyByInvite(inviteCode) {
-  return request({ url: `/families/by-invite/${inviteCode}` })
+  const code = encodeURIComponent(String(inviteCode || '').trim())
+  return request({ url: `/families/by-invite/${code}` })
 }
 
 function getFamilyMembers(familyId) {
   return request({ url: `/families/${familyId}/members` })
+}
+
+function getFamilyLayout(familyId) {
+  return request({ url: `/families/${familyId}/layout` })
 }
 
 function updateIdentity(familyId, data) {
@@ -37,6 +42,7 @@ module.exports = {
   getMyFamilies,
   getFamilyByInvite,
   getFamilyMembers,
+  getFamilyLayout,
   updateIdentity,
   updateFamilyNickname,
   updateRelationship,

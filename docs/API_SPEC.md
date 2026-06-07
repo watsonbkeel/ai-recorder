@@ -38,6 +38,7 @@ Rules:
 - `GET /api/families/my`
 - `GET /api/families/by-invite/:inviteCode`
 - `GET /api/families/:familyId/members`
+- `GET /api/families/:familyId/layout`
 - `PATCH /api/families/:familyId/identity`
 - `PATCH /api/families/:familyId/nickname`
 - `PATCH /api/families/:familyId/relationship`
@@ -47,6 +48,7 @@ Family identity fields:
 
 ```json
 {
+  "slotKey": "father|mother|child_1|child_2|child_3",
   "relationship": "father|mother|son|daughter|child|grandfather|grandmother|grandparent|partner|sibling|other",
   "gender": "male|female|unspecified",
   "childOrder": 1,
@@ -56,6 +58,12 @@ Family identity fields:
   "identityNote": "异地上学"
 }
 ```
+
+Rules:
+
+- Father and mother slots imply relationship and gender.
+- Child slots preserve order through `slotKey`; the user chooses `son` or `daughter`.
+- Join-by-invite returns the visible family layout so applicants can choose an available position before approval.
 
 ## Message
 
@@ -70,6 +78,7 @@ Create message example:
 ```json
 {
   "receiverIds": [2],
+  "receiverSlotKeys": ["father"],
   "visibility": "private",
   "messageType": "grievance",
   "originalText": "你总是不听我说完",
@@ -89,9 +98,10 @@ Create message example:
 
 Message visibility:
 
-- `private`: `receiverIds` must contain at least one approved member of the same family, excluding the sender.
+- `private`: `receiverIds` and/or `receiverSlotKeys` must contain at least one approved member or valid family position, excluding the sender's own position.
 - `family`: backend ignores client-provided receiver coverage and creates receiver records/notifications for current approved family members other than the sender. The message is visible to approved members of this family.
-- `self`: backend stores no receivers and creates no message notifications. The message is visible only to the sender.
+- `self`: backend stores no receivers and creates no message notifications. The message is visible only to the sender and does not accept replies.
+- Slot-targeted private messages are visible when a member later claims the matching family position.
 
 ## Reply
 
@@ -99,11 +109,18 @@ Message visibility:
 - `POST /api/messages/:messageId/replies`
 - `DELETE /api/replies/:replyId`
 
+Rules:
+
+- Replies require message visibility permission and current family membership.
+- Muted members cannot create replies.
+- `self` messages return an empty reply list and reject reply creation.
+
 ## AI
 
 - `POST /api/ai/optimize-message`
 - `POST /api/ai/analyze-message`
 - `POST /api/ai/optimize-reply`
+- `POST /api/ai/transcribe-audio`
 
 AI requests support:
 
@@ -112,6 +129,7 @@ AI requests support:
   "familyId": 1,
   "visibility": "private",
   "receiverIds": [2],
+  "receiverSlotKeys": ["mother"],
   "messageId": 10,
   "originalText": "string",
   "useFamilyMemory": true
@@ -122,12 +140,24 @@ Rules:
 
 - Backend builds the AI context.
 - For `optimize-message`, backend resolves receiver identity context from `familyId`, `visibility`, and permitted family members.
-- `optimize-message` requires `originalText`; current MVP does not auto-transcribe `hasOriginalAudio`.
+- For private `optimize-message`, backend requires at least one valid receiver or receiver slot from the current family; frontend receiver lists are not trusted.
+- `optimize-message` requires `originalText`. The frontend may call `transcribe-audio` after uploading audio to produce that text.
+- Chat completion calls retry without `response_format` when an OpenAI-compatible provider rejects JSON mode.
 - Existing content context must be loaded by `messageId` after permission checks.
+- `optimize-reply` rejects `self` messages because self-only notes are for整理自己的想法, not replying to family.
 - Frontend must not inject arbitrary history, summaries, or memory.
 - `useFamilyMemory: false` fully disables `FamilyMemory` query and injection.
 - Hidden original text/audio must not enter AI context.
 - Original audio playback must use `GET /api/messages/:messageId/original-audio` with authentication. The endpoint checks message visibility and sender audio permission before streaming the uploaded audio file.
+
+Audio transcription request:
+
+```json
+{
+  "familyId": 1,
+  "audioUrl": "/uploads/audio/2026-W23/xxx.m4a"
+}
+```
 
 ## Upload
 

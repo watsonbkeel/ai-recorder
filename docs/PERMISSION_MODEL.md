@@ -15,7 +15,7 @@
 - Original audio playback uses the authenticated `GET /api/messages/:messageId/original-audio` endpoint; uploaded audio files are not publicly exposed through static file serving.
 - Reply original text is visible only to the reply sender; other permitted readers see the optimized reply.
 - Receivers may access messages sent to them, messages they sent, and family-visible messages.
-- Self-only messages are accessible only to the sender and do not create receiver notifications.
+- Self-only messages are accessible only to the sender, do not create receiver notifications, do not accept replies, and do not support AI reply optimization.
 - Family-scoped notifications for messages, replies, and join-review work are visible only while the receiver is still a member of that family.
 - Notifications linked to hidden or deleted messages/replies are excluded from lists and unread counts.
 - Join approval/rejection notifications are personal outcome notices and remain visible to the applicant.
@@ -36,10 +36,11 @@ There is no report workflow.
 
 - AI context must be built by backend services.
 - Existing content context requires current family membership and message visibility checks.
+- Private AI message optimization must resolve at least one valid receiver from the current family on the backend.
 - Family memory is scoped to the current family and must not cross families.
 - `useFamilyMemory: false` disables memory lookup and injection.
 - Hidden original text/audio must not enter AI context.
-- Memory records may summarize communication preferences and sensitive topics, not personality or diagnosis.
+- Memory records may summarize communication preferences and sensitive topics, not personality or diagnosis. Family-visible message/reply memory uses current approved family membership; private message memory stays limited to direct participants.
 
 ## Restrictions
 

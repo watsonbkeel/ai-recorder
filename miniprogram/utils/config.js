@@ -1,6 +1,6 @@
 const defaultConfig = {
-  PUBLIC_BASE_URL: 'https://ai-recorder.bkeel.com',
-  API_BASE_URL: 'https://ai-recorder.bkeel.com/api'
+  PUBLIC_BASE_URL: 'https://recorder.bkeel.com',
+  API_BASE_URL: 'https://recorder.bkeel.com/api'
 }
 const LOCAL_CONFIG_KEY = 'AI_RECORDER_LOCAL_CONFIG'
 

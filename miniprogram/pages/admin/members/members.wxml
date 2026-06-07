@@ -19,9 +19,9 @@
     </view>
     <view class="actions">
       <button class="btn-secondary" size="mini" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="startEditIdentity">编辑身份</button>
-      <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'mute'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '恢复留言' : '停用留言'}}</button>
-      <button class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'role'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
-      <button class="btn-danger" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'remove'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="removeMember">移出家庭</button>
+      <button wx:if="{{!item.isSelf}}" class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'mute'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleMute">{{item.isMuted ? '恢复留言' : '停用留言'}}</button>
+      <button wx:if="{{!item.isSelf}}" class="btn-secondary" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'role'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="toggleRole">{{item.role === 'admin' ? '取消管理员' : '设为管理员'}}</button>
+      <button wx:if="{{!item.isSelf}}" class="btn-danger" size="mini" loading="{{handlingMemberId === item.userId && handlingAction === 'remove'}}" disabled="{{handlingMemberId}}" data-item="{{item}}" bindtap="removeMember">移出家庭</button>
     </view>
   </view>
 
@@ -29,15 +29,27 @@
     <view class="card">
       <view class="title">编辑家庭身份</view>
       <view class="sub-title">{{editingMember.displayName || editingMember.user.nickname || '家庭成员'}}</view>
-      <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
-        <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
+      <view class="family-layout">
+        <view class="slot-row slot-row-parents">
+          <view wx:for="{{editSlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+            <view class="slot-avatar">{{item.avatarText}}</view>
+            <view class="slot-title">{{item.displayLabel}}</view>
+            <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+          </view>
+        </view>
+        <view class="slot-row slot-row-children">
+          <view wx:for="{{editSlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+            <view class="slot-avatar">{{item.avatarText}}</view>
+            <view class="slot-title">{{item.displayLabel}}</view>
+            <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+          </view>
+        </view>
+      </view>
+      <picker wx:if="{{showChildRelationship}}" mode="selector" range="{{childRelationshipLabels}}" value="{{childRelationshipIndex}}" bindchange="handleChildRelationshipChange">
+        <view class="input">这个位置是：{{childRelationshipLabels[childRelationshipIndex]}}</view>
       </picker>
-      <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
-        <view class="input">性别：{{genderLabels[genderIndex]}}</view>
-      </picker>
-      <input wx:if="{{showChildOrder}}" class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
       <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
-      <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
+      <input class="input" placeholder="家庭昵称，例如 爸爸、小明、妹妹" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
       <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
       <textarea class="textarea" placeholder="身份备注，例如 异地上学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
       <view class="actions">

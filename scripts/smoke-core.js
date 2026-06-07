@@ -225,6 +225,33 @@ async function pollMessageMemory(familyId, messageId) {
   return null
 }
 
+async function pollPairMemoryForUsers(familyId, firstUserId, secondUserId, sourceReplyId) {
+  const members = await prisma.familyMember.findMany({
+    where: { familyId, userId: { in: [Number(firstUserId), Number(secondUserId)] } },
+    select: { id: true }
+  })
+  assertEqual(members.length, 2, 'pair memory test users should both be active family members')
+  const memberIds = members.map((member) => member.id).sort((a, b) => a - b)
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const memory = await prisma.familyMemory.findFirst({
+      where: {
+        familyId,
+        status: 'active',
+        scope: 'pair',
+        memberId: memberIds[0],
+        relatedMemberId: memberIds[1],
+        ...(sourceReplyId ? { sourceReplyId: Number(sourceReplyId) } : {})
+      },
+      orderBy: { updatedAt: 'desc' }
+    })
+    if (memory) {
+      return memory
+    }
+    await delay(250)
+  }
+  return null
+}
+
 async function main() {
   assertFamilyMemberSort()
 
@@ -251,6 +278,11 @@ async function main() {
       password: 'smoke-pass-1',
       nickname: '烟测二宝'
     })
+    const lateMemberAuth = await authService.registerWithPassword({
+      accountName: `${accountPrefix}_late_member`,
+      password: 'smoke-pass-1',
+      nickname: '烟测晚加入成员'
+    })
     const rejectedAuth = await authService.registerWithPassword({
       accountName: `${accountPrefix}_rejected`,
       password: 'smoke-pass-1',
@@ -259,8 +291,9 @@ async function main() {
     const adminId = adminAuth.user.id
     const memberId = memberAuth.user.id
     const secondMemberId = secondMemberAuth.user.id
+    const lateMemberId = lateMemberAuth.user.id
     const rejectedId = rejectedAuth.user.id
-    userIds.push(adminId, memberId, secondMemberId, rejectedId)
+    userIds.push(adminId, memberId, secondMemberId, lateMemberId, rejectedId)
     smokeServer = http.createServer(app)
     const smokeBaseUrl = await listen(smokeServer)
 
@@ -297,6 +330,11 @@ async function main() {
     const pendingRequest = pendingRequests.find((item) => item.id === joinRequest.id)
     assert(pendingRequest, 'admin should see pending join request')
     assertEqual(pendingRequest.relationship, 'daughter', 'join identity should be visible to admin')
+    await expectError(
+      'VALIDATION_ERROR',
+      () => adminService.listJoinRequests(adminId, familyId, { status: 'invalid-status' }),
+      'invalid join request status should return validation error'
+    )
     const adminJoinNotifications = await notificationService.listNotifications(adminId, { page: 1, pageSize: 30 })
     const adminJoinNotification = adminJoinNotifications.items.find((item) => item.type === 'family_join_requested' && item.familyId === familyId)
     assert(adminJoinNotification, 'admin should receive join request notification')
@@ -375,6 +413,26 @@ async function main() {
       () => messageService.getMessageDetail(memberId, selfMessage.id),
       'self message should not be visible to other family members'
     )
+    const selfReplies = await replyService.listReplies(adminId, selfMessage.id)
+    assertEqual(selfReplies.length, 0, 'self message should not have replies')
+    await expectError(
+      'VALIDATION_ERROR',
+      () => replyService.createReply(adminId, selfMessage.id, {
+        originalText: '给自己的心声不应该创建回复。',
+        optimizedText: '给自己的心声不应该创建回复。',
+        riskLevel: 'low'
+      }),
+      'self message should not accept replies'
+    )
+    await expectError(
+      'VALIDATION_ERROR',
+      () => aiService.optimizeReply(adminId, {
+        messageId: selfMessage.id,
+        originalText: '给自己的心声不应该整理回复。',
+        useFamilyMemory: false
+      }),
+      'self message should not accept AI reply optimization'
+    )
     const memberUnreadAfterSelfMessage = await notificationService.getUnreadCount(memberId)
     assertEqual(
       memberUnreadAfterSelfMessage.count,
@@ -415,6 +473,90 @@ async function main() {
     assert(familyOptimizePayload.request.receiverIds.includes(memberId), 'AI family message optimization should include first child')
     assert(familyOptimizePayload.request.receiverIds.includes(secondMemberId), 'AI family message optimization should include second child')
     assert(!familyOptimizePayload.request.receiverIds.includes(rejectedId), 'AI family message optimization should exclude rejected applicants')
+    await expectError(
+      'VALIDATION_ERROR',
+      () => aiService.optimizeMessage(adminId, {
+        familyId,
+        visibility: 'private',
+        receiverIds: [],
+        originalText: '这条私密留言没有选择接收人。',
+        messageType: 'general',
+        useFamilyMemory: false
+      }),
+      'AI private message optimization should require selected receivers on backend'
+    )
+    await expectError(
+      'VALIDATION_ERROR',
+      () => aiService.optimizeMessage(adminId, {
+        familyId,
+        visibility: 'private',
+        receiverIds: [rejectedId],
+        originalText: '这条私密留言选择了非家庭成员。',
+        messageType: 'general',
+        useFamilyMemory: false
+      }),
+      'AI private message optimization should reject non-family receivers on backend'
+    )
+
+    const lateJoinRequest = await familyService.createJoinRequest(lateMemberId, familyId, {
+      message: '我晚一点加入，用来验证全家留言后续回复通知',
+      relationship: 'child',
+      gender: 'unspecified',
+      childOrder: 3,
+      birthYear: 2018,
+      familyNickname: '晚加入的家人',
+      preferredTitle: '小家人',
+      identityNote: '自动化烟测晚加入成员'
+    })
+    await adminService.handleJoinRequest(adminId, lateJoinRequest.id, { action: 'approve' })
+    const familyMessageForLateMember = await messageService.getMessageDetail(lateMemberId, familyMessage.id)
+    assertEqual(familyMessageForLateMember.visibility, 'family', 'late approved member should see previous family message')
+
+    const familyReplyForLateNotification = await replyService.createReply(secondMemberId, familyMessage.id, {
+      originalText: '我也想参与今晚的轻松聊天。',
+      optimizedText: '我也想参与今晚的轻松聊天，我们晚一点一起说说。',
+      emotionTags: ['期待'],
+      aiAdvice: '回应全家沟通邀请，并给出温和参与意愿。',
+      riskLevel: 'low'
+    })
+    const lateNotificationsAfterFamilyReply = await notificationService.listNotifications(lateMemberId, { page: 1, pageSize: 30 })
+    assert(
+      lateNotificationsAfterFamilyReply.items.some((item) => item.replyId === familyReplyForLateNotification.id),
+      'family message reply should notify current family members who joined after original message'
+    )
+    const latePairMemory = await pollPairMemoryForUsers(familyId, secondMemberId, lateMemberId, familyReplyForLateNotification.id)
+    assert(
+      latePairMemory,
+      'family message reply should refresh pair memory for current family members who joined after original message'
+    )
+    aiCalls.length = 0
+    await aiService.optimizeReply(lateMemberId, {
+      messageId: familyMessage.id,
+      originalText: '我想和大家一起聊一聊。',
+      useFamilyMemory: false
+    })
+    const familyReplyOptimizePayload = lastAiPayload('family message reply AI optimization')
+    assertEqual(
+      familyReplyOptimizePayload.request.familyContext.visibility,
+      'family',
+      'AI reply optimization for family message should keep message visibility in backend context'
+    )
+    assert(
+      familyReplyOptimizePayload.request.familyContext.receiverIds.includes(adminId),
+      'AI family reply context should include message sender for current member'
+    )
+    assert(
+      familyReplyOptimizePayload.request.familyContext.receiverIds.includes(memberId),
+      'AI family reply context should include current family members'
+    )
+    assert(
+      familyReplyOptimizePayload.request.familyContext.receiverIds.includes(secondMemberId),
+      'AI family reply context should include family members who replied'
+    )
+    assert(
+      !familyReplyOptimizePayload.request.familyContext.receiverIds.includes(rejectedId),
+      'AI family reply context should exclude rejected applicants'
+    )
 
     const uploadedAudio = await uploadFixture(smokeBaseUrl, adminAuth.token, '/api/upload/audio', 'smoke audio', 'audio/mpeg', 'voice.mp3')
     assert(uploadedAudio.url && uploadedAudio.url.startsWith('/uploads/audio/'), 'audio upload should return protected audio storage URL')
@@ -457,6 +599,37 @@ async function main() {
       allowOriginalAudioPlay: false
     })
     await delay(300)
+
+    const secondUnreadBeforeMisaddressedPrivateNotification = await notificationService.getUnreadCount(secondMemberId)
+    const misaddressedPrivateNotification = await notificationService.createNotification({
+      receiverId: secondMemberId,
+      triggerUserId: adminId,
+      familyId,
+      type: 'message_received',
+      title: '误发私密心声通知',
+      content: '这条误发通知不应出现在非接收人的通知列表。',
+      messageId: message.id
+    })
+    const secondNotificationsAfterMisaddressedPrivate = await notificationService.listNotifications(secondMemberId, { page: 1, pageSize: 50 })
+    assert(
+      !secondNotificationsAfterMisaddressedPrivate.items.some((item) => item.id === misaddressedPrivateNotification.id),
+      'misaddressed private message notification should be filtered for non-participant family member'
+    )
+    const secondUnreadAfterMisaddressedPrivateNotification = await notificationService.getUnreadCount(secondMemberId)
+    assertEqual(
+      secondUnreadAfterMisaddressedPrivateNotification.count,
+      secondUnreadBeforeMisaddressedPrivateNotification.count,
+      'misaddressed private message notification should not affect visible unread count'
+    )
+    await notificationService.markRead(secondMemberId, misaddressedPrivateNotification.id)
+    const hiddenPrivateNotificationAfterMarkRead = await prisma.notification.findUnique({
+      where: { id: misaddressedPrivateNotification.id }
+    })
+    assertEqual(
+      hiddenPrivateNotificationAfterMarkRead.isRead,
+      false,
+      'markRead should not mark a hidden private message notification'
+    )
 
     const receivedMessage = await messageService.getMessageDetail(memberId, message.id)
     assertEqual(receivedMessage.originalText, null, 'hidden original text should not be returned to receiver')
@@ -501,6 +674,28 @@ async function main() {
       aiAdvice: '先表达状态，再给出可沟通时间。',
       riskLevel: 'low'
     })
+    const secondUnreadBeforeMisaddressedReplyNotification = await notificationService.getUnreadCount(secondMemberId)
+    const misaddressedReplyNotification = await notificationService.createNotification({
+      receiverId: secondMemberId,
+      triggerUserId: memberId,
+      familyId,
+      type: 'message_replied',
+      title: '误发私密回复通知',
+      content: '这条误发回复通知不应出现在非接收人的通知列表。',
+      messageId: message.id,
+      replyId: reply.id
+    })
+    const secondNotificationsAfterMisaddressedReply = await notificationService.listNotifications(secondMemberId, { page: 1, pageSize: 50 })
+    assert(
+      !secondNotificationsAfterMisaddressedReply.items.some((item) => item.id === misaddressedReplyNotification.id),
+      'misaddressed private reply notification should be filtered for non-participant family member'
+    )
+    const secondUnreadAfterMisaddressedReplyNotification = await notificationService.getUnreadCount(secondMemberId)
+    assertEqual(
+      secondUnreadAfterMisaddressedReplyNotification.count,
+      secondUnreadBeforeMisaddressedReplyNotification.count,
+      'misaddressed private reply notification should not affect visible unread count'
+    )
     const replyMemory = await pollReplyMemory(familyId)
     assert(replyMemory, 'family memory should refresh after reply')
     assertEqual(replyMemory.scope, 'pair', 'private message memory should stay pair scoped')

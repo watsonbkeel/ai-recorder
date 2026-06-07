@@ -54,7 +54,11 @@ Page({
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
+      wx.stopPullDownRefresh()
     }
+  },
+  onPullDownRefresh() {
+    this.loadData()
   },
   async markRead(event) {
     const id = event.currentTarget.dataset.id
@@ -84,12 +88,22 @@ Page({
       }
 
       if (item.messageId) {
-        const familyParam = item.familyId ? `&familyId=${item.familyId}` : ''
+        const familyId = item.familyId ? Number(item.familyId) : null
+        if (familyId) {
+          const currentFamily = await this.syncCurrentFamily(familyId)
+          if (!currentFamily) {
+            wx.showToast({ title: '暂未找到这个家庭，请稍后刷新', icon: 'none' })
+            this.loadData()
+            return
+          }
+        }
+        const familyParam = familyId ? `&familyId=${familyId}` : ''
         wx.navigateTo({ url: `/pages/message-detail/message-detail?messageId=${item.messageId}${familyParam}` })
         return
       }
 
       if (item.type === 'family_join_requested' && item.familyId) {
+        await this.syncCurrentFamily(item.familyId)
         wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${item.familyId}` })
         return
       }
@@ -120,22 +134,33 @@ Page({
   async enterApprovedFamily(familyId) {
     this.setData({ loading: true, error: '' })
     try {
-      const families = await familyService.getMyFamilies()
-      const currentFamily = families.find((family) => Number(family.id) === Number(familyId))
+      const currentFamily = await this.syncCurrentFamily(familyId)
       if (!currentFamily) {
         wx.showToast({ title: '暂未找到这个家庭，请稍后刷新', icon: 'none' })
         this.loadData()
         return
       }
 
-      auth.setCurrentFamily(currentFamily)
-      getApp().setCurrentFamily(currentFamily)
       wx.redirectTo({ url: `/pages/message-list/message-list?familyId=${currentFamily.id}` })
     } catch (error) {
       this.setData({ error: error.message || '进入家庭失败' })
     } finally {
       this.setData({ loading: false })
     }
+  },
+  async syncCurrentFamily(familyId) {
+    const currentFamily = auth.getCurrentFamily()
+    if (currentFamily && Number(currentFamily.id) === Number(familyId)) {
+      return currentFamily
+    }
+
+    const families = await familyService.getMyFamilies()
+    const matchedFamily = families.find((family) => Number(family.id) === Number(familyId))
+    if (matchedFamily) {
+      auth.setCurrentFamily(matchedFamily)
+      getApp().setCurrentFamily(matchedFamily)
+    }
+    return matchedFamily || null
   },
   async markAllRead() {
     if (this.data.markingAllRead || this.data.loading) {

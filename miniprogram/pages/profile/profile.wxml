@@ -16,23 +16,41 @@
     <view class="card">
       <view class="title">我的昵称</view>
       <view class="sub-title">全局昵称作为默认展示名，家庭昵称只在当前家庭内使用。</view>
+      <view class="profile-avatar-row">
+        <view class="profile-avatar">
+          <image wx:if="{{avatarPreviewUrl}}" src="{{avatarPreviewUrl}}" mode="aspectFill"></image>
+          <view wx:else class="profile-avatar-text">{{avatarFallbackText}}</view>
+        </view>
+        <button class="btn-secondary" loading="{{uploadingAvatar}}" disabled="{{uploadingAvatar || savingProfile}}" bindtap="chooseAvatar">选择手机头像</button>
+      </view>
       <input class="input" placeholder="全局昵称" value="{{nicknameInput}}" bindinput="handleNicknameInput" />
-      <input class="input" placeholder="头像 URL（可选）" value="{{avatarUrlInput}}" bindinput="handleAvatarUrlInput" />
       <button class="btn-primary" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">保存昵称</button>
     </view>
 
     <view wx:if="{{currentFamily}}" class="card">
       <view class="title">家庭身份</view>
       <view class="sub-title">身份只用于称呼、语气和表达适配，帮助话说得更清楚，不用于评价家人或贴标签。</view>
-      <picker mode="selector" range="{{relationshipLabels}}" value="{{relationshipIndex}}" bindchange="handleRelationshipChange">
-        <view class="input">关系：{{relationshipLabels[relationshipIndex]}}</view>
+      <view class="family-layout">
+        <view class="slot-row slot-row-parents">
+          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+            <view class="slot-avatar">{{item.avatarText}}</view>
+            <view class="slot-title">{{item.displayLabel}}</view>
+            <view class="slot-status">{{item.occupied && !item.selected ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+          </view>
+        </view>
+        <view class="slot-row slot-row-children">
+          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+            <view class="slot-avatar">{{item.avatarText}}</view>
+            <view class="slot-title">{{item.displayLabel}}</view>
+            <view class="slot-status">{{item.occupied && !item.selected ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+          </view>
+        </view>
+      </view>
+      <picker wx:if="{{showChildRelationship}}" mode="selector" range="{{childRelationshipLabels}}" value="{{childRelationshipIndex}}" bindchange="handleChildRelationshipChange">
+        <view class="input">这个位置是：{{childRelationshipLabels[childRelationshipIndex]}}</view>
       </picker>
-      <picker mode="selector" range="{{genderLabels}}" value="{{genderIndex}}" bindchange="handleGenderChange">
-        <view class="input">性别：{{genderLabels[genderIndex]}}</view>
-      </picker>
-      <input wx:if="{{showChildOrder}}" class="input" type="number" placeholder="子女排行，例如 1 表示老大，可不填" value="{{childOrder}}" bindinput="handleChildOrderInput" />
       <input class="input" type="number" placeholder="出生年份，可不填" value="{{birthYear}}" bindinput="handleBirthYearInput" />
-      <input class="input" placeholder="家庭昵称，例如 小明、妈妈" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
+      <input class="input" placeholder="家庭昵称，例如 爸爸、小明、妹妹" value="{{familyNickname}}" bindinput="handleFamilyNicknameInput" />
       <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
       <textarea class="textarea" placeholder="身份备注，例如 异地上学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
       <button class="btn-primary" loading="{{savingIdentity}}" disabled="{{savingIdentity}}" bindtap="saveIdentity">保存家庭身份</button>

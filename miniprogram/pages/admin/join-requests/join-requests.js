@@ -1,4 +1,5 @@
 const adminService = require('../../../services/admin')
+const auth = require('../../../utils/auth')
 const format = require('../../../utils/format')
 const { identitySummary } = require('../../../utils/familyIdentity')
 const { handleFamilyAccessError } = require('../../../utils/familyAccess')
@@ -19,10 +20,20 @@ Page({
     items: []
   },
   onLoad(options) {
-    this.setData({ familyId: Number(options.familyId) })
+    const currentFamily = auth.getCurrentFamily()
+    this.setData({ familyId: Number(options.familyId || (currentFamily && currentFamily.id)) || null })
     this.loadData()
   },
   async loadData() {
+    if (!this.data.familyId) {
+      const currentFamily = auth.getCurrentFamily()
+      this.setData({ familyId: Number(currentFamily && currentFamily.id) || null })
+    }
+    if (!this.data.familyId) {
+      this.setData({ loading: false, error: '请先选择家庭' })
+      wx.stopPullDownRefresh()
+      return
+    }
     this.setData({ loading: true, error: '' })
     try {
       const items = await adminService.getJoinRequests(this.data.familyId)
@@ -41,7 +52,11 @@ Page({
       this.setData({ error: error.message || '加载失败' })
     } finally {
       this.setData({ loading: false })
+      wx.stopPullDownRefresh()
     }
+  },
+  onPullDownRefresh() {
+    this.loadData()
   },
   async handleAction(event) {
     const { id, action } = event.currentTarget.dataset

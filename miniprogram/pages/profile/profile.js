@@ -1,16 +1,32 @@
 const authService = require('../../services/auth')
 const familyService = require('../../services/family')
+const uploadService = require('../../services/upload')
 const auth = require('../../utils/auth')
-const identity = require('../../utils/familyIdentity')
+const familySlots = require('../../utils/familySlots')
+const { getApiRootUrl } = require('../../utils/config')
+const { handleFamilyAccessError } = require('../../utils/familyAccess')
+
+function imageUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) {
+    return ''
+  }
+  if (/^https?:\/\//.test(value)) {
+    return value
+  }
+  return `${getApiRootUrl()}${value}`
+}
 
 function identityFormFromFamily(family) {
-  const relationship = family && family.relationship
-  const showChildOrder = identity.isChildRelationship(relationship)
+  const slotKey = familySlots.normalizeSlotKey(family && family.slotKey)
+  const showChildRelationship = familySlots.isChildSlot(slotKey)
+  const childRelationshipIndex = family && family.relationship === 'daughter' ? 1 : 0
   return {
-    relationshipIndex: identity.optionIndex(identity.RELATIONSHIP_OPTIONS, relationship),
-    showChildOrder,
-    genderIndex: identity.optionIndex(identity.GENDER_OPTIONS, family && family.gender),
-    childOrder: showChildOrder && family && family.childOrder ? String(family.childOrder) : '',
+    selectedSlotKey: slotKey,
+    selectedSlotLabel: slotKey ? familySlots.slotLabel(slotKey, family && family.relationship) : '',
+    familySlots: familySlots.decorateSlots(null, slotKey ? [slotKey] : []),
+    showChildRelationship,
+    childRelationshipIndex,
     birthYear: family && family.birthYear ? String(family.birthYear) : '',
     familyNickname: family && family.familyNickname ? family.familyNickname : '',
     preferredTitle: family && family.preferredTitle ? family.preferredTitle : '',
@@ -26,13 +42,17 @@ Page({
     families: [],
     currentFamily: null,
     nicknameInput: '',
+    avatarFallbackText: '家',
     avatarUrlInput: '',
-    relationshipLabels: identity.RELATIONSHIP_LABELS,
-    genderLabels: identity.GENDER_LABELS,
-    relationshipIndex: 0,
-    showChildOrder: false,
-    genderIndex: 0,
-    childOrder: '',
+    avatarPreviewUrl: '',
+    uploadingAvatar: false,
+    familySlots: familySlots.decorateSlots(null, ''),
+    selectedSlotKey: '',
+    selectedSlotLabel: '',
+    childRelationshipOptions: familySlots.CHILD_RELATIONSHIP_OPTIONS,
+    childRelationshipLabels: familySlots.CHILD_RELATIONSHIP_OPTIONS.map((item) => item.label),
+    childRelationshipIndex: 0,
+    showChildRelationship: false,
     birthYear: '',
     familyNickname: '',
     preferredTitle: '',
@@ -49,7 +69,7 @@ Page({
       const [user, families] = await Promise.all([authService.getMe(), familyService.getMyFamilies()])
       const storedFamily = auth.getCurrentFamily()
       const currentFamily = storedFamily
-        ? (families.find((item) => item.id === storedFamily.id) || families[0] || null)
+        ? (families.find((item) => Number(item.id) === Number(storedFamily.id)) || families[0] || null)
         : (families[0] || null)
 
       if (currentFamily) {
@@ -67,9 +87,14 @@ Page({
         families,
         currentFamily,
         nicknameInput: user.nickname || '',
+        avatarFallbackText: (user.nickname || '家').slice(0, 1),
         avatarUrlInput: user.avatarUrl || '',
+        avatarPreviewUrl: imageUrl(user.avatarUrl),
         ...identityFormFromFamily(currentFamily)
       })
+      if (currentFamily) {
+        this.loadFamilyLayout(currentFamily.id, currentFamily.slotKey)
+      }
     } catch (error) {
       this.setData({ error: error.message || '加载失败' })
     } finally {
@@ -84,29 +109,56 @@ Page({
       currentFamily,
       ...identityFormFromFamily(currentFamily)
     })
+    this.loadFamilyLayout(currentFamily.id, currentFamily.slotKey)
     wx.showToast({ title: '已切换家庭', icon: 'success' })
   },
+  async loadFamilyLayout(familyId, selectedSlotKey) {
+    if (!familyId) {
+      return
+    }
+    try {
+      const layout = await familyService.getFamilyLayout(familyId)
+      this.setData({
+        familySlots: familySlots.decorateSlots(layout.slots, selectedSlotKey ? [selectedSlotKey] : [])
+      })
+    } catch (error) {
+      if (handleFamilyAccessError(error, familyId)) {
+        return
+      }
+      this.setData({ error: error.message || '家庭位置加载失败' })
+    }
+  },
   handleNicknameInput(event) {
-    this.setData({ nicknameInput: event.detail.value })
-  },
-  handleAvatarUrlInput(event) {
-    this.setData({ avatarUrlInput: event.detail.value })
-  },
-  handleRelationshipChange(event) {
-    const relationshipIndex = Number(event.detail.value)
-    const relationship = identity.optionValue(identity.RELATIONSHIP_OPTIONS, relationshipIndex)
-    const showChildOrder = identity.isChildRelationship(relationship)
+    const nicknameInput = event.detail.value
     this.setData({
-      relationshipIndex,
-      showChildOrder,
-      childOrder: showChildOrder ? this.data.childOrder : ''
+      nicknameInput,
+      avatarFallbackText: (nicknameInput || '家').slice(0, 1)
     })
   },
-  handleGenderChange(event) {
-    this.setData({ genderIndex: Number(event.detail.value) })
+  selectIdentitySlot(event) {
+    const selectedSlotKey = familySlots.normalizeSlotKey(event.currentTarget.dataset.key)
+    if (!selectedSlotKey) {
+      return
+    }
+    const showChildRelationship = familySlots.isChildSlot(selectedSlotKey)
+    this.setData({
+      selectedSlotKey,
+      selectedSlotLabel: familySlots.slotLabel(selectedSlotKey, showChildRelationship
+        ? this.data.childRelationshipOptions[this.data.childRelationshipIndex].value
+        : undefined),
+      showChildRelationship,
+      familySlots: familySlots.decorateSlots(this.data.familySlots, [selectedSlotKey])
+    })
   },
-  handleChildOrderInput(event) {
-    this.setData({ childOrder: event.detail.value })
+  handleChildRelationshipChange(event) {
+    const childRelationshipIndex = Number(event.detail.value)
+    const relationship = this.data.childRelationshipOptions[childRelationshipIndex]
+      ? this.data.childRelationshipOptions[childRelationshipIndex].value
+      : 'son'
+    this.setData({
+      childRelationshipIndex,
+      selectedSlotLabel: this.data.selectedSlotKey ? familySlots.slotLabel(this.data.selectedSlotKey, relationship) : ''
+    })
   },
   handleBirthYearInput(event) {
     this.setData({ birthYear: event.detail.value })
@@ -119,6 +171,49 @@ Page({
   },
   handleIdentityNoteInput(event) {
     this.setData({ identityNote: event.detail.value })
+  },
+  async chooseAvatar() {
+    if (this.data.uploadingAvatar || this.data.savingProfile) {
+      return
+    }
+    const chooseFile = () => new Promise((resolve, reject) => {
+      if (wx.chooseMedia) {
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sourceType: ['album', 'camera'],
+          success: (res) => resolve(res.tempFiles && res.tempFiles[0] && res.tempFiles[0].tempFilePath),
+          fail: reject
+        })
+        return
+      }
+      wx.chooseImage({
+        count: 1,
+        sourceType: ['album', 'camera'],
+        success: (res) => resolve(res.tempFilePaths && res.tempFilePaths[0]),
+        fail: reject
+      })
+    })
+
+    this.setData({ uploadingAvatar: true, error: '' })
+    try {
+      const filePath = await chooseFile()
+      if (!filePath) {
+        throw new Error('没有选择图片')
+      }
+      const uploaded = await uploadService.uploadImage(filePath)
+      this.setData({
+        avatarUrlInput: uploaded.url,
+        avatarPreviewUrl: uploaded.fullUrl || imageUrl(uploaded.url)
+      })
+      wx.showToast({ title: '头像已选择', icon: 'success' })
+    } catch (error) {
+      if (!/cancel/.test(String(error.errMsg || error.message || ''))) {
+        this.setData({ error: error.message || '头像上传失败' })
+      }
+    } finally {
+      this.setData({ uploadingAvatar: false })
+    }
   },
   async saveProfile() {
     if (this.data.savingProfile) {
@@ -138,7 +233,11 @@ Page({
       })
       auth.setUser(user)
       getApp().setUser(user, auth.getToken())
-      this.setData({ user })
+      this.setData({
+        user,
+        avatarPreviewUrl: imageUrl(user.avatarUrl),
+        avatarFallbackText: (user.nickname || '家').slice(0, 1)
+      })
       wx.showToast({ title: '昵称已保存', icon: 'success' })
     } catch (error) {
       this.setData({ error: error.message || '保存失败' })
@@ -154,19 +253,26 @@ Page({
       wx.showToast({ title: '请先选择家庭', icon: 'none' })
       return
     }
+    if (!this.data.selectedSlotKey) {
+      wx.showToast({ title: '请点选你在家里的位置', icon: 'none' })
+      return
+    }
+    if (!this.data.familyNickname.trim()) {
+      wx.showToast({ title: '请填写家庭昵称', icon: 'none' })
+      return
+    }
 
     this.setData({ savingIdentity: true, error: '' })
     try {
-      const updatedFamily = await familyService.updateIdentity(this.data.currentFamily.id, identity.buildIdentityPayload({
-        relationship: identity.optionValue(identity.RELATIONSHIP_OPTIONS, this.data.relationshipIndex),
-        gender: identity.optionValue(identity.GENDER_OPTIONS, this.data.genderIndex),
-        childOrder: this.data.childOrder,
+      const updatedFamily = await familyService.updateIdentity(this.data.currentFamily.id, familySlots.buildIdentityPayload({
+        slotKey: this.data.selectedSlotKey,
+        childRelationship: this.data.childRelationshipOptions[this.data.childRelationshipIndex].value,
         birthYear: this.data.birthYear,
         familyNickname: this.data.familyNickname,
         preferredTitle: this.data.preferredTitle,
         identityNote: this.data.identityNote
       }))
-      const families = this.data.families.map((item) => (item.id === updatedFamily.id ? updatedFamily : item))
+      const families = this.data.families.map((item) => (Number(item.id) === Number(updatedFamily.id) ? updatedFamily : item))
       auth.setCurrentFamily(updatedFamily)
       getApp().setCurrentFamily(updatedFamily)
       this.setData({
@@ -176,6 +282,9 @@ Page({
       })
       wx.showToast({ title: '家庭身份已保存', icon: 'success' })
     } catch (error) {
+      if (handleFamilyAccessError(error, this.data.currentFamily && this.data.currentFamily.id)) {
+        return
+      }
       this.setData({ error: error.message || '保存失败' })
     } finally {
       this.setData({ savingIdentity: false })

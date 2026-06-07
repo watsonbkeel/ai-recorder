@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma')
+const { messageVisibleToUserWhere } = require('../utils/messageAccess')
 
 function buildPagination(page, pageSize, total) {
   return {
@@ -19,9 +20,10 @@ async function visibleNotificationWhere(userId) {
   const numericUserId = Number(userId)
   const memberships = await prisma.familyMember.findMany({
     where: { userId: numericUserId },
-    select: { familyId: true }
+    select: { familyId: true, slotKey: true }
   })
   const familyIds = memberships.map((membership) => membership.familyId)
+  const visibleMessageWhere = messageVisibleToUserWhere(numericUserId, memberships)
 
   return {
     userId: numericUserId,
@@ -36,6 +38,18 @@ async function visibleNotificationWhere(userId) {
         OR: [
           { replyId: null },
           { reply: { is: { status: 'visible' } } }
+        ]
+      },
+      {
+        OR: [
+          { messageId: null },
+          { message: { is: visibleMessageWhere } }
+        ]
+      },
+      {
+        OR: [
+          { replyId: null },
+          { reply: { is: { message: { is: visibleMessageWhere } } } }
         ]
       }
     ],

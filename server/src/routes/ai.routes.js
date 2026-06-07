@@ -9,5 +9,6 @@ router.use(requireAuth)
 router.post('/optimize-message', asyncHandler(controller.optimizeMessage))
 router.post('/analyze-message', asyncHandler(controller.analyzeMessage))
 router.post('/optimize-reply', asyncHandler(controller.optimizeReply))
+router.post('/transcribe-audio', asyncHandler(controller.transcribeAudio))
 
 module.exports = router

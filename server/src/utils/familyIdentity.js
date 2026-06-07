@@ -66,11 +66,16 @@ function normalizeText(value, maxLength) {
 
 function normalizeIdentityPayload(payload = {}) {
   const currentYear = new Date().getFullYear()
-  const relationship = normalizeRelationship(payload.relationship)
+  const slotKey = normalizeSlotKey(payload.slotKey)
+  const slotPatch = identityPatchFromSlot(slotKey, payload.relationship)
+  const relationship = normalizeRelationship(slotPatch.relationship || payload.relationship)
   return {
+    slotKey,
     relationship,
-    gender: normalizeGender(payload.gender),
-    childOrder: isChildRelationship(relationship) ? normalizeOptionalInt(payload.childOrder, 1, 20) : null,
+    gender: normalizeGender(slotPatch.gender || payload.gender),
+    childOrder: isChildRelationship(relationship)
+      ? (slotPatch.childOrder || normalizeOptionalInt(payload.childOrder, 1, 20))
+      : null,
     birthYear: normalizeOptionalInt(payload.birthYear, 1900, currentYear),
     familyNickname: normalizeText(payload.familyNickname || payload.nickname, 191),
     preferredTitle: normalizeText(payload.preferredTitle, 191),
@@ -81,12 +86,19 @@ function normalizeIdentityPayload(payload = {}) {
 function normalizeIdentityUpdatePayload(payload = {}, existing = {}) {
   const currentYear = new Date().getFullYear()
   const has = (key) => Object.prototype.hasOwnProperty.call(payload, key)
-  const relationship = has('relationship') ? normalizeRelationship(payload.relationship) : normalizeRelationship(existing.relationship)
+  const slotKey = has('slotKey') ? normalizeSlotKey(payload.slotKey) : (existing.slotKey || null)
+  const slotPatch = identityPatchFromSlot(slotKey, payload.relationship)
+  const relationship = slotPatch.relationship
+    ? normalizeRelationship(slotPatch.relationship)
+    : (has('relationship') ? normalizeRelationship(payload.relationship) : normalizeRelationship(existing.relationship))
   return {
+    slotKey,
     relationship,
-    gender: has('gender') ? normalizeGender(payload.gender) : normalizeGender(existing.gender),
+    gender: slotPatch.gender
+      ? normalizeGender(slotPatch.gender)
+      : (has('gender') ? normalizeGender(payload.gender) : normalizeGender(existing.gender)),
     childOrder: isChildRelationship(relationship)
-      ? (has('childOrder') ? normalizeOptionalInt(payload.childOrder, 1, 20) : (existing.childOrder || null))
+      ? (slotPatch.childOrder || (has('childOrder') ? normalizeOptionalInt(payload.childOrder, 1, 20) : (existing.childOrder || null)))
       : null,
     birthYear: has('birthYear') ? normalizeOptionalInt(payload.birthYear, 1900, currentYear) : (existing.birthYear || null),
     familyNickname: has('familyNickname') || has('nickname')
@@ -135,6 +147,9 @@ function buildIdentityText(member) {
   }
 
   const relationship = normalizeRelationship(member.relationship)
+  if (member.slotKey) {
+    return slotLabel(member.slotKey, relationship)
+  }
   const baseLabel = relationshipLabel(relationship)
   if (isChildRelationship(relationship) && member.childOrder) {
     return `${childOrderLabel(member.childOrder)}${baseLabel}`
@@ -146,7 +161,10 @@ function mapIdentity(member) {
   const relationship = normalizeRelationship(member && member.relationship)
   const gender = normalizeGender(member && member.gender)
   const childOrder = member && isChildRelationship(relationship) && member.childOrder ? member.childOrder : null
+  const slotKey = member && member.slotKey ? normalizeSlotKey(member.slotKey) : null
   return {
+    slotKey,
+    slotLabel: slotKey ? slotLabel(slotKey, relationship) : '',
     relationship,
     relationshipLabel: relationshipLabel(relationship),
     gender,
@@ -170,6 +188,7 @@ function identitySelect() {
   return {
     familyId: true,
     userId: true,
+    slotKey: true,
     relationship: true,
     gender: true,
     childOrder: true,
@@ -311,3 +330,8 @@ module.exports = {
   mapMember,
   sortFamilyMembers
 }
+const {
+  normalizeSlotKey,
+  identityPatchFromSlot,
+  slotLabel
+} = require('./familySlots')

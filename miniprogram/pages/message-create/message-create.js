@@ -4,6 +4,8 @@ const aiService = require('../../services/ai')
 const familyService = require('../../services/family')
 const auth = require('../../utils/auth')
 const { identitySummary } = require('../../utils/familyIdentity')
+const familySlots = require('../../utils/familySlots')
+const { handleFamilyAccessError } = require('../../utils/familyAccess')
 
 const recorder = wx.getRecorderManager ? wx.getRecorderManager() : null
 const MESSAGE_TYPES = ['thanks', 'apology', 'grievance', 'request', 'explain', 'stress', 'repair', 'encouragement', 'general']
@@ -21,13 +23,29 @@ const AI_STATUS_STEPS = [
   '正在整理成更容易被家人听见的表达...',
   '快好了，正在保留你的本意和边界...'
 ]
-const FAMILY_CONTEXT_ERROR_CODES = new Set(['NOT_FAMILY_MEMBER'])
+
+function mergeTranscribedText(currentText, transcribedText) {
+  const current = String(currentText || '').trim()
+  const text = String(transcribedText || '').trim()
+  if (!text) {
+    return current
+  }
+  if (!current) {
+    return text
+  }
+  if (current.includes(text)) {
+    return current
+  }
+  return `${current}\n${text}`
+}
 
 Page({
   data: {
     familyId: null,
     members: [],
+    receiverSlots: [],
     selectedReceiverIds: [],
+    selectedReceiverSlotKeys: [],
     visibilityIndex: 0,
     visibilityLabels: VISIBILITY_LABELS,
     visibilityDescriptions: VISIBILITY_DESCRIPTIONS,
@@ -41,9 +59,12 @@ Page({
     riskLevel: 'low',
     attackWarning: '',
     audioTempPath: '',
+    uploadedAudioUrl: '',
     audioDurationSec: 0,
     recording: false,
     playingAudio: false,
+    transcribing: false,
+    transcribeStatus: '',
     allowOriginalTextView: false,
     allowOriginalAudioPlay: false,
     useFamilyMemory: true,
@@ -66,8 +87,10 @@ Page({
         this.setData({
           audioTempPath: res.tempFilePath,
           audioDurationSec: Math.round((res.duration || 0) / 1000),
-          recording: false
+          recording: false,
+          uploadedAudioUrl: ''
         })
+        this.uploadAndTranscribeAudio(res.tempFilePath)
       }
       this.handleRecorderError = () => {
         this.setData({ recording: false, error: '录音失败，请重试' })
@@ -136,8 +159,12 @@ Page({
     }
     this.setData({ membersLoading: true, error: '' })
     try {
-      const members = await familyService.getFamilyMembers(this.data.familyId)
+      const layout = await familyService.getFamilyLayout(this.data.familyId)
+      const slots = familySlots.decorateSlots(layout.slots, this.data.selectedReceiverSlotKeys)
+        .filter((slot) => !(slot.member && slot.member.isSelf))
+      const members = layout.members || []
       this.setData({
+        receiverSlots: slots,
         members: members
           .filter((member) => !member.isSelf)
           .map((member) => ({
@@ -147,8 +174,7 @@ Page({
           }))
       })
     } catch (error) {
-      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
-        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+      if (handleFamilyAccessError(error, this.data.familyId)) {
         return
       }
       this.setData({ error: error.message || '加载家庭成员失败' })
@@ -173,6 +199,23 @@ Page({
       }))
     })
   },
+  toggleReceiverSlot(event) {
+    const slotKey = familySlots.normalizeSlotKey(event.currentTarget.dataset.key)
+    if (!slotKey) {
+      return
+    }
+    const selectedSet = new Set(this.data.selectedReceiverSlotKeys)
+    if (selectedSet.has(slotKey)) {
+      selectedSet.delete(slotKey)
+    } else {
+      selectedSet.add(slotKey)
+    }
+    const selectedReceiverSlotKeys = Array.from(selectedSet)
+    this.setData({
+      selectedReceiverSlotKeys,
+      receiverSlots: familySlots.decorateSlots(this.data.receiverSlots, selectedReceiverSlotKeys)
+    })
+  },
   handleTypeChange(event) {
     this.setData({ messageTypeIndex: Number(event.detail.value) })
   },
@@ -182,9 +225,15 @@ Page({
     this.setData({
       visibilityIndex,
       selectedReceiverIds: visibility === 'private' ? this.data.selectedReceiverIds : [],
+      selectedReceiverSlotKeys: visibility === 'private' ? this.data.selectedReceiverSlotKeys : [],
+      allowOriginalTextView: visibility === 'self' ? false : this.data.allowOriginalTextView,
+      allowOriginalAudioPlay: visibility === 'self' ? false : this.data.allowOriginalAudioPlay,
       members: visibility === 'private'
         ? this.data.members
-        : this.data.members.map((member) => ({ ...member, selected: false }))
+        : this.data.members.map((member) => ({ ...member, selected: false })),
+      receiverSlots: visibility === 'private'
+        ? this.data.receiverSlots
+        : familySlots.decorateSlots(this.data.receiverSlots, [])
     })
   },
   handleOriginalInput(event) {
@@ -202,7 +251,67 @@ Page({
   handleMemorySwitch(event) {
     this.setData({ useFamilyMemory: event.detail.value })
   },
-  startRecord() {
+  async requestOpenRecordSetting() {
+    const shouldOpenSetting = await new Promise((resolve) => {
+      wx.showModal({
+        title: '开启录音权限',
+        content: '暖心留声需要麦克风权限，才能录下给家人的原始语音。',
+        confirmText: '去设置',
+        confirmColor: '#df7d62',
+        success: (res) => resolve(Boolean(res.confirm)),
+        fail: () => resolve(false)
+      })
+    })
+    if (!shouldOpenSetting || !wx.openSetting) {
+      this.setData({ error: '未开启录音权限，暂时无法录制原声。' })
+      return false
+    }
+
+    const nextSettings = await new Promise((resolve) => {
+      wx.openSetting({
+        success: resolve,
+        fail: () => resolve({ authSetting: {} })
+      })
+    })
+    const enabled = Boolean(nextSettings.authSetting && nextSettings.authSetting['scope.record'])
+    if (!enabled) {
+      this.setData({ error: '未开启录音权限，暂时无法录制原声。' })
+    }
+    return enabled
+  },
+  async ensureRecordPermission() {
+    if (!wx.getSetting || !wx.authorize) {
+      return true
+    }
+
+    const settings = await new Promise((resolve) => {
+      wx.getSetting({
+        success: resolve,
+        fail: () => resolve({ authSetting: {} })
+      })
+    })
+    const recordSetting = settings.authSetting && settings.authSetting['scope.record']
+    if (recordSetting === true) {
+      return true
+    }
+
+    if (recordSetting === false) {
+      return this.requestOpenRecordSetting()
+    }
+
+    const authorized = await new Promise((resolve) => {
+      wx.authorize({
+        scope: 'scope.record',
+        success: () => resolve(true),
+        fail: () => resolve(false)
+      })
+    })
+    if (!authorized) {
+      return this.requestOpenRecordSetting()
+    }
+    return authorized
+  },
+  async startRecord() {
     if (this.data.recording || this.data.playingAudio || this.data.loading || this.data.aiLoading) {
       return
     }
@@ -210,7 +319,16 @@ Page({
       wx.showToast({ title: '当前环境不支持录音', icon: 'none' })
       return
     }
-    this.setData({ recording: true, audioTempPath: '', audioDurationSec: 0, error: '' })
+    const hasPermission = await this.ensureRecordPermission()
+    if (!hasPermission) {
+      return
+    }
+    this.setData({
+      recording: true, audioTempPath: '', audioDurationSec: 0, allowOriginalAudioPlay: false,
+      uploadedAudioUrl: '',
+      transcribeStatus: '',
+      error: ''
+    })
     try {
       recorder.start({ duration: 120000, format: 'mp3' })
     } catch (error) {
@@ -220,6 +338,48 @@ Page({
   stopRecord() {
     if (recorder && this.data.recording) {
       recorder.stop()
+    }
+  },
+  toggleRecord() {
+    if (this.data.recording) {
+      this.stopRecord()
+    } else {
+      this.startRecord()
+    }
+  },
+  async uploadAndTranscribeAudio(filePath) {
+    if (!filePath) {
+      return
+    }
+    this.setData({
+      transcribing: true,
+      transcribeStatus: '正在上传录音并转成文字...',
+      error: ''
+    })
+    try {
+      const uploaded = await uploadService.uploadAudio(filePath)
+      this.setData({
+        uploadedAudioUrl: uploaded.url,
+        transcribeStatus: '正在识别录音里的文字...'
+      })
+      const result = await aiService.transcribeAudio({
+        familyId: this.data.familyId,
+        audioUrl: uploaded.url
+      })
+      this.setData({
+        originalText: mergeTranscribedText(this.data.originalText, result.text),
+        transcribeStatus: '语音已转成文字，原声也会保留。'
+      })
+    } catch (error) {
+      if (handleFamilyAccessError(error, this.data.familyId)) {
+        return
+      }
+      this.setData({
+        transcribeStatus: '语音已保留，转文字暂时失败。可以先手动输入文字后发送。',
+        error: error.message || '语音转文字失败，请先手动输入文字'
+      })
+    } finally {
+      this.setData({ transcribing: false })
     }
   },
   playAudio() {
@@ -242,8 +402,22 @@ Page({
     }
     return this.data.selectedReceiverIds
   },
+  effectiveReceiverSlotKeys() {
+    const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
+    if (visibility !== 'private') {
+      return []
+    }
+    return this.data.selectedReceiverSlotKeys
+  },
   async optimize() {
     if (this.data.aiLoading || this.data.loading || this.data.recording || this.data.playingAudio) {
+      return
+    }
+    const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
+    const receiverIds = this.effectiveReceiverIds()
+    const receiverSlotKeys = this.effectiveReceiverSlotKeys()
+    if (visibility === 'private' && !receiverIds.length && !receiverSlotKeys.length) {
+      wx.showToast({ title: '请先选择接收家人', icon: 'none' })
       return
     }
     if (!this.data.originalText.trim()) {
@@ -255,8 +429,9 @@ Page({
     try {
       const result = await aiService.optimizeMessage({
         familyId: this.data.familyId,
-        visibility: VISIBILITIES[this.data.visibilityIndex] || 'private',
-        receiverIds: this.effectiveReceiverIds(),
+        visibility,
+        receiverIds,
+        receiverSlotKeys,
         originalText: this.data.originalText,
         hasOriginalAudio: Boolean(this.data.audioTempPath),
         messageType: MESSAGE_TYPES[this.data.messageTypeIndex],
@@ -271,40 +446,87 @@ Page({
         attackWarning: result.attackWarning || ''
       })
     } catch (error) {
-      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
-        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+      if (handleFamilyAccessError(error, this.data.familyId)) {
         return
       }
       this.setData({ error: error.message || 'AI 整理失败' })
+      throw error
     } finally {
       this.clearAiStatus()
       this.setData({ aiLoading: false })
     }
   },
+  async ensureOptimizedBeforeSubmit(visibility, receiverIds, receiverSlotKeys, originalText) {
+    const hasManualOptimized = Boolean(this.data.optimizedText.trim())
+    if (!originalText || hasManualOptimized) {
+      return true
+    }
+
+    try {
+      await this.optimize()
+      return Boolean(this.data.optimizedText.trim())
+    } catch (error) {
+      const shouldSendRaw = await new Promise((resolve) => {
+        wx.showModal({
+          title: 'AI 整理暂时失败',
+          content: '录音和原文已保留。你可以稍后重试，或先按当前文字发送。',
+          confirmText: '按原文发送',
+          cancelText: '先不发送',
+          confirmColor: '#df7d62',
+          success: (res) => resolve(Boolean(res.confirm)),
+          fail: () => resolve(false)
+        })
+      })
+      if (shouldSendRaw) {
+        this.setData({
+          optimizedText: this.data.optimizedText.trim() || originalText,
+          emotionTags: [],
+          coreNeed: '',
+          aiAdvice: '',
+          riskLevel: 'low',
+          attackWarning: ''
+        })
+        return true
+      }
+      return false
+    }
+  },
   async submit() {
-    if (this.data.loading || this.data.aiLoading || this.data.recording || this.data.playingAudio) {
+    if (this.data.loading || this.data.aiLoading || this.data.recording || this.data.playingAudio || this.data.transcribing) {
       return
     }
     const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
     const receiverIds = this.effectiveReceiverIds()
+    const receiverSlotKeys = this.effectiveReceiverSlotKeys()
     const originalText = this.data.originalText.trim()
-    const optimizedText = this.data.optimizedText.trim() || originalText
-    if (visibility === 'private' && !receiverIds.length) {
+    if (visibility === 'private' && !receiverIds.length && !receiverSlotKeys.length) {
       wx.showToast({ title: '请选择接收家人', icon: 'none' })
       return
     }
+    if (!originalText && !this.data.audioTempPath) {
+      wx.showToast({ title: '请先打字或录音', icon: 'none' })
+      return
+    }
+    const canContinue = await this.ensureOptimizedBeforeSubmit(visibility, receiverIds, receiverSlotKeys, originalText)
+    if (!canContinue) {
+      return
+    }
+    const optimizedText = this.data.optimizedText.trim() || originalText
     if (!optimizedText) {
-      wx.showToast({ title: '请先写下文字或填写整理版', icon: 'none' })
+      wx.showToast({ title: '请先补充一段发送前表达', icon: 'none' })
       return
     }
     this.setData({ loading: true, error: '' })
     try {
       let uploadedAudio = null
       if (this.data.audioTempPath) {
-        uploadedAudio = await uploadService.uploadAudio(this.data.audioTempPath)
+        uploadedAudio = this.data.uploadedAudioUrl
+          ? { url: this.data.uploadedAudioUrl }
+          : await uploadService.uploadAudio(this.data.audioTempPath)
       }
       await messageService.createMessage(this.data.familyId, {
         receiverIds,
+        receiverSlotKeys,
         visibility,
         messageType: MESSAGE_TYPES[this.data.messageTypeIndex],
         originalText: this.data.originalText,
@@ -317,13 +539,12 @@ Page({
         riskLevel: this.data.riskLevel,
         attackWarning: this.data.attackWarning,
         allowOriginalTextView: this.data.allowOriginalTextView,
-        allowOriginalAudioPlay: this.data.allowOriginalAudioPlay
+        allowOriginalAudioPlay: Boolean(this.data.audioTempPath) && this.data.allowOriginalAudioPlay
       })
       wx.showToast({ title: '已发送', icon: 'success' })
       setTimeout(() => wx.navigateBack(), 500)
     } catch (error) {
-      if (FAMILY_CONTEXT_ERROR_CODES.has(error.code)) {
-        this.exitInvalidFamily('你已不在这个家庭，请重新选择')
+      if (handleFamilyAccessError(error, this.data.familyId)) {
         return
       }
       this.setData({ error: error.message || '发送失败' })

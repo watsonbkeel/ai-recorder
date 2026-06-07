@@ -15,9 +15,9 @@ Default provider values are `OPENAI_BASE_URL=https://token.bkeel.com/v1` and `OP
 
 All AI routes must build context on the backend:
 
-- `optimize-message`: requires `familyId`; backend resolves receiver identity context from `visibility` and current family membership, then may use the current user's visible family history.
+- `optimize-message`: requires `familyId`; backend resolves receiver identity context from `visibility` and current family membership, then may use the current user's visible family history. Private message optimization must reject empty or non-family receiver lists.
 - `analyze-message`: requires `messageId`; backend verifies message visibility before loading context.
-- `optimize-reply`: requires `messageId`; backend verifies message visibility before loading context.
+- `optimize-reply`: requires `messageId`; backend verifies message visibility before loading context. Self-only messages must be rejected before reply context or family memory is built.
 
 Frontend must not provide arbitrary history, prior message text, family memory, or summaries as model context.
 
@@ -34,6 +34,7 @@ Rules:
 - Memory must not diagnose, label personality, judge character, or create fixed conclusions about a family member.
 - `useFamilyMemory: false` means the backend must not query or inject `FamilyMemory`.
 - Message/reply deletion or hiding marks memories stale or triggers recomputation.
+- For family-visible messages and replies, memory refresh uses the current approved family members. For private messages, pair memory remains limited to the sender and selected receivers.
 
 ## Privacy Rules
 

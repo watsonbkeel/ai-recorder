@@ -160,6 +160,7 @@ model FamilyMember {
   familyId       Int
   userId         Int
   role           FamilyRole         @default(member)
+  slotKey        String?            @db.VarChar(40)
   relationship   FamilyRelationship @default(other)
   gender         FamilyGender       @default(unspecified)
   childOrder     Int?
@@ -177,6 +178,7 @@ model FamilyMember {
   relatedMemories FamilyMemory[]    @relation("FamilyMemoryRelated")
 
   @@unique([familyId, userId])
+  @@unique([familyId, slotKey])
   @@index([userId])
   @@index([familyId, role])
   @@index([familyId, relationship, childOrder])
@@ -188,6 +190,7 @@ model FamilyJoinRequest {
   userId         Int
   status         JoinRequestStatus @default(pending)
   message        String?           @db.Text
+  slotKey        String?           @db.VarChar(40)
   relationship   FamilyRelationship @default(other)
   gender         FamilyGender      @default(unspecified)
   childOrder     Int?
@@ -206,6 +209,7 @@ model FamilyJoinRequest {
   @@index([familyId, status])
   @@index([userId, status])
   @@index([familyId, userId])
+  @@index([familyId, slotKey])
 }
 
 model FamilyMessage {
@@ -232,6 +236,7 @@ model FamilyMessage {
   family                 Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
   sender                 User                    @relation("FamilyMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   receivers              FamilyMessageReceiver[]
+  slotReceivers          FamilyMessageSlotReceiver[]
   replies                FamilyReply[]
   notifications          Notification[]
   sourceMemories          FamilyMemory[]           @relation("FamilyMemorySourceMessage")
@@ -254,6 +259,21 @@ model FamilyMessageReceiver {
 
   @@unique([messageId, userId])
   @@index([userId, status])
+}
+
+model FamilyMessageSlotReceiver {
+  id        Int                   @id @default(autoincrement())
+  messageId Int
+  familyId  Int
+  slotKey   String                @db.VarChar(40)
+  status    MessageReceiverStatus @default(unread)
+  readAt    DateTime?
+  repliedAt DateTime?
+  createdAt DateTime              @default(now())
+  message   FamilyMessage         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, slotKey])
+  @@index([familyId, slotKey, status])
 }
 
 model FamilyReply {

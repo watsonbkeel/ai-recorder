@@ -4,6 +4,9 @@ const { ensureFamilyAdmin } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
 const { normalizeIdentityPayload, mapIdentity, mapMember, sortFamilyMembers } = require('../utils/familyIdentity')
 const { invalidateFamilyMemories } = require('./familyMemory.service')
+const { ensureFamilySlotAvailable, attachSlotMessagesToMember } = require('./family.service')
+
+const JOIN_REQUEST_STATUSES = new Set(['pending', 'approved', 'rejected'])
 
 function memberInclude() {
   return {
@@ -49,6 +52,9 @@ async function getDashboard(userId, familyId) {
 async function listJoinRequests(userId, familyId, query) {
   await ensureFamilyAdmin(userId, familyId)
   const status = query && query.status ? String(query.status).trim() : ''
+  if (status && !JOIN_REQUEST_STATUSES.has(status)) {
+    throw createError('VALIDATION_ERROR', '申请状态不合法', 400)
+  }
   const requests = await prisma.familyJoinRequest.findMany({
     where: {
       familyId: Number(familyId),
@@ -99,15 +105,32 @@ async function handleJoinRequest(adminUserId, requestId, payload) {
     })
 
     if (action === 'approve') {
+      await ensureFamilySlotAvailable(tx, request.familyId, request.slotKey, request.userId)
       const existingMember = await tx.familyMember.findUnique({
         where: { familyId_userId: { familyId: request.familyId, userId: request.userId } }
       })
+      let approvedMember = existingMember
       if (!existingMember) {
-        await tx.familyMember.create({
+        approvedMember = await tx.familyMember.create({
           data: {
             familyId: request.familyId,
             userId: request.userId,
             role: 'member',
+            slotKey: request.slotKey,
+            relationship: request.relationship,
+            gender: request.gender,
+            childOrder: request.childOrder,
+            birthYear: request.birthYear,
+            familyNickname: request.familyNickname,
+            preferredTitle: request.preferredTitle,
+            identityNote: request.identityNote
+          }
+        })
+      } else {
+        approvedMember = await tx.familyMember.update({
+          where: { id: existingMember.id },
+          data: {
+            slotKey: request.slotKey,
             relationship: request.relationship,
             gender: request.gender,
             childOrder: request.childOrder,
@@ -118,6 +141,7 @@ async function handleJoinRequest(adminUserId, requestId, payload) {
           }
         })
       }
+      await attachSlotMessagesToMember(tx, request.familyId, approvedMember, adminUserId)
       await createNotification({
         receiverId: request.userId,
         triggerUserId: Number(adminUserId),
@@ -263,11 +287,13 @@ async function updateMemberIdentity(adminUserId, familyId, targetUserId, payload
 
   const identity = normalizeIdentityPayload(payload)
   return prisma.$transaction(async (tx) => {
+    await ensureFamilySlotAvailable(tx, numericFamilyId, identity.slotKey, numericUserId)
     const updated = await tx.familyMember.update({
       where: { id: member.id },
       data: identity,
       include: memberInclude()
     })
+    await attachSlotMessagesToMember(tx, numericFamilyId, updated, adminUserId)
     await writeAdminLog(tx, {
       familyId: numericFamilyId,
       adminId: Number(adminUserId),

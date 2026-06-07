@@ -38,6 +38,7 @@ function isChildRelationship(relationship) {
 function buildIdentityPayload(data) {
   const relationship = data.relationship || 'other'
   return {
+    slotKey: data.slotKey || null,
     relationship,
     gender: data.gender || 'unspecified',
     childOrder: isChildRelationship(relationship) && data.childOrder ? Number(data.childOrder) : null,
