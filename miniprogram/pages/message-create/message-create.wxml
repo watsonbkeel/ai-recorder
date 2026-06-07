@@ -33,12 +33,13 @@
       <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
         <view class="composer-type">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
       </picker>
+      <textarea class="composer-textarea {{inputMode === 'voice' ? 'readonly' : ''}}" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput" disabled="{{inputMode === 'voice' || transcribing}}"></textarea>
       <view class="chat-composer">
         <button class="mode-toggle" disabled="{{loading || aiLoading || transcribing}}" bindtap="toggleInputMode">{{inputMode === 'voice' ? '字' : '声'}}</button>
-        <textarea wx:if="{{inputMode === 'text'}}" class="composer-textarea" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput"></textarea>
-        <view wx:else class="hold-voice {{recording ? 'hold-voice-active' : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}" catchtouchstart="handleVoiceTouchStart" catchtouchend="handleVoiceTouchEnd" catchtouchcancel="handleVoiceTouchCancel">
+        <view wx:if="{{inputMode === 'voice'}}" class="hold-voice {{recording ? 'hold-voice-active' : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}" bindtouchstart="handleVoiceTouchStart" bindtouchend="handleVoiceTouchEnd" bindtouchcancel="handleVoiceTouchCancel">
           {{recording ? '松手保存这段留声' : (transcribing ? '正在处理留声' : '按住说话')}}
         </view>
+        <view wx:else class="composer-spacer"></view>
         <button class="composer-save" loading="{{loading || aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="submit">{{aiLoading ? '整理中' : '保存'}}</button>
       </view>
       <view class="composer-hint">{{inputMode === 'voice' ? '按住说话，松手后会自动上传原声并转成文字。' : '文字会先由 AI 整理成更容易被家人听见的暖心表达。'}}</view>

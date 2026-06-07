@@ -25,21 +25,6 @@ const AI_STATUS_STEPS = [
 ]
 const MIN_RECORD_DURATION_MS = 800
 
-function mergeTranscribedText(currentText, transcribedText) {
-  const current = String(currentText || '').trim()
-  const text = String(transcribedText || '').trim()
-  if (!text) {
-    return current
-  }
-  if (!current) {
-    return text
-  }
-  if (current.includes(text)) {
-    return current
-  }
-  return `${current}\n${text}`
-}
-
 Page({
   data: {
     familyId: null,
@@ -238,7 +223,15 @@ Page({
     })
   },
   handleOriginalInput(event) {
-    this.setData({ originalText: event.detail.value })
+    this.setData({
+      originalText: event.detail.value,
+      optimizedText: '',
+      emotionTags: [],
+      coreNeed: '',
+      aiAdvice: '',
+      riskLevel: 'low',
+      attackWarning: ''
+    })
   },
   handleOptimizedInput(event) {
     this.setData({ optimizedText: event.detail.value })
@@ -340,11 +333,12 @@ Page({
     if (!this.voicePressActive) {
       return
     }
+    const replacingPreviousAudio = Boolean(this.data.audioTempPath || this.data.uploadedAudioUrl)
     this.recordStartedAt = Date.now()
     this.setData({
       recording: true, audioTempPath: '', audioDurationSec: 0, allowOriginalAudioPlay: false,
       uploadedAudioUrl: '',
-      transcribeStatus: '正在录音，松手保存这段留声。',
+      transcribeStatus: replacingPreviousAudio ? '正在重新留声，这次录音会替换上一段原声。' : '正在录音，松手保存这段留声。',
       error: ''
     })
     try {
@@ -364,6 +358,9 @@ Page({
   handleVoiceTouchStart() {
     if (this.data.inputMode !== 'voice' || this.data.transcribing) {
       return
+    }
+    if (this.data.audioTempPath && wx.vibrateShort) {
+      wx.vibrateShort({ type: 'medium' })
     }
     this.voicePressActive = true
     this.startRecord()
@@ -456,9 +453,19 @@ Page({
         familyId: this.data.familyId,
         audioUrl: uploaded.url
       })
+      const text = String(result.text || '').trim()
       this.setData({
-        originalText: mergeTranscribedText(this.data.originalText, result.text),
-        transcribeStatus: '语音已转成文字，原声也会保留。'
+        originalText: text || this.data.originalText,
+        optimizedText: '',
+        emotionTags: [],
+        coreNeed: '',
+        aiAdvice: '',
+        riskLevel: 'low',
+        attackWarning: '',
+        inputMode: 'text',
+        transcribeStatus: text
+          ? '语音已转成文字，可以直接修改错漏；原声也会保留。'
+          : '原声已保存，但没有识别到文字。可以手动补充后继续保存。'
       })
     } catch (error) {
       if (handleFamilyAccessError(error, this.data.familyId)) {

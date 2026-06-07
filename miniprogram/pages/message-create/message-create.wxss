@@ -16,7 +16,7 @@
 
 .chat-composer {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 14rpx;
 }
 
@@ -36,9 +36,10 @@
 }
 
 .composer-textarea {
-  flex: 1;
-  min-height: 76rpx;
+  width: 100%;
+  min-height: 120rpx;
   max-height: 220rpx;
+  margin-bottom: 20rpx;
   padding: 18rpx 22rpx;
   box-sizing: border-box;
   border: 2rpx solid var(--line-soft);
@@ -47,6 +48,13 @@
   color: var(--text-main);
   font-size: 30rpx;
   line-height: 42rpx;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.composer-textarea.readonly {
+  border-color: transparent;
+  background: rgba(255, 253, 248, 0.62);
+  color: var(--text-muted);
 }
 
 .hold-voice {
@@ -61,6 +69,11 @@
   line-height: 76rpx;
   text-align: center;
   box-shadow: var(--shadow-tiny);
+}
+
+.composer-spacer {
+  flex: 1;
+  min-height: 76rpx;
 }
 
 .hold-voice-active {
