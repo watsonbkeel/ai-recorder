@@ -14,6 +14,8 @@ server/.env.*.local
 node_modules/
 server/node_modules/
 miniprogram/miniprogram_npm/
+__pycache__/
+*.py[cod]
 
 # Local agent/runtime state
 .omo/
@@ -50,3 +52,9 @@ Thumbs.db
 .prisma/
 prisma/generated/
 generated/prisma/
+
+# Local ASR runtime/model cache
+asr/.venv/
+asr/.cache/
+asr/models/
+.cache/

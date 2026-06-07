@@ -7,9 +7,14 @@ Use an OpenAI-compatible provider configured only through local environment vari
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
+- `OPENAI_ADVANCED_MODEL`
 - `OPENAI_TIMEOUT_MS`
+- `ASR_PROVIDER`
+- `LOCAL_ASR_BASE_URL`
 
-Default provider values are `OPENAI_BASE_URL=https://token.bkeel.com/v1` and `OPENAI_MODEL=gpt-5.4-mini`. Do not commit real keys or provider secrets. `server/.env` is ignored by git.
+Default provider values are `OPENAI_BASE_URL=https://token.bkeel.com/v1`, `OPENAI_MODEL=gpt-5.4-mini`, and `OPENAI_ADVANCED_MODEL=gpt-5.5`. Do not commit real keys or provider secrets. `server/.env` is ignored by git.
+
+Speech-to-text defaults to local Qwen3-ASR through `ASR_PROVIDER=local` and `LOCAL_ASR_BASE_URL=http://127.0.0.1:3102`. The local service is documented in `docs/QWEN_ASR.md`.
 
 ## Backend-Built Context
 

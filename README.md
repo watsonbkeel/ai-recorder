@@ -16,7 +16,7 @@
 - 创建家庭、邀请码加入、管理员审核。
 - 设置家庭身份：点选爸爸、妈妈、老大、老二、老三等家庭位置；子女位置再选择儿子/女儿，并填写家庭昵称、希望被称呼、出生年份和身份备注。
 - 给指定家庭位置、全家或仅自己发送/保存文字和语音留言；指定位置即使尚未有家人注册，也可以先留言，后续家人认领该位置后可收到。
-- 录音使用一键开始/停止，停止后自动上传并转文字，同时保留原声供发送者选择是否开放播放。
+- 录音使用按住说话，松手后自动上传并调用本机 Qwen3-ASR 转文字，同时保留原声供发送者选择是否开放播放。
 - 发送留言时默认由 AI 整理原文，失败时会给出明确提示并允许用户按当前文字继续发送。
 - AI 理解留言，并整理留言和回复；兼容不支持 `response_format` 的 OpenAI 兼容服务。
 - 发送者控制原始文字和原始语音是否开放给接收人。
@@ -60,7 +60,7 @@ wx.removeStorageSync('AI_RECORDER_LOCAL_CONFIG')
 
 微信登录需要在本地 `server/.env` 配置 `WECHAT_APPID` 和 `WECHAT_SECRET`。完整 AppID 和真实 `WECHAT_SECRET` 都不能提交到仓库，也不要写入文档、日志或提交信息。
 
-AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`。语音转文字模型由 `OPENAI_TRANSCRIBE_MODEL` 配置。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
+AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`；新增留言页可选择“高级模型预览”，后端固定使用 `OPENAI_ADVANCED_MODEL`，默认 `gpt-5.5`。语音转文字默认走本机 Qwen3-ASR 服务，见 `docs/QWEN_ASR.md`。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
 
 迁移到 Mac 后可在仓库根目录运行：
 
@@ -85,6 +85,7 @@ npm run smoke:core
 - `docs/AI_CONSTRAINTS.md`: AI 和家庭记忆约束。
 - `docs/DATABASE_SCHEMA.md`: 数据库模型。
 - `docs/FRONTEND_DESIGN.md`: 基于 loading 图的前端视觉规范。
+- `docs/QWEN_ASR.md`: 本机 Qwen3-ASR 语音转文字服务部署和调用方式。
 - `docs/MAC_HANDOFF.md`: Mac/微信开发者工具真实联调交接清单。
 - `docs/PERMISSION_MODEL.md`: 权限和隐私规则。
 - `docs/UX_FLOW.md`: 小程序流程。

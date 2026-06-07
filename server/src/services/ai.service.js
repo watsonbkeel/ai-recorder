@@ -4,7 +4,20 @@ const axios = require('axios')
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { ensureFamilyMember } = require('../middleware/auth')
-const { OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_TRANSCRIBE_MODEL, OPENAI_TIMEOUT_MS } = require('../config/env')
+const {
+  OPENAI_API_KEY,
+  OPENAI_BASE_URL,
+  OPENAI_MODEL,
+  OPENAI_ADVANCED_MODEL,
+  OPENAI_TRANSCRIBE_MODEL,
+  OPENAI_TIMEOUT_MS,
+  ASR_PROVIDER,
+  ASR_FALLBACK_OPENAI,
+  LOCAL_ASR_BASE_URL,
+  LOCAL_ASR_MODEL,
+  LOCAL_ASR_LANGUAGE,
+  LOCAL_ASR_TIMEOUT_MS
+} = require('../config/env')
 const { familyUserSelect, mapFamilyUser, mapMember } = require('../utils/familyIdentity')
 const { DEFAULT_FAMILY_SLOTS, normalizeSlotKeys, slotLabel } = require('../utils/familySlots')
 const { canViewMessage, messageVisibleToUserWhere } = require('../utils/messageAccess')
@@ -78,11 +91,11 @@ function shouldRetryWithoutResponseFormat(error) {
   return /response_format|json_object|unsupported|not support|invalid/i.test(data)
 }
 
-async function requestChatCompletion(systemPrompt, userPayload, useJsonResponseFormat, useStream = false) {
+async function requestChatCompletion(systemPrompt, userPayload, useJsonResponseFormat, useStream = false, modelName = OPENAI_MODEL) {
   assertConfigured()
   const baseUrl = OPENAI_BASE_URL.replace(/\/$/, '')
   const response = await axios.post(`${baseUrl}/chat/completions`, {
-    model: OPENAI_MODEL,
+    model: modelName,
     temperature: 0.2,
     ...(useStream ? { stream: true } : {}),
     ...(useJsonResponseFormat ? { response_format: { type: 'json_object' } } : {}),
@@ -206,17 +219,17 @@ function extractChatContent(data) {
   return extractContentPart(message.content)
 }
 
-async function callOpenAI(systemPrompt, userPayload) {
+async function callOpenAI(systemPrompt, userPayload, modelName = OPENAI_MODEL) {
   let response
   try {
-    response = await requestChatCompletion(systemPrompt, userPayload, true, true)
+    response = await requestChatCompletion(systemPrompt, userPayload, true, true, modelName)
   } catch (error) {
     if (!shouldRetryWithoutResponseFormat(error)) {
       const status = error.response ? error.response.status : 502
       throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
     }
     try {
-      response = await requestChatCompletion(systemPrompt, userPayload, false, true)
+      response = await requestChatCompletion(systemPrompt, userPayload, false, true, modelName)
     } catch (retryError) {
       const status = retryError.response ? retryError.response.status : 502
       throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
@@ -226,13 +239,13 @@ async function callOpenAI(systemPrompt, userPayload) {
   let content = extractChatContent(response.data)
   if (!content) {
     try {
-      response = await requestChatCompletion(systemPrompt, userPayload, true)
+      response = await requestChatCompletion(systemPrompt, userPayload, true, false, modelName)
     } catch (error) {
       if (!shouldRetryWithoutResponseFormat(error)) {
         const status = error.response ? error.response.status : 502
         throw createError('AI_PROVIDER_FAILED', `AI 服务调用失败: ${status}`, 502)
       }
-      response = await requestChatCompletion(systemPrompt, userPayload, false)
+      response = await requestChatCompletion(systemPrompt, userPayload, false, false, modelName)
     }
     content = extractChatContent(response.data)
   }
@@ -250,6 +263,14 @@ function normalizeOriginalText(value) {
   return String(value || '').trim().slice(0, 4000)
 }
 
+function normalizePreviewModel(value) {
+  return value === 'advanced' ? 'advanced' : 'standard'
+}
+
+function previewModelName(previewModel) {
+  return normalizePreviewModel(previewModel) === 'advanced' ? OPENAI_ADVANCED_MODEL : OPENAI_MODEL
+}
+
 function sanitizeOptimizeMessagePayload(payload = {}, familyContext = null) {
   const contextReceiverIds = familyContext && Array.isArray(familyContext.receiverIds)
     ? familyContext.receiverIds
@@ -261,6 +282,7 @@ function sanitizeOptimizeMessagePayload(payload = {}, familyContext = null) {
     originalText: normalizeOriginalText(payload.originalText),
     hasOriginalAudio: Boolean(payload.hasOriginalAudio),
     messageType: payload.messageType || 'general',
+    previewModel: normalizePreviewModel(payload.previewModel),
     familyId: Number(payload.familyId || 0) || null,
     visibility: familyContext ? familyContext.visibility : normalizeVisibility(payload.visibility),
     receiverIds: contextReceiverIds,
@@ -558,11 +580,12 @@ async function optimizeMessage(userId, payload) {
     throw createError('VALIDATION_ERROR', 'AI 整理需要先提供文字原话或语音大意', 400)
   }
   const familyContext = await buildFamilyContext(userId, payload)
+  const modelName = previewModelName(payload.previewModel)
   const raw = await callOpenAI(`${baseRules}
 将用户给家人的原始表达优化为更清晰、温和、尊重、适合家庭沟通的话。若有接收方身份，称呼和语气要适配该家庭关系。返回字段：optimizedText, emotionTags, coreNeed, communicationAdvice, riskLevel, attackWarning。`, {
     request: sanitizeOptimizeMessagePayload(payload, familyContext),
     familyContext
-  })
+  }, modelName)
   const result = normalizeOptimizeResult(raw)
   if (!result.optimizedText && result.riskLevel !== 'high') {
     throw createError('AI_PROVIDER_FAILED', 'AI 未返回优化文本', 502)
@@ -598,19 +621,8 @@ async function optimizeReply(userId, payload) {
   return result
 }
 
-async function transcribeAudio(userId, payload) {
+async function callOpenAITranscription(filePath) {
   assertConfigured()
-  const familyId = Number(payload.familyId || 0)
-  if (familyId) {
-    await ensureFamilyMember(userId, familyId)
-  }
-  const audioUrl = String(payload.audioUrl || payload.originalAudioUrl || '').trim()
-  if (!audioUrl) {
-    throw createError('VALIDATION_ERROR', '请先上传录音，再进行语音转文字', 400)
-  }
-  const filePath = resolveAudioUploadPath(audioUrl)
-  assertUploadedFileExists(filePath, '录音文件不存在，请重新录制后再试')
-
   const baseUrl = OPENAI_BASE_URL.replace(/\/$/, '')
   const formData = new FormData()
   const blob = await openAsBlob(filePath)
@@ -655,7 +667,86 @@ async function transcribeAudio(userId, payload) {
     throw createError('AI_TRANSCRIBE_FAILED', '语音转文字未识别到清晰文字，请先手动输入文字', 502)
   }
 
-  return { text }
+  return { text, provider: 'openai-compatible' }
+}
+
+async function callLocalAsr(filePath) {
+  const baseUrl = LOCAL_ASR_BASE_URL.replace(/\/$/, '')
+  const formData = new FormData()
+  const blob = await openAsBlob(filePath)
+  formData.append('file', blob, path.basename(filePath))
+  formData.append('model', LOCAL_ASR_MODEL)
+  formData.append('response_format', 'json')
+  if (LOCAL_ASR_LANGUAGE) {
+    formData.append('language', LOCAL_ASR_LANGUAGE)
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), LOCAL_ASR_TIMEOUT_MS)
+  let response
+  try {
+    response = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    })
+  } catch (error) {
+    const message = error.name === 'AbortError'
+      ? '本机语音转文字超时，请稍后重试，或先手动输入文字'
+      : '本机语音转文字服务暂时不可用，请先手动输入文字'
+    throw createError('AI_TRANSCRIBE_FAILED', message, 502)
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  if (!response.ok) {
+    throw createError('AI_TRANSCRIBE_FAILED', `本机语音转文字服务调用失败: ${response.status}，请先手动输入文字`, 502)
+  }
+
+  let data
+  try {
+    data = await response.json()
+  } catch (error) {
+    throw createError('AI_TRANSCRIBE_FAILED', '本机语音转文字服务返回异常，请先手动输入文字', 502)
+  }
+
+  const text = String(data.text || data.transcript || data.result || '').trim()
+  if (!text) {
+    throw createError('AI_TRANSCRIBE_FAILED', '本机语音转文字未识别到清晰文字，请先手动输入文字', 502)
+  }
+
+  return {
+    text,
+    language: data.language || '',
+    provider: 'qwen3-asr',
+    model: data.model || LOCAL_ASR_MODEL
+  }
+}
+
+async function transcribeAudio(userId, payload) {
+  const familyId = Number(payload.familyId || 0)
+  if (familyId) {
+    await ensureFamilyMember(userId, familyId)
+  }
+  const audioUrl = String(payload.audioUrl || payload.originalAudioUrl || '').trim()
+  if (!audioUrl) {
+    throw createError('VALIDATION_ERROR', '请先上传录音，再进行语音转文字', 400)
+  }
+  const filePath = resolveAudioUploadPath(audioUrl)
+  assertUploadedFileExists(filePath, '录音文件不存在，请重新录制后再试')
+
+  if (ASR_PROVIDER === 'openai') {
+    return callOpenAITranscription(filePath)
+  }
+
+  try {
+    return await callLocalAsr(filePath)
+  } catch (error) {
+    if (!ASR_FALLBACK_OPENAI) {
+      throw error
+    }
+    return callOpenAITranscription(filePath)
+  }
 }
 
 module.exports = {

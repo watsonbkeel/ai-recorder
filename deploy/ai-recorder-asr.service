@@ -1,0 +1,15 @@
+[Unit]
+Description=ai-recorder Qwen3-ASR service
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker rm -f ai-recorder-asr
+ExecStart=/usr/bin/docker run --rm --gpus all --name ai-recorder-asr -p 127.0.0.1:3102:3102 -v /root/ai-recorder-models/qwen-asr:/root/.cache/huggingface -e HF_HOME=/root/.cache/huggingface -e QWEN_ASR_MODEL=Qwen/Qwen3-ASR-1.7B -e QWEN_ASR_DEVICE_MAP=cuda:0 -e QWEN_ASR_DTYPE=float16 -e QWEN_ASR_MAX_BATCH_SIZE=1 -e QWEN_ASR_MAX_NEW_TOKENS=256 -e QWEN_ASR_REQUIRE_CUDA=true -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True ai-recorder-qwen-asr:latest
+ExecStop=/usr/bin/docker stop ai-recorder-asr
+
+[Install]
+WantedBy=multi-user.target

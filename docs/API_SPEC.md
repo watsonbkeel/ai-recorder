@@ -132,6 +132,7 @@ AI requests support:
   "receiverSlotKeys": ["mother"],
   "messageId": 10,
   "originalText": "string",
+  "previewModel": "standard",
   "useFamilyMemory": true
 }
 ```
@@ -141,6 +142,7 @@ Rules:
 - Backend builds the AI context.
 - For `optimize-message`, backend resolves receiver identity context from `familyId`, `visibility`, and permitted family members.
 - For private `optimize-message`, backend requires at least one valid receiver or receiver slot from the current family; frontend receiver lists are not trusted.
+- `previewModel: "advanced"` is allowed only for `optimize-message` and maps server-side to `OPENAI_ADVANCED_MODEL` (`gpt-5.5` by default). Any other value is treated as the standard model.
 - `optimize-message` requires `originalText`. The frontend may call `transcribe-audio` after uploading audio to produce that text.
 - Chat completion calls retry without `response_format` when an OpenAI-compatible provider rejects JSON mode.
 - Existing content context must be loaded by `messageId` after permission checks.
@@ -158,6 +160,8 @@ Audio transcription request:
   "audioUrl": "/uploads/audio/2026-W23/xxx.m4a"
 }
 ```
+
+By default, backend transcription calls the local Qwen3-ASR service at `LOCAL_ASR_BASE_URL` (`http://127.0.0.1:3102`). Set `ASR_PROVIDER=openai` to use the OpenAI-compatible audio transcription endpoint instead, or `ASR_FALLBACK_OPENAI=true` to fallback only when local ASR fails.
 
 ## Upload
 
