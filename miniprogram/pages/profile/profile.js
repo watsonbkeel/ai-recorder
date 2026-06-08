@@ -21,10 +21,12 @@ function identityFormFromFamily(family) {
   const slotKey = familySlots.normalizeSlotKey(family && family.slotKey)
   const showChildRelationship = familySlots.isChildSlot(slotKey)
   const childRelationshipIndex = family && family.relationship === 'daughter' ? 1 : 0
+  const decoratedSlots = familySlots.decorateSlots(null, slotKey ? [slotKey] : [])
   return {
     selectedSlotKey: slotKey,
     selectedSlotLabel: slotKey ? familySlots.slotLabel(slotKey, family && family.relationship) : '',
-    familySlots: familySlots.decorateSlots(null, slotKey ? [slotKey] : []),
+    familySlots: decoratedSlots,
+    ...familySlots.splitSlotsByGroup(decoratedSlots),
     showChildRelationship,
     childRelationshipIndex,
     birthYear: family && family.birthYear ? String(family.birthYear) : '',
@@ -47,6 +49,8 @@ Page({
     avatarPreviewUrl: '',
     uploadingAvatar: false,
     familySlots: familySlots.decorateSlots(null, ''),
+    parentSlots: familySlots.splitSlotsByGroup(familySlots.decorateSlots(null, '')).parentSlots,
+    childSlots: familySlots.splitSlotsByGroup(familySlots.decorateSlots(null, '')).childSlots,
     selectedSlotKey: '',
     selectedSlotLabel: '',
     childRelationshipOptions: familySlots.CHILD_RELATIONSHIP_OPTIONS,
@@ -118,8 +122,10 @@ Page({
     }
     try {
       const layout = await familyService.getFamilyLayout(familyId)
+      const decoratedSlots = familySlots.decorateSlots(layout.slots, selectedSlotKey ? [selectedSlotKey] : [])
       this.setData({
-        familySlots: familySlots.decorateSlots(layout.slots, selectedSlotKey ? [selectedSlotKey] : [])
+        familySlots: decoratedSlots,
+        ...familySlots.splitSlotsByGroup(decoratedSlots)
       })
     } catch (error) {
       if (handleFamilyAccessError(error, familyId)) {
@@ -140,14 +146,21 @@ Page({
     if (!selectedSlotKey) {
       return
     }
+    const slot = this.data.familySlots.find((item) => item.key === selectedSlotKey)
+    if (slot && slot.occupiedByOther) {
+      wx.showToast({ title: '这个位置已有家人', icon: 'none' })
+      return
+    }
     const showChildRelationship = familySlots.isChildSlot(selectedSlotKey)
+    const decoratedSlots = familySlots.decorateSlots(this.data.familySlots, [selectedSlotKey])
     this.setData({
       selectedSlotKey,
       selectedSlotLabel: familySlots.slotLabel(selectedSlotKey, showChildRelationship
         ? this.data.childRelationshipOptions[this.data.childRelationshipIndex].value
         : undefined),
       showChildRelationship,
-      familySlots: familySlots.decorateSlots(this.data.familySlots, [selectedSlotKey])
+      familySlots: decoratedSlots,
+      ...familySlots.splitSlotsByGroup(decoratedSlots)
     })
   },
   handleChildRelationshipChange(event) {

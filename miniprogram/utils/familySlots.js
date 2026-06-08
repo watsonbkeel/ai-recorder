@@ -10,6 +10,10 @@ const SLOT_MAP = DEFAULT_FAMILY_SLOTS.reduce((map, slot) => {
   map[slot.key] = slot
   return map
 }, {})
+const SLOT_ORDER = DEFAULT_FAMILY_SLOTS.reduce((map, slot, index) => {
+  map[slot.key] = index
+  return map
+}, {})
 
 const CHILD_RELATIONSHIP_OPTIONS = [
   { value: 'son', label: '儿子' },
@@ -114,9 +118,19 @@ function decorateSlots(slots, selectedSlotKeys) {
       avatarText: slotAvatarText(slot.key, relationship),
       selected: selected.has(slot.key),
       occupied: Boolean(item.occupied || member),
-      member
+      member,
+      occupiedBySelf: Boolean(member && item.member && item.member.isSelf),
+      occupiedByOther: Boolean(member && (!item.member || !item.member.isSelf))
     }
-  })
+  }).sort((left, right) => (SLOT_ORDER[left.key] || 99) - (SLOT_ORDER[right.key] || 99))
+}
+
+function splitSlotsByGroup(slots) {
+  const source = Array.isArray(slots) ? slots : []
+  return {
+    parentSlots: source.filter((slot) => slot.group === 'parent'),
+    childSlots: source.filter((slot) => slot.group === 'child')
+  }
 }
 
 module.exports = {
@@ -128,5 +142,6 @@ module.exports = {
   slotLabel,
   slotAvatarText,
   buildIdentityPayload,
-  decorateSlots
+  decorateSlots,
+  splitSlotsByGroup
 }

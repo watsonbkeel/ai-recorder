@@ -38,14 +38,14 @@
       <view class="section-title">点选你在家里的位置</view>
       <view class="family-layout">
         <view class="slot-row slot-row-parents">
-          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{parentSlots}}" wx:key="key" class="family-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
             <view class="slot-status">{{item.selected ? '已选择' : '点选'}}</view>
           </view>
         </view>
         <view class="slot-row slot-row-children">
-          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{childSlots}}" wx:key="key" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
             <view class="slot-status">{{item.selected ? '已选择' : '点选'}}</view>

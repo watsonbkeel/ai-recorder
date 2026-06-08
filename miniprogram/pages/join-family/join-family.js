@@ -5,12 +5,20 @@ function buildSlotCards(slots, selectedSlotKey) {
   return familySlots.decorateSlots(slots || familySlots.DEFAULT_FAMILY_SLOTS, selectedSlotKey ? [selectedSlotKey] : [])
 }
 
+function buildSlotState(slots, selectedSlotKey) {
+  const decoratedSlots = buildSlotCards(slots, selectedSlotKey)
+  return {
+    familySlots: decoratedSlots,
+    ...familySlots.splitSlotsByGroup(decoratedSlots)
+  }
+}
+
 Page({
   data: {
     inviteCode: '',
     message: '',
     familyPreview: null,
-    familySlots: buildSlotCards(null, ''),
+    ...buildSlotState(null, ''),
     selectedSlotKey: '',
     selectedSlotLabel: '',
     childRelationshipOptions: familySlots.CHILD_RELATIONSHIP_OPTIONS,
@@ -38,7 +46,7 @@ Page({
       familyPreview: null,
       selectedSlotKey: '',
       selectedSlotLabel: '',
-      familySlots: buildSlotCards(null, '')
+      ...buildSlotState(null, '')
     })
   },
   handleMessageInput(event) {
@@ -61,7 +69,7 @@ Page({
         ? this.data.childRelationshipOptions[this.data.childRelationshipIndex].value
         : undefined),
       showChildRelationship,
-      familySlots: buildSlotCards(this.data.familyPreview && this.data.familyPreview.slots, slotKey)
+      ...buildSlotState(this.data.familyPreview && this.data.familyPreview.slots, slotKey)
     })
   },
   handleChildRelationshipChange(event) {
@@ -103,7 +111,7 @@ Page({
         selectedSlotKey: '',
         selectedSlotLabel: '',
         showChildRelationship: false,
-        familySlots: buildSlotCards(family.slots, '')
+        ...buildSlotState(family.slots, '')
       })
       return family
     } catch (error) {

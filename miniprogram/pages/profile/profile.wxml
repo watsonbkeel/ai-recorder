@@ -30,19 +30,20 @@
     <view wx:if="{{currentFamily}}" class="card">
       <view class="title">家庭身份</view>
       <view class="sub-title">身份只用于称呼、语气和表达适配，帮助话说得更清楚，不用于评价家人或贴标签。</view>
+      <view wx:if="{{selectedSlotLabel}}" class="tag" style="margin-top: 20rpx;">当前位置：{{selectedSlotLabel}}</view>
       <view class="family-layout">
         <view class="slot-row slot-row-parents">
-          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{parentSlots}}" wx:key="key" class="family-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
-            <view class="slot-status">{{item.occupied && !item.selected ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+            <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '我的位置' : '点选')}}</view>
           </view>
         </view>
         <view class="slot-row slot-row-children">
-          <view wx:for="{{familySlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{childSlots}}" wx:key="key" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
-            <view class="slot-status">{{item.occupied && !item.selected ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
+            <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '我的位置' : '点选')}}</view>
           </view>
         </view>
       </view>

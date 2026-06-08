@@ -6,6 +6,14 @@ function buildSlotCards(selectedSlotKey) {
   return familySlots.decorateSlots(familySlots.DEFAULT_FAMILY_SLOTS, selectedSlotKey ? [selectedSlotKey] : [])
 }
 
+function buildSlotState(selectedSlotKey) {
+  const slots = buildSlotCards(selectedSlotKey)
+  return {
+    familySlots: slots,
+    ...familySlots.splitSlotsByGroup(slots)
+  }
+}
+
 Page({
   data: {
     loading: true,
@@ -16,7 +24,7 @@ Page({
     inviteCode: '',
     createName: '',
     createDescription: '',
-    familySlots: buildSlotCards(''),
+    ...buildSlotState(''),
     selectedSlotKey: '',
     selectedSlotLabel: '',
     childRelationshipOptions: familySlots.CHILD_RELATIONSHIP_OPTIONS,
@@ -76,7 +84,7 @@ Page({
         ? this.data.childRelationshipOptions[this.data.childRelationshipIndex].value
         : undefined),
       showChildRelationship,
-      familySlots: buildSlotCards(selectedSlotKey)
+      ...buildSlotState(selectedSlotKey)
     })
   },
   handleChildRelationshipChange(event) {

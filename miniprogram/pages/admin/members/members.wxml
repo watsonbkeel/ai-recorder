@@ -29,16 +29,17 @@
     <view class="card">
       <view class="title">编辑家庭身份</view>
       <view class="sub-title">{{editingMember.displayName || editingMember.user.nickname || '家庭成员'}}</view>
+      <view wx:if="{{selectedSlotLabel}}" class="tag" style="margin-top: 20rpx;">当前位置：{{selectedSlotLabel}}</view>
       <view class="family-layout">
         <view class="slot-row slot-row-parents">
-          <view wx:for="{{editSlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{parentSlots}}" wx:key="key" class="family-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
             <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>
           </view>
         </view>
         <view class="slot-row slot-row-children">
-          <view wx:for="{{editSlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
+          <view wx:for="{{childSlots}}" wx:key="key" class="family-slot child-slot {{item.selected ? 'family-slot-selected' : ''}} {{item.occupiedByOther ? 'family-slot-disabled' : ''}}" data-key="{{item.key}}" bindtap="selectIdentitySlot">
             <view class="slot-avatar">{{item.avatarText}}</view>
             <view class="slot-title">{{item.displayLabel}}</view>
             <view class="slot-status">{{item.occupiedByOther ? (item.member.displayName || '已认领') : (item.selected ? '已选择' : '点选')}}</view>

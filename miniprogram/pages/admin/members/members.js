@@ -13,6 +13,14 @@ function buildSlotCards(slots, selectedSlotKey, editingUserId) {
     }))
 }
 
+function buildSlotState(slots, selectedSlotKey, editingUserId) {
+  const editSlots = buildSlotCards(slots, selectedSlotKey, editingUserId)
+  return {
+    editSlots,
+    ...familySlots.splitSlotsByGroup(editSlots)
+  }
+}
+
 function identityFormFromMember(member, layoutSlots) {
   const slotKey = familySlots.normalizeSlotKey(member && member.slotKey)
   const showChildRelationship = familySlots.isChildSlot(slotKey)
@@ -20,7 +28,7 @@ function identityFormFromMember(member, layoutSlots) {
   return {
     selectedSlotKey: slotKey,
     selectedSlotLabel: slotKey ? familySlots.slotLabel(slotKey, member && member.relationship) : '',
-    editSlots: buildSlotCards(layoutSlots, slotKey, member && member.userId),
+    ...buildSlotState(layoutSlots, slotKey, member && member.userId),
     showChildRelationship,
     childRelationshipIndex,
     birthYear: member && member.birthYear ? String(member.birthYear) : '',
@@ -38,7 +46,7 @@ Page({
     items: [],
     layoutSlots: [],
     editingMember: null,
-    editSlots: buildSlotCards(null, '', null),
+    ...buildSlotState(null, '', null),
     selectedSlotKey: '',
     selectedSlotLabel: '',
     childRelationshipOptions: familySlots.CHILD_RELATIONSHIP_OPTIONS,
@@ -124,7 +132,7 @@ Page({
         ? this.data.childRelationshipOptions[this.data.childRelationshipIndex].value
         : undefined),
       showChildRelationship,
-      editSlots: buildSlotCards(this.data.layoutSlots, selectedSlotKey, this.data.editingMember && this.data.editingMember.userId)
+      ...buildSlotState(this.data.layoutSlots, selectedSlotKey, this.data.editingMember && this.data.editingMember.userId)
     })
   },
   handleChildRelationshipChange(event) {
