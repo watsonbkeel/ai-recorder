@@ -11,7 +11,7 @@
   <view wx:elif="{{error}}" class="error">{{error}}</view>
 
   <view wx:else>
-    <view wx:if="{{!families.length}}" class="empty">还没有家庭空间，先创建一个家。</view>
+    <view wx:if="{{!families.length}}" class="empty">先加入家人已经创建的家庭；如果你是第一个使用者，再创建一个家。</view>
     <view wx:for="{{families}}" wx:key="id" class="card family-card" bindtap="selectFamily" data-item="{{item}}">
       <view class="row-between">
         <view>
@@ -24,8 +24,15 @@
     </view>
 
     <view class="card">
+      <view class="title">加入已有家庭</view>
+      <view class="sub-title">输入家人分享的专属邀请码加入，通常会更顺手。</view>
+      <input class="input" placeholder="请输入邀请码，例如家长手机号" value="{{inviteCode}}" bindinput="handleInviteCodeInput" />
+      <button class="btn-primary" bindtap="joinFamily">确认加入</button>
+    </view>
+
+    <view class="card">
       <view class="title">创建家庭</view>
-      <view class="sub-title">为家人准备一个只属于这个家庭的暖心留声空间。</view>
+      <view class="sub-title">如果你是家里的第一个使用者，再创建新的家庭空间。</view>
       <input class="input" placeholder="家庭名称，例如：我们家" value="{{createName}}" bindinput="handleNameInput" />
       <textarea class="textarea" placeholder="一句家庭介绍，可不填" value="{{createDescription}}" bindinput="handleDescriptionInput"></textarea>
       <view class="section-title">点选你在家里的位置</view>
@@ -53,10 +60,6 @@
       <input class="input" placeholder="希望被称呼，例如 爸、姐姐" value="{{preferredTitle}}" bindinput="handlePreferredTitleInput" />
       <textarea class="textarea" placeholder="身份备注，例如 异地上大学、工作较忙，可不填" value="{{identityNote}}" bindinput="handleIdentityNoteInput"></textarea>
       <button class="btn-primary" loading="{{creating}}" disabled="{{creating}}" bindtap="createFamily">创建并进入</button>
-    </view>
-
-    <view class="card soft-panel">
-      <button class="btn-secondary" bindtap="goJoin">通过邀请码加入家庭</button>
     </view>
   </view>
 </view>

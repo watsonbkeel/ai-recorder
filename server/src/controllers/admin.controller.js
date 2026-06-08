@@ -11,6 +11,11 @@ async function listJoinRequests(req, res) {
   return sendSuccess(res, data, 'ok')
 }
 
+async function updateInviteCode(req, res) {
+  const data = await adminService.updateInviteCode(req.user.id, req.params.familyId, req.body)
+  return sendSuccess(res, data, '邀请码修改成功')
+}
+
 async function handleJoinRequest(req, res) {
   const data = await adminService.handleJoinRequest(req.user.id, req.params.requestId, req.body)
   return sendSuccess(res, data, 'ok')
@@ -53,6 +58,7 @@ async function hideReply(req, res) {
 
 module.exports = {
   getDashboard,
+  updateInviteCode,
   listJoinRequests,
   handleJoinRequest,
   listMembers,

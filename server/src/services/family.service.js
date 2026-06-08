@@ -1,7 +1,7 @@
 const prisma = require('../utils/prisma')
 const { createError } = require('../utils/errors')
 const { generateInviteCode } = require('../utils/inviteCode')
-const { ensureFamilyMember } = require('../middleware/auth')
+const { ensureFamilyMember, ensureFamilyAdmin } = require('../middleware/auth')
 const {
   normalizeIdentityPayload,
   normalizeIdentityUpdatePayload,
@@ -21,6 +21,17 @@ async function createUniqueInviteCode(tx) {
     }
   }
   throw createError('INTERNAL_ERROR', '生成邀请码失败', 500)
+}
+
+function normalizeInviteCode(value) {
+  const code = String(value || '').trim().toUpperCase()
+  if (!code) {
+    throw createError('VALIDATION_ERROR', '邀请码不能为空', 400)
+  }
+  if (code.length > 20) {
+    throw createError('VALIDATION_ERROR', '邀请码长度不能超过20个字符', 400)
+  }
+  return code
 }
 
 function mapFamily(family, member) {
@@ -186,10 +197,7 @@ async function listMyFamilies(userId) {
 }
 
 async function getFamilyByInviteCode(inviteCode, currentUserId) {
-  const code = String(inviteCode || '').trim().toUpperCase()
-  if (!code) {
-    throw createError('VALIDATION_ERROR', '邀请码不能为空', 400)
-  }
+  const code = normalizeInviteCode(inviteCode)
 
   const family = await prisma.family.findUnique({
     where: { inviteCode: code },
@@ -208,6 +216,29 @@ async function getFamilyByInviteCode(inviteCode, currentUserId) {
   return {
     ...mapFamily(family, null),
     slots: buildFamilyLayoutSlots(family.members, currentUserId)
+  }
+}
+
+async function updateInviteCode(adminUserId, familyId, payload) {
+  await ensureFamilyAdmin(adminUserId, familyId)
+  const inviteCode = normalizeInviteCode(payload && payload.inviteCode)
+  const numericFamilyId = Number(familyId)
+  const occupied = await prisma.family.findUnique({
+    where: { inviteCode },
+    select: { id: true }
+  })
+  if (occupied && occupied.id !== numericFamilyId) {
+    throw createError('ALREADY_EXISTS', '该邀请码已被其他家庭使用，请换一个', 400)
+  }
+
+  const family = await prisma.family.update({
+    where: { id: numericFamilyId },
+    data: { inviteCode }
+  })
+
+  return {
+    id: family.id,
+    inviteCode: family.inviteCode
   }
 }
 
@@ -331,6 +362,7 @@ module.exports = {
   createFamily,
   listMyFamilies,
   getFamilyByInviteCode,
+  updateInviteCode,
   listFamilyMembers,
   getFamilyLayout,
   updateMyIdentity,

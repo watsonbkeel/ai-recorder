@@ -13,6 +13,7 @@ Page({
     selectingFamilyId: null,
     error: '',
     families: [],
+    inviteCode: '',
     createName: '',
     createDescription: '',
     familySlots: buildSlotCards(''),
@@ -56,6 +57,9 @@ Page({
   },
   handleNameInput(event) {
     this.setData({ createName: event.detail.value })
+  },
+  handleInviteCodeInput(event) {
+    this.setData({ inviteCode: event.detail.value })
   },
   handleDescriptionInput(event) {
     this.setData({ createDescription: event.detail.value })
@@ -108,7 +112,17 @@ Page({
     wx.navigateTo({ url: `/pages/message-list/message-list?familyId=${currentFamily.id}` })
   },
   goJoin() {
-    wx.navigateTo({ url: '/pages/join-family/join-family' })
+    const inviteCode = this.data.inviteCode.trim()
+    const query = inviteCode ? `?inviteCode=${encodeURIComponent(inviteCode)}` : ''
+    wx.navigateTo({ url: `/pages/join-family/join-family${query}` })
+  },
+  joinFamily() {
+    const inviteCode = this.data.inviteCode.trim()
+    if (!inviteCode) {
+      wx.showToast({ title: '请输入邀请码', icon: 'none' })
+      return
+    }
+    this.goJoin()
   },
   async createFamily() {
     if (this.data.creating) {

@@ -191,6 +191,7 @@ Family-scoped message, reply, and join-review notifications are returned only wh
 ## Admin
 
 - `GET /api/admin/families/:familyId/dashboard`
+- `PUT /api/admin/families/:familyId/invite-code`
 - `GET /api/admin/families/:familyId/join-requests`
 - `POST /api/admin/join-requests/:requestId/handle`
 - `GET /api/admin/families/:familyId/members`

@@ -6,6 +6,13 @@
       <view class="title">{{currentFamily ? currentFamily.name : '家庭管理'}}</view>
       <view class="sub-title">维护家庭留声空间，确认家人身份，保护每个人的表达边界。</view>
     </view>
+    <view class="card stat-card row-between">
+      <view>
+        <view class="stat-label">家庭邀请码</view>
+        <view class="muted" style="margin-top: 8rpx;">{{currentFamily && currentFamily.inviteCode ? currentFamily.inviteCode : '未设置'}}</view>
+      </view>
+      <button class="btn-secondary" size="mini" bindtap="editInviteCode">修改</button>
+    </view>
     <view class="card stat-card row-between"><view class="stat-label">待确认入家申请</view><view class="stat-value">{{stats.pendingJoinRequests}}</view></view>
     <view class="card stat-card row-between"><view class="stat-label">家庭成员</view><view class="stat-value">{{stats.memberCount}}</view></view>
     <view class="card stat-card row-between"><view class="stat-label">家庭留言</view><view class="stat-value">{{stats.messageCount}}</view></view>

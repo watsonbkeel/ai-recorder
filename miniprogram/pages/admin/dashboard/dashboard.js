@@ -32,7 +32,13 @@ Page({
     this.setData({ loading: true, error: '' })
     try {
       const stats = await adminService.getDashboard(this.data.familyId)
-      this.setData({ stats, currentFamily: auth.getCurrentFamily() })
+      const currentFamily = {
+        ...(auth.getCurrentFamily() || {}),
+        ...(stats && stats.family ? stats.family : {})
+      }
+      auth.setCurrentFamily(currentFamily)
+      getApp().setCurrentFamily(currentFamily)
+      this.setData({ stats, currentFamily })
     } catch (error) {
       if (handleFamilyAccessError(error, this.data.familyId)) {
         return
@@ -48,6 +54,48 @@ Page({
   },
   goJoinRequests() {
     wx.navigateTo({ url: `/pages/admin/join-requests/join-requests?familyId=${this.data.familyId}` })
+  },
+  editInviteCode() {
+    const currentFamily = this.data.currentFamily || {}
+    wx.showModal({
+      title: '修改家庭邀请码',
+      editable: true,
+      placeholderText: '推荐使用家长手机号，最多20个字符',
+      content: currentFamily.inviteCode || '',
+      success: async (res) => {
+        const newCode = String(res.content || '').trim()
+        if (!res.confirm) {
+          return
+        }
+        if (!newCode) {
+          wx.showToast({ title: '邀请码不能为空', icon: 'none' })
+          return
+        }
+        if (newCode.length > 20) {
+          wx.showToast({ title: '不能超过20个字符', icon: 'none' })
+          return
+        }
+        if (newCode === currentFamily.inviteCode) {
+          return
+        }
+        wx.showLoading({ title: '修改中' })
+        try {
+          const updated = await adminService.updateInviteCode(this.data.familyId, newCode)
+          const nextFamily = {
+            ...currentFamily,
+            inviteCode: updated.inviteCode
+          }
+          auth.setCurrentFamily(nextFamily)
+          getApp().setCurrentFamily(nextFamily)
+          this.setData({ currentFamily: nextFamily })
+          wx.showToast({ title: '修改成功', icon: 'success' })
+        } catch (error) {
+          wx.showToast({ title: error.message || '修改失败', icon: 'none' })
+        } finally {
+          wx.hideLoading()
+        }
+      }
+    })
   },
   goMembers() {
     wx.navigateTo({ url: `/pages/admin/members/members?familyId=${this.data.familyId}` })

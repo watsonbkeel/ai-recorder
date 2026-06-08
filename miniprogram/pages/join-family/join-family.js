@@ -24,6 +24,14 @@ Page({
     loading: false,
     error: ''
   },
+  onLoad(options) {
+    const inviteCode = String((options && options.inviteCode) || '').trim()
+    if (!inviteCode) {
+      return
+    }
+    this.setData({ inviteCode })
+    this.previewFamily()
+  },
   handleInviteInput(event) {
     this.setData({
       inviteCode: event.detail.value,

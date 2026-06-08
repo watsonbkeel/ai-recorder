@@ -7,6 +7,7 @@ const router = express.Router()
 
 router.use(requireAuth)
 router.get('/families/:familyId/dashboard', asyncHandler(controller.getDashboard))
+router.put('/families/:familyId/invite-code', asyncHandler(controller.updateInviteCode))
 router.get('/families/:familyId/join-requests', asyncHandler(controller.listJoinRequests))
 router.post('/join-requests/:requestId/handle', asyncHandler(controller.handleJoinRequest))
 router.get('/families/:familyId/members', asyncHandler(controller.listMembers))

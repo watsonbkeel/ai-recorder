@@ -4,6 +4,10 @@ function getDashboard(familyId) {
   return request({ url: `/admin/families/${familyId}/dashboard` })
 }
 
+function updateInviteCode(familyId, inviteCode) {
+  return request({ url: `/admin/families/${familyId}/invite-code`, method: 'PUT', data: { inviteCode } })
+}
+
 function getJoinRequests(familyId) {
   return request({ url: `/admin/families/${familyId}/join-requests` })
 }
@@ -42,6 +46,7 @@ function hideReply(replyId, data) {
 
 module.exports = {
   getDashboard,
+  updateInviteCode,
   getJoinRequests,
   handleJoinRequest,
   getMembers,

@@ -4,7 +4,7 @@ const { ensureFamilyAdmin } = require('../middleware/auth')
 const { createNotification } = require('./notification.service')
 const { normalizeIdentityPayload, mapIdentity, mapMember, sortFamilyMembers } = require('../utils/familyIdentity')
 const { invalidateFamilyMemories } = require('./familyMemory.service')
-const { ensureFamilySlotAvailable, attachSlotMessagesToMember } = require('./family.service')
+const { ensureFamilySlotAvailable, attachSlotMessagesToMember, updateInviteCode: updateFamilyInviteCode } = require('./family.service')
 
 const JOIN_REQUEST_STATUSES = new Set(['pending', 'approved', 'rejected'])
 
@@ -32,7 +32,11 @@ async function countAdmins(tx, familyId) {
 async function getDashboard(userId, familyId) {
   await ensureFamilyAdmin(userId, familyId)
   const numericFamilyId = Number(familyId)
-  const [pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount] = await Promise.all([
+  const [family, pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount] = await Promise.all([
+    prisma.family.findUnique({
+      where: { id: numericFamilyId },
+      select: { id: true, name: true, inviteCode: true, description: true }
+    }),
     prisma.familyJoinRequest.count({ where: { familyId: numericFamilyId, status: 'pending' } }),
     prisma.familyMember.count({ where: { familyId: numericFamilyId } }),
     prisma.familyMessage.count({ where: { familyId: numericFamilyId, status: 'visible' } }),
@@ -46,7 +50,11 @@ async function getDashboard(userId, familyId) {
     prisma.familyMember.count({ where: { familyId: numericFamilyId, isMuted: true } })
   ])
 
-  return { pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount }
+  return { family, pendingJoinRequests, memberCount, messageCount, replyCount, mutedMemberCount }
+}
+
+async function updateInviteCode(adminUserId, familyId, payload) {
+  return updateFamilyInviteCode(adminUserId, familyId, payload)
 }
 
 async function listJoinRequests(userId, familyId, query) {
@@ -413,6 +421,7 @@ async function hideReply(adminUserId, replyId, payload) {
 
 module.exports = {
   getDashboard,
+  updateInviteCode,
   listJoinRequests,
   handleJoinRequest,
   listMembers,
