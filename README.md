@@ -60,7 +60,7 @@ wx.removeStorageSync('AI_RECORDER_LOCAL_CONFIG')
 
 微信登录需要在本地 `server/.env` 配置 `WECHAT_APPID` 和 `WECHAT_SECRET`。完整 AppID 和真实 `WECHAT_SECRET` 都不能提交到仓库，也不要写入文档、日志或提交信息。
 
-AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`；新增留言页可选择“高级模型预览”，后端固定使用 `OPENAI_ADVANCED_MODEL`，默认 `gpt-5.5`。语音转文字默认走本机 Qwen3-ASR 服务，见 `docs/QWEN_ASR.md`。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
+AI 留言处理默认使用 OpenAI 兼容接口 `https://token.bkeel.com/v1` 和模型 `gpt-5.4-mini`；新增留言和回复整理可选择“高级模型预览”，后端固定使用 `OPENAI_ADVANCED_MODEL`，默认 `gpt-5.5`。语音转文字默认走本机 Qwen3-ASR 服务，见 `docs/QWEN_ASR.md`。真实 `OPENAI_API_KEY` 只能放在本地 `server/.env`，不能提交。
 
 迁移到 Mac 后可在仓库根目录运行：
 

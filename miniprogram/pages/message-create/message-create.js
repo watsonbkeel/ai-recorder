@@ -18,7 +18,7 @@ const VISIBILITY_DESCRIPTIONS = [
   '只保存给自己，用来整理想法，不通知家人。'
 ]
 const PREVIEW_MODELS = ['standard', 'advanced']
-const PREVIEW_MODEL_LABELS = ['普通模型预览', '高级模型预览']
+const PREVIEW_MODEL_LABELS = ['普通模型', '高级模型']
 const AI_STATUS_STEPS = [
   'AI 正在理解你的心里话...',
   '正在识别这段话背后的情绪和需求...',
@@ -53,6 +53,7 @@ Page({
     uploadedAudioUrl: '',
     audioDurationSec: 0,
     recording: false,
+    isCancelVoice: false,
     playingAudio: false,
     transcribing: false,
     transcribeStatus: '',
@@ -68,6 +69,13 @@ Page({
   onLoad(options) {
     this.audio = wx.createInnerAudioContext ? wx.createInnerAudioContext() : null
     this.setData({ familyId: Number(options.familyId) })
+
+    // 初始化读取用户缓存的模型偏好
+    const savedModelIndex = wx.getStorageSync('ai_preview_model_index')
+    if (savedModelIndex !== '' && savedModelIndex !== null) {
+      this.setData({ previewModelIndex: Number(savedModelIndex) })
+    }
+
     if (!Number(options.familyId)) {
       this.exitInvalidFamily('请先选择家庭')
       return
@@ -81,6 +89,7 @@ Page({
         this.voicePressActive = false
         this.setData({
           recording: false,
+          isCancelVoice: false,
           transcribeStatus: '录音没有保存成功，请重新按住说话。',
           error: '录音失败，请重试'
         })
@@ -122,7 +131,12 @@ Page({
     let index = 0
     this.setData({ aiStatusText: AI_STATUS_STEPS[index] })
     this.aiStatusTimer = setInterval(() => {
-      index = Math.min(index + 1, AI_STATUS_STEPS.length - 1)
+      if (index >= AI_STATUS_STEPS.length - 1) {
+        clearInterval(this.aiStatusTimer)
+        this.aiStatusTimer = null
+        return
+      }
+      index++
       this.setData({ aiStatusText: AI_STATUS_STEPS[index] })
     }, 4500)
   },
@@ -144,19 +158,37 @@ Page({
     }, 500)
   },
   async loadMembers() {
-    if (!this.data.familyId) {
-      return
-    }
+    if (!this.data.familyId) return
     this.setData({ membersLoading: true, error: '' })
     try {
       const layout = await familyService.getFamilyLayout(this.data.familyId)
-      const slots = familySlots.decorateSlots(layout.slots, this.data.selectedReceiverSlotKeys)
-        .filter((slot) => !(slot.member && slot.member.isSelf))
       const members = layout.members || []
+
+      // 找出当前用户，用于严格过滤
+      const selfMember = members.find((m) => m.isSelf)
+      const selfUserId = selfMember ? selfMember.userId : null
+      const selfSlotKey = selfMember ? selfMember.slotKey : null
+
+      const slots = familySlots.decorateSlots(layout.slots, this.data.selectedReceiverSlotKeys)
+        .filter((slot) => {
+          // 如果 slot 已被占用且标记为 self，剔除
+          if (slot.member && slot.member.isSelf) return false;
+          // 如果 slot 被当前用户的 userId 占用，剔除
+          if (selfUserId && slot.member && slot.member.userId === selfUserId) return false;
+          // 如果该坑位是分配给当前用户的（即使为空），剔除
+          if (selfSlotKey && slot.key === selfSlotKey) return false;
+          return true;
+        })
+
       this.setData({
         receiverSlots: slots,
         members: members
-          .filter((member) => !member.isSelf)
+          .filter((member) => {
+             // 过滤底层成员列表
+             if (member.isSelf) return false;
+             if (selfUserId && member.userId === selfUserId) return false;
+             return true;
+          })
           .map((member) => ({
             ...member,
             selected: false,
@@ -210,14 +242,11 @@ Page({
     this.setData({ messageTypeIndex: Number(event.detail.value) })
   },
   handlePreviewModelChange(event) {
+    const index = Number(event.detail.value)
+    wx.setStorageSync('ai_preview_model_index', index)
     this.setData({
-      previewModelIndex: Number(event.detail.value),
-      optimizedText: '',
-      emotionTags: [],
-      coreNeed: '',
-      aiAdvice: '',
-      riskLevel: 'low',
-      attackWarning: ''
+      previewModelIndex: index
+      // 这里不主动清空已有优化的文本，用户可以直接点击“生成预览”用新模型再次生成
     })
   },
   handleVisibilityChange(event) {
@@ -353,7 +382,8 @@ Page({
     this.setData({
       recording: true, audioTempPath: '', audioDurationSec: 0, allowOriginalAudioPlay: false,
       uploadedAudioUrl: '',
-      transcribeStatus: replacingPreviousAudio ? '正在重新留声，这次录音会替换上一段原声。' : '正在录音，松手保存这段留声。',
+      isCancelVoice: false,
+      transcribeStatus: replacingPreviousAudio ? '正在重新留声，这次录音会替换上一段原声。' : '正在录音，松手保存，上滑取消。',
       error: ''
     })
     try {
@@ -370,7 +400,7 @@ Page({
       recorder.stop()
     }
   },
-  handleVoiceTouchStart() {
+  handleVoiceTouchStart(e) {
     if (this.data.inputMode !== 'voice' || this.data.transcribing) {
       return
     }
@@ -378,32 +408,55 @@ Page({
       wx.vibrateShort({ type: 'medium' })
     }
     this.voicePressActive = true
+    this.startY = e.touches[0].clientY
     this.startRecord()
   },
-  handleVoiceTouchEnd() {
+  handleVoiceTouchMove(e) {
+    if (!this.voicePressActive || !this.data.recording) return
+    const currentY = e.touches[0].clientY
+    const isCancelVoice = (this.startY - currentY > 50)
+    if (isCancelVoice !== this.data.isCancelVoice) {
+      this.setData({ isCancelVoice })
+    }
+  },
+  handleVoiceTouchEnd(e) {
     if (this.data.inputMode !== 'voice') {
       return
     }
     this.voicePressActive = false
     if (this.data.recording) {
-      this.setData({ transcribeStatus: '正在保存这段留声...' })
+      if (this.data.isCancelVoice) {
+        this._cancelNextRecord = true
+        this.setData({ transcribeStatus: '已取消本次录音。' })
+      } else {
+        this.setData({ transcribeStatus: '正在保存这段留声...' })
+      }
       this.stopRecord()
     }
   },
   handleVoiceTouchCancel() {
     this.voicePressActive = false
     if (this.data.recording) {
-      this.setData({ transcribeStatus: '录音已结束，正在保存...' })
+      this._cancelNextRecord = true
+      this.setData({ transcribeStatus: '录音被打断，已取消。' })
       this.stopRecord()
     }
   },
   handleRecordStop(res) {
     this.voicePressActive = false
+
+    if (this._cancelNextRecord) {
+      this._cancelNextRecord = false
+      this.setData({ recording: false, isCancelVoice: false })
+      return
+    }
+
     const durationMs = Number(res.duration || 0) || Math.max(0, Date.now() - (this.recordStartedAt || Date.now()))
     this.recordStartedAt = 0
     if (!res.tempFilePath) {
       this.setData({
         recording: false,
+        isCancelVoice: false,
         transcribeStatus: '没有保存到有效录音，请重新按住说话。',
         error: '录音保存失败，请重试'
       })
@@ -415,6 +468,7 @@ Page({
         uploadedAudioUrl: '',
         audioDurationSec: 0,
         recording: false,
+        isCancelVoice: false,
         transcribeStatus: '这段留声太短了，请按住多说一会儿。',
         error: '录音时间太短'
       })
@@ -425,6 +479,7 @@ Page({
       audioTempPath: res.tempFilePath,
       audioDurationSec: Math.max(1, Math.round(durationMs / 1000)),
       recording: false,
+      isCancelVoice: false,
       uploadedAudioUrl: '',
       allowOriginalAudioPlay: canShareAudio,
       transcribeStatus: '原声已保存，正在上传并转成文字...',
@@ -611,9 +666,10 @@ Page({
     }
   },
   async submit() {
-    if (this.data.loading || this.data.aiLoading || this.data.recording || this.data.playingAudio || this.data.transcribing) {
+    if (this.data.loading || this.data.aiLoading || this.data.recording || this.data.playingAudio || this.data.transcribing || this._isSubmitting) {
       return
     }
+
     const visibility = VISIBILITIES[this.data.visibilityIndex] || 'private'
     const receiverIds = this.effectiveReceiverIds()
     const receiverSlotKeys = this.effectiveReceiverSlotKeys()
@@ -626,15 +682,21 @@ Page({
       wx.showToast({ title: '请先打字或录音', icon: 'none' })
       return
     }
+
+    this._isSubmitting = true;
+
     const canContinue = await this.ensureOptimizedBeforeSubmit(visibility, receiverIds, receiverSlotKeys, originalText)
     if (!canContinue) {
+      this._isSubmitting = false;
       return
     }
     const optimizedText = this.data.optimizedText.trim() || originalText
     if (!optimizedText) {
       wx.showToast({ title: '请先补充一段发送前表达', icon: 'none' })
+      this._isSubmitting = false;
       return
     }
+
     this.setData({ loading: true, error: '' })
     try {
       let uploadedAudio = null
@@ -668,6 +730,7 @@ Page({
       }
       this.setData({ error: error.message || '发送失败' })
     } finally {
+      this._isSubmitting = false;
       this.setData({ loading: false })
     }
   }

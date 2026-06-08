@@ -14,6 +14,7 @@
         </view>
       </view>
       <view class="message-body">{{message.optimizedText}}</view>
+
       <view class="message-meta">
         <text wx:for="{{message.emotionTags}}" wx:key="*this" class="tag tag-peach">{{item}}</text>
       </view>
@@ -74,19 +75,54 @@
     </view>
 
     <view wx:if="{{message.visibility !== 'self'}}" class="card">
-      <view class="title">回复家人</view>
-      <textarea class="textarea" placeholder="写下你的原始回复" value="{{replyOriginalText}}" bindinput="handleReplyInput"></textarea>
-      <view class="row-between memory-row">
+      <view class="preview-heading">
+        <view class="title">回复家人</view>
+        <picker mode="selector" range="{{previewModelLabels}}" value="{{previewModelIndex}}" bindchange="handlePreviewModelChange">
+          <view class="preview-model">{{previewModelLabels[previewModelIndex]}}⌄</view>
+        </picker>
+      </view>
+
+      <textarea class="composer-textarea {{inputMode === 'voice' ? 'readonly' : ''}}" adjust-position="{{true}}" auto-height placeholder="直接写下回复，或录音转成文字" value="{{replyOriginalText}}" bindinput="handleReplyInput" disabled="{{inputMode === 'voice' || transcribing}}"></textarea>
+
+      <view class="chat-composer">
+        <view class="composer-action-row">
+          <button class="mode-toggle" disabled="{{aiLoading || transcribing || submitting}}" bindtap="toggleInputMode">
+            {{inputMode === 'voice' ? '⌨️ 文字' : '🎤 语音'}}
+          </button>
+          <view class="composer-spacer"></view>
+          <button class="composer-save" loading="{{aiLoading}}" disabled="{{aiLoading || recording || transcribing || submitting}}" bindtap="optimizeReply">{{aiLoading ? '整理中' : '暖心整理'}}</button>
+        </view>
+
+        <view wx:if="{{inputMode === 'voice'}}" class="hold-voice-row">
+          <view class="hold-voice {{recording ? (isCancelVoice ? 'hold-voice-cancel' : 'hold-voice-active') : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}"
+                catchtouchstart="handleVoiceTouchStart"
+                catchtouchmove="handleVoiceTouchMove"
+                catchtouchend="handleVoiceTouchEnd"
+                catchtouchcancel="handleVoiceTouchCancel">
+            {{recording ? (isCancelVoice ? '松手取消录音' : '松手保存，上滑取消') : (transcribing ? '正在处理留声' : '按住说话')}}
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{replyTranscribeStatus}}" class="voice-note">{{replyTranscribeStatus}}</view>
+
+      <view class="row-between memory-row" style="margin-top:20rpx;">
         <view>
           <view>参考家庭沟通习惯</view>
           <view class="muted">关闭后，AI 只参考这条可见留言和你的回复原意。</view>
         </view>
         <switch checked="{{useFamilyMemory}}" bindchange="handleMemorySwitch"></switch>
       </view>
-      <button class="btn-secondary" loading="{{aiLoading}}" disabled="{{aiLoading}}" bindtap="optimizeReply">暖心整理回复</button>
+
       <view wx:if="{{replyAiStatusText}}" class="ai-status">{{replyAiStatusText}}</view>
-      <textarea wx:if="{{replyOptimizedText}}" class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
-      <button class="btn-primary" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitReply">发送回复</button>
+
+      <block wx:if="{{replyOptimizedText}}">
+        <view style="margin-top: 30rpx; padding-top: 30rpx; border-top: 2rpx dashed var(--line-soft);">
+          <view class="sub-title" style="margin-bottom: 16rpx;">发送前表达 (可手动修改)</view>
+          <textarea class="textarea" value="{{replyOptimizedText}}" bindinput="handleReplyOptimizedInput"></textarea>
+          <button class="btn-submit" loading="{{submitting}}" disabled="{{submitting || aiLoading || recording || transcribing}}" bindtap="submitReply">确认发送回复</button>
+        </view>
+      </block>
     </view>
     <view wx:else class="card">
       <view class="title">自留心声</view>

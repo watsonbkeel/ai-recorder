@@ -13,42 +13,72 @@
       <view wx:if="{{membersLoading}}" class="muted">正在加载家庭位置...</view>
       <view wx:else class="family-layout">
         <view class="slot-row slot-row-parents">
-          <view wx:for="{{receiverSlots}}" wx:key="key" wx:if="{{item.group === 'parent'}}" class="family-slot receiver-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="toggleReceiverSlot">
-            <view class="slot-avatar">{{item.avatarText}}</view>
-            <view class="slot-title">{{item.displayLabel}}</view>
-            <view class="slot-status">{{item.member ? (item.member.displayName || '已加入') : '可先留言'}}</view>
-          </view>
+          <block wx:for="{{receiverSlots}}" wx:key="key">
+            <view wx:if="{{item.group === 'parent'}}" class="family-slot receiver-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="toggleReceiverSlot">
+              <view class="slot-avatar">{{item.avatarText}}</view>
+              <view class="slot-title">{{item.displayLabel}}</view>
+              <view class="slot-status">{{item.member ? (item.member.displayName || '已加入') : '可先留言'}}</view>
+            </view>
+          </block>
         </view>
         <view class="slot-row slot-row-children">
-          <view wx:for="{{receiverSlots}}" wx:key="key" wx:if="{{item.group === 'child'}}" class="family-slot child-slot receiver-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="toggleReceiverSlot">
-            <view class="slot-avatar">{{item.avatarText}}</view>
-            <view class="slot-title">{{item.displayLabel}}</view>
-            <view class="slot-status">{{item.member ? (item.member.displayName || '已加入') : '可先留言'}}</view>
-          </view>
+          <block wx:for="{{receiverSlots}}" wx:key="key">
+            <view wx:if="{{item.group === 'child'}}" class="family-slot child-slot receiver-slot {{item.selected ? 'family-slot-selected' : ''}}" data-key="{{item.key}}" bindtap="toggleReceiverSlot">
+              <view class="slot-avatar">{{item.avatarText}}</view>
+              <view class="slot-title">{{item.displayLabel}}</view>
+              <view class="slot-status">{{item.member ? (item.member.displayName || '已加入') : '可先留言'}}</view>
+            </view>
+          </block>
         </view>
       </view>
     </block>
 
     <view class="composer-card">
-      <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
-        <view class="composer-type">留言类型：{{messageTypeLabels[messageTypeIndex]}}</view>
-      </picker>
-      <textarea class="composer-textarea {{inputMode === 'voice' ? 'readonly' : ''}}" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput" disabled="{{inputMode === 'voice' || transcribing}}"></textarea>
-      <view class="chat-composer">
-        <button class="mode-toggle" disabled="{{loading || aiLoading || transcribing}}" bindtap="toggleInputMode">{{inputMode === 'voice' ? '字' : '声'}}</button>
-        <view wx:if="{{inputMode === 'voice'}}" class="hold-voice {{recording ? 'hold-voice-active' : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}" bindtouchstart="handleVoiceTouchStart" bindtouchend="handleVoiceTouchEnd" bindtouchcancel="handleVoiceTouchCancel">
-          {{recording ? '松手保存这段留声' : (transcribing ? '正在处理留声' : '按住说话')}}
-        </view>
-        <view wx:else class="composer-spacer"></view>
-        <button class="composer-save" loading="{{aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="optimize">{{aiLoading ? '整理中' : '生成预览'}}</button>
+      <view class="composer-options">
+        <picker mode="selector" range="{{messageTypeLabels}}" value="{{messageTypeIndex}}" bindchange="handleTypeChange">
+          <view class="option-picker">
+            <text>类型：{{messageTypeLabels[messageTypeIndex]}}</text>
+            <text class="picker-arrow">▾</text>
+          </view>
+        </picker>
+
+        <picker mode="selector" range="{{previewModelLabels}}" value="{{previewModelIndex}}" bindchange="handlePreviewModelChange">
+          <view class="option-picker">
+            <text>模型：{{previewModelLabels[previewModelIndex]}}</text>
+            <text class="picker-arrow">▾</text>
+          </view>
+        </picker>
       </view>
+
+      <textarea class="composer-textarea {{inputMode === 'voice' ? 'readonly' : ''}}" adjust-position="{{true}}" auto-height maxlength="4000" placeholder="直接写下想说的话，哪怕有点乱也没关系" value="{{originalText}}" bindinput="handleOriginalInput" disabled="{{inputMode === 'voice' || transcribing}}"></textarea>
+
+      <view class="chat-composer">
+        <view class="composer-action-row">
+          <button class="mode-toggle" disabled="{{loading || aiLoading || transcribing}}" bindtap="toggleInputMode">
+            {{inputMode === 'voice' ? '⌨️ 文字' : '🎤 语音'}}
+          </button>
+          <view class="composer-spacer"></view>
+          <button class="composer-save" loading="{{aiLoading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="optimize">{{aiLoading ? '整理中' : '生成预览'}}</button>
+        </view>
+
+        <view wx:if="{{inputMode === 'voice'}}" class="hold-voice-row">
+          <view class="hold-voice {{recording ? (isCancelVoice ? 'hold-voice-cancel' : 'hold-voice-active') : ''}} {{transcribing ? 'hold-voice-disabled' : ''}}"
+                catchtouchstart="handleVoiceTouchStart"
+                catchtouchmove="handleVoiceTouchMove"
+                catchtouchend="handleVoiceTouchEnd"
+                catchtouchcancel="handleVoiceTouchCancel">
+            {{recording ? (isCancelVoice ? '松手取消录音' : '松手保存，上滑取消') : (transcribing ? '正在处理留声' : '按住说话')}}
+          </view>
+        </view>
+      </view>
+
       <view class="composer-hint">{{inputMode === 'voice' ? '按住说话，松手后会自动上传原声并转成文字。' : '文字会先由 AI 整理成更容易被家人听见的暖心表达。'}}</view>
     </view>
 
     <view class="voice-actions" wx:if="{{audioTempPath}}">
       <button class="btn-secondary" loading="{{playingAudio}}" disabled="{{loading || aiLoading || recording || playingAudio}}" bindtap="playAudio">{{playingAudio ? '试听中' : '试听原声'}}</button>
     </view>
-    <view wx:if="{{recording}}" class="voice-chip">正在留声</view>
+    <view wx:if="{{recording}}" class="voice-chip">{{isCancelVoice ? '松开手指取消' : '正在留声'}}</view>
     <view wx:if="{{transcribeStatus}}" class="voice-note">{{transcribeStatus}}</view>
     <view wx:elif="{{audioTempPath && !recording}}" class="voice-note">已录制语音，原声会随留言一起保留。</view>
 
@@ -66,10 +96,8 @@
   <view wx:if="{{originalText || optimizedText || audioTempPath}}" class="card">
     <view class="preview-heading">
       <view class="title">发送前表达</view>
-      <picker mode="selector" range="{{previewModelLabels}}" value="{{previewModelIndex}}" bindchange="handlePreviewModelChange">
-        <view class="preview-model">{{previewModelLabels[previewModelIndex]}}⌄</view>
-      </picker>
-    </view>
+      </view>
+
     <view class="sub-title">发送时默认会自动整理原文；你也可以提前改成自己认可的整理版。</view>
     <textarea class="textarea" placeholder="可选：提前修改整理后的暖心表达" value="{{optimizedText}}" bindinput="handleOptimizedInput"></textarea>
     <view wx:if="{{emotionTags.length}}">
@@ -90,6 +118,7 @@
       <view>允许对方播放原始语音</view>
       <switch checked="{{allowOriginalAudioPlay}}" bindchange="handleAudioPermission"></switch>
     </view>
+
     <button class="btn-submit" loading="{{loading}}" disabled="{{loading || aiLoading || recording || playingAudio || transcribing}}" bindtap="submit">{{visibilityIndex === 2 ? '保存心声' : '确认发送给家人'}}</button>
   </view>
 

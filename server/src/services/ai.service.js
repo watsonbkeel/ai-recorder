@@ -304,6 +304,7 @@ function sanitizeOptimizeReplyPayload(payload = {}, messageContext) {
   return {
     originalText: normalizeOriginalText(payload.originalText),
     messageId: payload.messageId ? Number(payload.messageId) : null,
+    previewModel: normalizePreviewModel(payload.previewModel),
     useFamilyMemory: payload.useFamilyMemory !== false,
     familyContext: messageContext ? messageContext.familyContext : null,
     message: messageContext ? messageContext.message : null
@@ -610,10 +611,11 @@ async function optimizeReply(userId, payload) {
     throw createError('VALIDATION_ERROR', 'AI 整理回复需要指定留言', 400)
   }
   const messageContext = payload.messageId ? await loadMessageContext(userId, payload.messageId, payload, { rejectSelfReply: true }) : null
+  const modelName = previewModelName(payload.previewModel)
   const raw = await callOpenAI(`${baseRules}
 将用户准备回复家人的话优化为真诚、尊重、不说教、不讽刺、较少伤害的表达。若回复对象是父母、子女、伴侣或手足，要调整称呼和边界表达。返回字段：optimizedText, emotionTags, communicationAdvice, riskLevel, attackWarning。`, {
     request: sanitizeOptimizeReplyPayload(payload, messageContext)
-  })
+  }, modelName)
   const result = normalizeOptimizeResult(raw)
   if (!result.optimizedText && result.riskLevel !== 'high') {
     throw createError('AI_PROVIDER_FAILED', 'AI 未返回优化回复', 502)
