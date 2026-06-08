@@ -9,13 +9,11 @@
 
   <view class="card">
     <view class="help-list">
-      <view class="help-item"><view class="help-index">1</view><view class="help-text">推荐使用微信登录，首次进入会自动创建家庭账号。</view></view>
+      <view class="help-item"><view class="help-index">1</view><view class="help-text">首次进入会自动创建家庭账号。</view></view>
       <view class="help-item"><view class="help-index">2</view><view class="help-text">进入家庭后可以留声、整理暖心表达、回复和查看家人通知。</view></view>
     </view>
-    <input class="input" placeholder="昵称（可选）" value="{{nickname}}" bindinput="handleNicknameInput" />
-    <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="handleWechatLogin">微信登录 / 注册</button>
-    <view class="divider"></view>
-    <view class="tag">{{mode === 'login' ? '账号登录' : '注册新账号'}}</view>
+
+    <view class="tag" style="margin-top: 30rpx;">{{mode === 'login' ? '账号登录' : '注册新账号'}}</view>
     <input class="input" placeholder="账号名（3-32位字母/数字）" value="{{accountName}}" bindinput="handleAccountInput" />
     <input class="input" password="true" placeholder="密码（至少6位）" value="{{password}}" bindinput="handlePasswordInput" />
     <button class="btn-primary" loading="{{loading}}" disabled="{{loading}}" bindtap="handleSubmit">{{mode === 'login' ? '登录' : '注册并登录'}}</button>

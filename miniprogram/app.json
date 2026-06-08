@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/splash/splash",
     "pages/login/login",
     "pages/family-select/family-select",
     "pages/join-family/join-family",

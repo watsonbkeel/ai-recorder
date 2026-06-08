@@ -1,0 +1,3 @@
+<view class="splash-container">
+  <image class="splash-image" src="/images/recorder-loading.jpeg" mode="aspectFill"></image>
+</view>
